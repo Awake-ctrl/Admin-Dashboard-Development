@@ -1,0 +1,21 @@
+# ------------------
+# Frontend Environment
+# ------------------
+REACT_APP_API_URL=http://localhost:8000
+REACT_APP_AUTH_TOKEN_SECRET=<your-jwt-secret>
+REACT_APP_ENV=development
+
+# ------------------
+# Backend Environment
+# ------------------
+POSTGRES_USER=<your-db-username>
+POSTGRES_PASSWORD=<your-db-password>
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=<your-db-name>
+
+SECRET_KEY=<your-fastapi-secret-key>
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+
+ENVIRONMENT=development
+DEBUG=True
