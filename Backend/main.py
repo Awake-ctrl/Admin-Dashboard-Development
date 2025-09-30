@@ -3,12 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import os
-from datetime import datetime, date
+from datetime import datetime, date  # Make sure this import exists
+import uuid
+from sqlalchemy import func  # Add this import for aggregate functions
 
 from database import SessionLocal, engine, Base
 import models
 import schemas
-
+from services.revenue_service import RevenueService
 # Create tables
 Base.metadata.create_all(bind=engine)
 
@@ -216,6 +218,148 @@ def get_subscription_stats(db: Session = Depends(get_db)):
             })
     
     return {"subscription_stats": stats}
+
+# Add to existing main.py
+# Subscription Plan endpoints
+@app.get("/subscription-plans/", response_model=List[schemas.SubscriptionPlan])
+def get_subscription_plans(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    plans = db.query(models.SubscriptionPlan).offset(skip).limit(limit).all()
+    return plans
+
+@app.get("/subscription-plans/{plan_id}", response_model=schemas.SubscriptionPlan)
+def get_subscription_plan(plan_id: int, db: Session = Depends(get_db)):
+    plan = db.query(models.SubscriptionPlan).filter(models.SubscriptionPlan.id == plan_id).first()
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Subscription plan not found")
+    return plan
+
+@app.post("/subscription-plans/", response_model=schemas.SubscriptionPlan)
+def create_subscription_plan(plan: schemas.SubscriptionPlanCreate, db: Session = Depends(get_db)):
+    # Check if plan with same name already exists
+    existing_plan = db.query(models.SubscriptionPlan).filter(models.SubscriptionPlan.name == plan.name).first()
+    if existing_plan:
+        raise HTTPException(status_code=400, detail="Subscription plan with this name already exists")
+    
+    db_plan = models.SubscriptionPlan(**plan.dict())
+    db.add(db_plan)
+    db.commit()
+    db.refresh(db_plan)
+    return db_plan
+
+@app.put("/subscription-plans/{plan_id}", response_model=schemas.SubscriptionPlan)
+def update_subscription_plan(plan_id: int, plan: schemas.SubscriptionPlanUpdate, db: Session = Depends(get_db)):
+    db_plan = db.query(models.SubscriptionPlan).filter(models.SubscriptionPlan.id == plan_id).first()
+    if db_plan is None:
+        raise HTTPException(status_code=404, detail="Subscription plan not found")
+    
+    for field, value in plan.dict(exclude_unset=True).items():
+        setattr(db_plan, field, value)
+    
+    db_plan.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(db_plan)
+    return db_plan
+
+@app.delete("/subscription-plans/{plan_id}")
+def delete_subscription_plan(plan_id: int, db: Session = Depends(get_db)):
+    plan = db.query(models.SubscriptionPlan).filter(models.SubscriptionPlan.id == plan_id).first()
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Subscription plan not found")
+    
+    db.delete(plan)
+    db.commit()
+    return {"message": "Subscription plan deleted successfully"}
+
+# Transaction endpoints
+@app.get("/transactions/", response_model=List[schemas.Transaction])
+def get_transactions(
+    skip: int = 0, 
+    limit: int = 100,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Transaction)
+    
+    if status:
+        query = query.filter(models.Transaction.status == status)
+    
+    transactions = query.order_by(models.Transaction.date.desc()).offset(skip).limit(limit).all()
+    return transactions
+
+# Update transaction endpoints to handle revenue updates
+@app.post("/transactions/", response_model=schemas.Transaction)
+def create_transaction(transaction: schemas.TransactionCreate, db: Session = Depends(get_db)):
+    db_transaction = models.Transaction(**transaction.dict())
+    db.add(db_transaction)
+    db.commit()
+    db.refresh(db_transaction)
+    
+    # Update revenue stats
+    RevenueService.update_all_plans_revenue(db)
+    
+    return db_transaction
+
+@app.put("/transactions/{transaction_id}", response_model=schemas.Transaction)
+def update_transaction(transaction_id: int, transaction: schemas.TransactionUpdate, db: Session = Depends(get_db)):
+    db_transaction = db.query(models.Transaction).filter(models.Transaction.id == transaction_id).first()
+    if db_transaction is None:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    old_status = db_transaction.status
+    
+    for field, value in transaction.dict(exclude_unset=True).items():
+        setattr(db_transaction, field, value)
+    
+    db.commit()
+    db.refresh(db_transaction)
+    
+    # Update revenue if status changed
+    if 'status' in transaction.dict(exclude_unset=True):
+        RevenueService.handle_transaction_status_change(db, transaction_id, old_status, transaction.status)
+    
+    return db_transaction
+
+# Update refund processing to affect revenue
+@app.put("/refund-requests/{request_id}", response_model=schemas.RefundRequest)
+def update_refund_request(request_id: int, refund_request: schemas.RefundRequestUpdate, db: Session = Depends(get_db)):
+    db_refund_request = db.query(models.RefundRequest).filter(models.RefundRequest.id == request_id).first()
+    if db_refund_request is None:
+        raise HTTPException(status_code=404, detail="Refund request not found")
+    
+    old_status = db_refund_request.status
+    
+    for field, value in refund_request.dict(exclude_unset=True).items():
+        setattr(db_refund_request, field, value)
+    
+    if refund_request.status in ["approved", "rejected", "processed"]:
+        db_refund_request.processed_date = datetime.utcnow()
+        db_refund_request.processed_by = "admin"
+    
+    db.commit()
+    db.refresh(db_refund_request)
+    
+    # If refund is approved, update related transaction and revenue
+    if refund_request.status == "approved" and old_status != "approved":
+        # Find and update the related transaction
+        transaction = db.query(models.Transaction).filter(
+            models.Transaction.user_id == db_refund_request.user_id,
+            models.Transaction.plan_name == db_refund_request.plan_name,
+            models.Transaction.amount == db_refund_request.amount,
+            models.Transaction.status == "captured"
+        ).first()
+        
+        if transaction:
+            transaction.status = "refunded"
+            db.commit()
+            RevenueService.update_all_plans_revenue(db)
+    
+    return db_refund_request
+
+# Analytics endpoint
+@app.get("/analytics/subscription-stats")
+def get_subscription_stats(db: Session = Depends(get_db)):
+    return RevenueService.get_subscription_stats(db)
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
