@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { AdminSidebar } from "./components/AdminSidebar";
 import { demoScreens, mainRoutes, sectionTitles } from "./config/routeConfig";
+// In your main App.tsx or layout
+import { Toaster } from "sonner";
 
+// In your JSX
 export default function App() {
   const [activeSection, setActiveSection] = useState("analytics");
   const [demoMode, setDemoMode] = useState<string | null>(null);
@@ -29,6 +32,7 @@ export default function App() {
         onSectionChange={setActiveSection}
         onDemoModeChange={setDemoMode}
       />
+<Toaster position="top-right" />
       
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
