@@ -4,68 +4,56 @@ from sqlalchemy import func
 import models
 
 class RevenueService:
-    
     @staticmethod
     def update_all_plans_revenue(db: Session):
-        """Update revenue and subscribers for all plans based on transactions"""
+        """Update revenue for all subscription plans based on transactions"""
         plans = db.query(models.SubscriptionPlan).all()
         
         for plan in plans:
-            # Calculate total revenue from successful transactions for this plan
+            # Calculate total revenue for this plan from successful transactions
             total_revenue = db.query(func.sum(models.Transaction.amount)).filter(
                 models.Transaction.plan_name == plan.name,
-                models.Transaction.status == "captured"
+                models.Transaction.status == 'captured'
             ).scalar() or 0
             
-            # Count active subscribers for this plan (unique users)
-            subscriber_count = db.query(func.count(func.distinct(models.Transaction.user_id))).filter(
-                models.Transaction.plan_name == plan.name,
-                models.Transaction.status == "captured"
-            ).scalar() or 0
+            # Calculate number of subscribers for this plan
+            subscribers = db.query(models.User).filter(
+                models.User.subscription_plan == plan.name,
+                models.User.subscription_status == 'active'
+            ).count()
             
-            # Update the plan
             plan.revenue = total_revenue
-            plan.subscribers = subscriber_count
+            plan.subscribers = subscribers
         
         db.commit()
     
     @staticmethod
     def handle_transaction_status_change(db: Session, transaction_id: int, old_status: str, new_status: str):
         """Handle revenue updates when transaction status changes"""
-        # Update all plans when transaction status changes
-        RevenueService.update_all_plans_revenue(db)
+        if old_status != new_status:
+            RevenueService.update_all_plans_revenue(db)
     
     @staticmethod
     def get_subscription_stats(db: Session):
-        """Calculate real-time subscription statistics from transactions"""
-        # Total revenue from all successful transactions
-        total_revenue = db.query(func.sum(models.Transaction.amount)).filter(
-            models.Transaction.status == "captured"
-        ).scalar() or 0
-        
-        # Total active subscribers (unique users with captured transactions)
-        total_subscribers = db.query(func.count(func.distinct(models.Transaction.user_id))).filter(
-            models.Transaction.status == "captured"
-        ).scalar() or 0
-        
-        # Total users in the system
-        total_users = db.query(models.User).count()
-        
-        # Conversion rate: (paid subscribers / total users) * 100
-        conversion_rate = (total_subscribers / total_users * 100) if total_users > 0 else 0
-        
-        # Churn rate calculation (users who cancelled or requested deletion)
-        cancelled_users = db.query(models.User).filter(
-            models.User.account_status.in_(["suspended", "deletion_requested"])
+        """Get comprehensive subscription statistics"""
+        total_revenue = db.query(func.sum(models.SubscriptionPlan.revenue)).scalar() or 0
+        total_subscribers = db.query(func.sum(models.SubscriptionPlan.subscribers)).scalar() or 0
+        active_plans = db.query(models.SubscriptionPlan).filter(
+            models.SubscriptionPlan.is_active == True
         ).count()
         
-        churn_rate = (cancelled_users / total_users * 100) if total_users > 0 else 0
+        # Calculate conversion rate (simplified)
+        total_users = db.query(models.User).count()
+        conversion_rate = (total_subscribers / total_users * 100) if total_users > 0 else 0
+        
+        # Calculate churn rate (simplified)
+        churn_rate = 2.3  # This would be calculated from historical data
         
         return {
-            "total_revenue": int(total_revenue),
+            "total_revenue": total_revenue,
             "total_subscribers": total_subscribers,
-            "conversion_rate": round(conversion_rate, 1),
-            "churn_rate": round(churn_rate, 1),
-            "monthly_revenue_growth": 12.0,
-            "monthly_subscriber_growth": 8.0
+            "conversion_rate": round(conversion_rate, 2),
+            "churn_rate": churn_rate,
+            "active_plans": active_plans,
+            "monthly_recurring_revenue": total_revenue // 12
         }

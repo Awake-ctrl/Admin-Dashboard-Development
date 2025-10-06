@@ -1,33 +1,30 @@
-# Add to existing schemas.py
-
+# schemas.py
 from pydantic import BaseModel, EmailStr
-from typing import List, Optional, Any
+from typing import List, Optional, Dict, Any
 from datetime import datetime, date
-# User schemas
+
+# User Schemas
 class UserBase(BaseModel):
     name: str
-    email: str
+    email: EmailStr
     phone: Optional[str] = None
     exam_type: Optional[str] = None
     subscription_status: Optional[str] = None
     subscription_plan: Optional[str] = None
     join_date: Optional[date] = None
     last_active: Optional[date] = None
-    total_study_hours: Optional[int] = 0
-    tests_attempted: Optional[int] = 0
-    average_score: Optional[float] = 0.0
+    total_study_hours: int = 0
+    tests_attempted: int = 0
+    average_score: float = 0.0
     current_rank: Optional[int] = None
-    account_status: Optional[str] = "active"
-    deletion_requested: Optional[bool] = False
-    deletion_request_date: Optional[date] = None
-    deletion_reason: Optional[str] = None
+    account_status: str = "active"
 
 class UserCreate(UserBase):
     pass
 
 class UserUpdate(BaseModel):
     name: Optional[str] = None
-    email: Optional[str] = None
+    email: Optional[EmailStr] = None
     phone: Optional[str] = None
     exam_type: Optional[str] = None
     subscription_status: Optional[str] = None
@@ -38,28 +35,28 @@ class UserUpdate(BaseModel):
     average_score: Optional[float] = None
     current_rank: Optional[int] = None
     account_status: Optional[str] = None
-    deletion_requested: Optional[bool] = None
-    deletion_reason: Optional[str] = None
 
 class User(UserBase):
     id: str
-    
-    class Config:
-        orm_mode = True
+    deletion_requested: bool = False
+    deletion_request_date: Optional[date] = None
+    deletion_reason: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
 
-# Account Deletion Request schemas
+    class Config:
+        from_attributes = True
+
+# Account Deletion Request Schemas
 class AccountDeletionRequestBase(BaseModel):
     user_id: str
     user_name: str
-    email: str
-    request_date: datetime
+    email: EmailStr
     reason: str
-    data_to_delete: List[str]
-    data_to_retain: List[str]
+    data_to_delete: Optional[str] = None
+    data_to_retain: Optional[str] = None
     status: str = "pending_review"
     estimated_deletion_date: Optional[datetime] = None
-    reviewed_by: Optional[str] = None
-    approved_date: Optional[datetime] = None
 
 class AccountDeletionRequestCreate(AccountDeletionRequestBase):
     pass
@@ -72,34 +69,14 @@ class AccountDeletionRequestUpdate(BaseModel):
 
 class AccountDeletionRequest(AccountDeletionRequestBase):
     id: str
-    
+    request_date: datetime
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
     class Config:
-        orm_mode = True
+        from_attributes = True
 
-# Analytics schemas
-class UserStats(BaseModel):
-    total_users: int
-    active_users: int
-    deletion_requests: int
-    monthly_churn: float
-
-class UserDemographics(BaseModel):
-    exam_type: str
-    count: int
-    percentage: float
-
-class SubscriptionStats(BaseModel):
-    status: str
-    count: int
-    percentage: float
-
-# class ActivityStats(BaseModel):
-#     level: str
-#     count: int
-#     percentage: float
-    
-# Add to existing schemas.py
-# Subscription schemas
+# Subscription Plan Schemas
 class SubscriptionPlanBase(BaseModel):
     name: str
     max_text: int = 0
@@ -132,17 +109,17 @@ class SubscriptionPlanUpdate(BaseModel):
 class SubscriptionPlan(SubscriptionPlanBase):
     id: int
     created_at: datetime
-    updated_at: datetime
-    
-    class Config:
-        orm_mode = True
+    updated_at: Optional[datetime] = None
 
-# Transaction schemas
+    class Config:
+        from_attributes = True
+
+# Transaction Schemas
 class TransactionBase(BaseModel):
     user_id: str
     user_name: str
     plan_name: str
-    plan_id: Optional[int] = None  # Add this
+    plan_id: Optional[int] = None
     type: str
     amount: int
     status: str
@@ -159,11 +136,12 @@ class TransactionUpdate(BaseModel):
 class Transaction(TransactionBase):
     id: int
     date: datetime
-    
-    class Config:
-        orm_mode = True
+    created_at: datetime
 
-# Refund Request schemas
+    class Config:
+        from_attributes = True
+
+# Refund Request Schemas
 class RefundRequestBase(BaseModel):
     user_id: str
     user_name: str
@@ -185,13 +163,287 @@ class RefundRequest(RefundRequestBase):
     request_date: datetime
     processed_date: Optional[datetime] = None
     processed_by: Optional[str] = None
-    
-    class Config:
-        orm_mode = True
+    created_at: datetime
+    updated_at: Optional[datetime] = None
 
-# Analytics schemas
+    class Config:
+        from_attributes = True
+
+# Exam Schemas
+class ExamBase(BaseModel):
+    name: str
+    display_name: str
+    description: Optional[str] = None
+
+class ExamCreate(ExamBase):
+    pass
+class ExamUpdate(BaseModel):
+    name: Optional[str] = None
+    display_name: Optional[str] = None
+    description: Optional[str] = None
+class Exam(ExamBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+# Subject Schemas
+class SubjectBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    exam_id: int
+    topics_count: int = 0
+
+class SubjectCreate(SubjectBase):
+    pass
+
+class Subject(SubjectBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+class SubjectUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    exam_id: Optional[int] = None
+    topics_count: Optional[int] = None
+# Topic Schemas
+class TopicBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    subject_id: int
+    user_count: int = 0
+    order_index: int = 0
+    is_active: bool = True
+
+class TopicCreate(TopicBase):
+    pass
+class TopicUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    subject_id: Optional[int] = None
+    user_count: Optional[int] = None
+    order_index: Optional[int] = None
+    is_active: Optional[bool] = None
+class Topic(TopicBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Course Schemas
+class CourseBase(BaseModel):
+    title: str
+    credits: int = 0
+    description: Optional[str] = None
+    exam_type: str
+    instructor: str
+    price: float = 0.0
+    duration: str
+    enrolled_students: int = 0
+    completion_rate: float = 0.0
+    rating: float = 0.0
+    status: str = "draft"
+    exam_id: Optional[int] = None
+
+class CourseCreate(BaseModel):
+    title: str
+    credits: int = 0
+    description: Optional[str] = None
+    exam_type: str
+    instructor: str
+    price: float = 0.0
+    duration: str
+    enrolled_students: int = 0
+    completion_rate: float = 0.0
+    rating: float = 0.0
+    status: str = "draft"
+    exam_id: Optional[int] = None
+    subject_ids: Optional[List[int]] = None  # Add this field
+
+class CourseUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    instructor: Optional[str] = None
+    price: Optional[float] = None
+    duration: Optional[str] = None
+    status: Optional[str] = None
+    enrolled_students: Optional[int] = None
+    completion_rate: Optional[float] = None
+    rating: Optional[float] = None
+    subject_ids: Optional[List[int]] = None  # Add this field
+
+class Course(CourseBase):
+    id: int
+    last_updated: datetime
+
+    class Config:
+        from_attributes = True
+
+class CourseWithDetails(Course):
+    exam: Optional[Exam] = None
+    modules: List["Module"] = []
+    user_courses: List["UserCourse"] = []
+
+    class Config:
+        from_attributes = True
+
+
+# Module Schemas
+class ModuleBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    course_id: int
+    order_index: int = 0
+    duration: str
+    lessons_count: int = 0
+
+class ModuleCreate(ModuleBase):
+    pass
+class ModuleUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    course_id: Optional[int] = None
+    order_index: Optional[int] = None
+    duration: Optional[str] = None
+    lessons_count: Optional[int] = None
+
+class Module(ModuleBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Lesson Schemas
+class LessonBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    module_id: int
+    order_index: int = 0
+    duration: str
+    content_type: str
+    content_url: str
+    is_published: bool = False
+
+class LessonCreate(LessonBase):
+    pass
+
+class Lesson(LessonBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Content Schemas
+class ContentBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    content_type: str
+    file_path: str
+    file_size: str
+    downloads: int = 0
+    status: str = "draft"
+    version: str = "1.0"
+    author: str
+    topic_id: Optional[int] = None
+    course_id: Optional[int] = None
+
+class ContentCreate(ContentBase):
+    pass
+
+class ContentUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    version: Optional[str] = None
+    downloads: Optional[int] = None
+
+class Content(ContentBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Content Version Schemas
+class ContentVersionBase(BaseModel):
+    content_id: int
+    version: str
+    changes: str
+    file_path: str
+    file_size: str
+
+class ContentVersionCreate(ContentVersionBase):
+    pass
+
+class ContentVersion(ContentVersionBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# User Course Schemas
+class UserCourseBase(BaseModel):
+    user_id: str
+    course_id: int
+    enrollment_date: date
+    progress: int = 0
+    last_accessed: Optional[date] = None
+    completion_status: str = "not_started"
+
+class UserCourseCreate(UserCourseBase):
+    pass
+
+class UserCourseUpdate(BaseModel):
+    progress: Optional[int] = None
+    last_accessed: Optional[date] = None
+    completion_status: Optional[str] = None
+
+class UserCourse(UserCourseBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+# Stats Schemas
+class CourseStats(BaseModel):
+    total_courses: int
+    total_students: int
+    average_completion_rate: float
+    total_revenue: float
+    popular_courses: List[Course]
+
+class ContentStats(BaseModel):
+    total_content: int
+    total_downloads: int
+    storage_used: str
+    content_by_type: List[Dict[str, Any]]
+
+class UserStats(BaseModel):
+    total_users: int
+    active_users: int
+    new_users_today: int
+
 class SubscriptionStats(BaseModel):
+    total_revenue: int
+    active_subscriptions: int
+
+class SubscriptionAnalytics(BaseModel):
     total_revenue: int
     total_subscribers: int
     conversion_rate: float
     churn_rate: float
+    active_plans: int
+    monthly_recurring_revenue: int
+
+# Update forward references
+CourseWithDetails.update_forward_refs()

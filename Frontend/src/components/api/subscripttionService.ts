@@ -1,5 +1,5 @@
 // api/subscriptionService.ts
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'http://localhost:8000/api';
 
 export interface SubscriptionPlan {
   id: number;
@@ -49,96 +49,136 @@ export interface SubscriptionStats {
   total_subscribers: number;
   conversion_rate: number;
   churn_rate: number;
+  active_plans: number;
+  monthly_recurring_revenue: number;
 }
 
-// API functions
-async function apiRequest(endpoint: string, options: RequestInit = {}) {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-    ...options,
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+class ApiError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+    this.name = 'ApiError';
   }
+}
 
-  return response.json();
+// Generic API request function
+async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  try {
+    const url = `${API_BASE_URL}${endpoint}`;
+    console.log(`Subscription API: ${options.method || 'GET'} ${url}`);
+    
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      ...options,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new ApiError(response.status, `HTTP error! status: ${response.status} - ${errorText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Subscription API call failed:', error);
+    throw error;
+  }
 }
 
 export const subscriptionService = {
   // Subscription Plans
   getSubscriptionPlans: async (): Promise<SubscriptionPlan[]> => {
-    return apiRequest('/subscription-plans/');
+    return apiRequest<SubscriptionPlan[]>('/subscription-plans');
   },
 
   getSubscriptionPlan: async (planId: number): Promise<SubscriptionPlan> => {
-    return apiRequest(`/subscription-plans/${planId}`);
+    return apiRequest<SubscriptionPlan>(`/subscription-plans/${planId}`);
   },
 
   createSubscriptionPlan: async (plan: Omit<SubscriptionPlan, 'id' | 'created_at' | 'updated_at'>): Promise<SubscriptionPlan> => {
-    return apiRequest('/subscription-plans/', {
+    return apiRequest<SubscriptionPlan>('/subscription-plans', {
       method: 'POST',
       body: JSON.stringify(plan),
     });
   },
 
   updateSubscriptionPlan: async (planId: number, planData: Partial<SubscriptionPlan>): Promise<SubscriptionPlan> => {
-    return apiRequest(`/subscription-plans/${planId}`, {
+    return apiRequest<SubscriptionPlan>(`/subscription-plans/${planId}`, {
       method: 'PUT',
       body: JSON.stringify(planData),
     });
   },
 
   deleteSubscriptionPlan: async (planId: number): Promise<void> => {
-    return apiRequest(`/subscription-plans/${planId}`, {
+    return apiRequest<void>(`/subscription-plans/${planId}`, {
       method: 'DELETE',
     });
   },
 
   // Transactions
-  getTransactions: async (status?: string): Promise<Transaction[]> => {
-    const url = status ? `/transactions/?status=${status}` : '/transactions/';
-    return apiRequest(url);
+  getTransactions: async (status?: string, userId?: string): Promise<Transaction[]> => {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    if (userId) params.append('user_id', userId);
+    const queryString = params.toString();
+    return apiRequest<Transaction[]>(`/transactions${queryString ? `?${queryString}` : ''}`);
+  },
+
+  getTransaction: async (transactionId: number): Promise<Transaction> => {
+    return apiRequest<Transaction>(`/transactions/${transactionId}`);
   },
 
   createTransaction: async (transaction: Omit<Transaction, 'id' | 'date'>): Promise<Transaction> => {
-    return apiRequest('/transactions/', {
+    return apiRequest<Transaction>('/transactions', {
       method: 'POST',
       body: JSON.stringify(transaction),
     });
   },
 
+  updateTransaction: async (transactionId: number, transactionData: Partial<Transaction>): Promise<Transaction> => {
+    return apiRequest<Transaction>(`/transactions/${transactionId}`, {
+      method: 'PUT',
+      body: JSON.stringify(transactionData),
+    });
+  },
+
   // Refund Requests
   getRefundRequests: async (status?: string): Promise<RefundRequest[]> => {
-    const url = status ? `/refund-requests/?status=${status}` : '/refund-requests/';
-    return apiRequest(url);
+    const url = status ? `/refund-requests?status=${status}` : '/refund-requests';
+    return apiRequest<RefundRequest[]>(url);
+  },
+
+  getRefundRequest: async (requestId: number): Promise<RefundRequest> => {
+    return apiRequest<RefundRequest>(`/refund-requests/${requestId}`);
   },
 
   createRefundRequest: async (refundRequest: Omit<RefundRequest, 'id' | 'request_date' | 'processed_date' | 'processed_by'>): Promise<RefundRequest> => {
-    return apiRequest('/refund-requests/', {
+    return apiRequest<RefundRequest>('/refund-requests', {
       method: 'POST',
       body: JSON.stringify(refundRequest),
     });
   },
 
   updateRefundRequest: async (requestId: number, requestData: Partial<RefundRequest>): Promise<RefundRequest> => {
-    return apiRequest(`/refund-requests/${requestId}`, {
+    return apiRequest<RefundRequest>(`/refund-requests/${requestId}`, {
       method: 'PUT',
       body: JSON.stringify(requestData),
     });
-    },
-  updateTransaction: async (transactionId: number, transactionData: Partial<Transaction>): Promise<Transaction> => {
-    return apiRequest(`/transactions/${transactionId}`, {
-        method: 'PUT',
-        body: JSON.stringify(transactionData),
-    });
-},
+  },
 
   // Analytics
   getSubscriptionStats: async (): Promise<SubscriptionStats> => {
-    return apiRequest('/analytics/subscription-stats');
+    return apiRequest<SubscriptionStats>('/analytics/subscription-stats');
+  },
+
+  getRevenueAnalytics: async (period: 'daily' | 'weekly' | 'monthly' = 'monthly'): Promise<any> => {
+    return apiRequest(`/analytics/revenue?period=${period}`);
+  },
+
+  getPlanPerformance: async (): Promise<{ plan_name: string; subscribers: number; revenue: number }[]> => {
+    return apiRequest('/analytics/plan-performance');
   },
 };
+
+export { ApiError };

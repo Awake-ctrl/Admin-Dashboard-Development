@@ -1,196 +1,146 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { MoreHorizontal, Edit, Trash2, Eye, Users, Plus, BookOpen, Play, FileText } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { MoreHorizontal, Edit, Trash2, Eye, Users, Plus, BookOpen, Play, FileText, Target, Brain, TrendingUp } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "./ui/dialog";
-import { Textarea } from "./ui/textarea";
 import { Switch } from "./ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { courseApi, moduleApi, examApi, subjectApi, statsApi } from "./api/course";
+import { Exam, Subject, Course, Module, CourseFormData, ModuleFormData, CourseStats } from "../types";
 
-// Mock data based on your Exam→Subject→Topic structure
-const courses = [
-  {
-    id: 1,
-    title: "JEE Main & Advanced Preparation",
-    description: "Complete preparation course for Joint Entrance Examination",
-    examType: "jee",
-    subjects: ["Physics", "Chemistry", "Mathematics"],
-    totalTopics: 135,
-    enrolledStudents: 2847,
-    completionRate: 78.5,
-    rating: 4.8,
-    instructor: "Dr. Priya Sharma",
-    duration: "12 months",
-    lastUpdated: "2025-01-10",
-    status: "active",
-    price: 299,
-    modules: [
-      { id: 1, title: "Physics Fundamentals", lessons: 25, duration: "8 hours" },
-      { id: 2, title: "Chemistry Basics", lessons: 20, duration: "6 hours" },
-      { id: 3, title: "Mathematics Core", lessons: 30, duration: "10 hours" }
-    ]
-  },
-  {
-    id: 2,
-    title: "NEET Preparation Course",
-    description: "National Eligibility cum Entrance Test for medical colleges",
-    examType: "neet",
-    subjects: ["Physics", "Chemistry", "Biology"],
-    totalTopics: 156,
-    enrolledStudents: 1923,
-    completionRate: 82.1,
-    rating: 4.9,
-    instructor: "Dr. Rajesh Kumar",
-    duration: "10 months",
-    lastUpdated: "2025-01-12",
-    status: "active",
-    price: 399,
-    modules: [
-      { id: 4, title: "Biology Fundamentals", lessons: 35, duration: "12 hours" },
-      { id: 5, title: "Physics for NEET", lessons: 20, duration: "7 hours" },
-      { id: 6, title: "Chemistry for NEET", lessons: 25, duration: "8 hours" }
-    ]
-  },
-  {
-    id: 3,
-    title: "CAT Preparation",
-    description: "Common Admission Test for MBA programs",
-    examType: "cat",
-    subjects: ["Quantitative Aptitude", "Verbal Ability", "Data Interpretation", "Logical Reasoning"],
-    totalTopics: 89,
-    enrolledStudents: 1456,
-    completionRate: 75.3,
-    rating: 4.7,
-    instructor: "Prof. Anita Desai",
-    duration: "8 months",
-    lastUpdated: "2025-01-08",
-    status: "active",
-    price: 199,
-    modules: [
-      { id: 7, title: "Quantitative Aptitude", lessons: 22, duration: "9 hours" },
-      { id: 8, title: "Verbal Ability", lessons: 18, duration: "6 hours" },
-      { id: 9, title: "Data Interpretation", lessons: 15, duration: "5 hours" }
-    ]
-  },
-  {
-    id: 4,
-    title: "UPSC Civil Services",
-    description: "Union Public Service Commission examination preparation",
-    examType: "upsc",
-    subjects: ["History", "Geography", "Polity", "Economics", "Science & Technology", "Current Affairs"],
-    totalTopics: 234,
-    enrolledStudents: 987,
-    completionRate: 68.9,
-    rating: 4.6,
-    instructor: "Dr. Vikram Singh",
-    duration: "18 months",
-    lastUpdated: "2025-01-05",
-    status: "active",
-    price: 499,
-    modules: [
-      { id: 10, title: "History & Culture", lessons: 40, duration: "15 hours" },
-      { id: 11, title: "Geography", lessons: 35, duration: "12 hours" },
-      { id: 12, title: "Polity & Governance", lessons: 30, duration: "10 hours" }
-    ]
-  },
-  {
-    id: 5,
-    title: "GATE Engineering",
-    description: "Graduate Aptitude Test in Engineering",
-    examType: "gate",
-    subjects: ["Engineering Mathematics", "General Aptitude", "Technical Subjects"],
-    totalTopics: 178,
-    enrolledStudents: 1234,
-    completionRate: 71.2,
-    rating: 4.5,
-    instructor: "Prof. Suresh Gupta",
-    duration: "14 months",
-    lastUpdated: "2025-01-11",
-    status: "active",
-    price: 349,
-    modules: [
-      { id: 13, title: "Engineering Mathematics", lessons: 28, duration: "10 hours" },
-      { id: 14, title: "General Aptitude", lessons: 15, duration: "5 hours" },
-      { id: 15, title: "Technical Core", lessons: 32, duration: "12 hours" }
-    ]
-  },
-  {
-    id: 6,
-    title: "Banking & SSC Exams",
-    description: "Preparation for various government banking and SSC examinations",
-    examType: "other_govt_exam",
-    subjects: ["Quantitative Aptitude", "English Language", "Reasoning", "General Awareness"],
-    totalTopics: 145,
-    enrolledStudents: 1876,
-    completionRate: 73.8,
-    rating: 4.4,
-    instructor: "Ms. Ritu Agarwal",
-    duration: "10 months",
-    lastUpdated: "2025-01-09",
-    status: "active",
-    price: 249,
-    modules: [
-      { id: 16, title: "Quantitative Aptitude", lessons: 25, duration: "8 hours" },
-      { id: 17, title: "English Language", lessons: 20, duration: "6 hours" },
-      { id: 18, title: "General Awareness", lessons: 30, duration: "10 hours" }
-    ]
-  }
-];
+export const CourseManagement: React.FC = () => {
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [modules, setModules] = useState<Module[]>([]);
+  const [selectedExam, setSelectedExam] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<string>("overview");
+  const [isCreateCourseOpen, setIsCreateCourseOpen] = useState<boolean>(false);
+  const [isCreateModuleOpen, setIsCreateModuleOpen] = useState<boolean>(false);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [stats, setStats] = useState<CourseStats | null>(null);
 
-const examTypes = [
-  { value: "all", label: "All Exams" },
-  { value: "jee", label: "JEE Main & Advanced" },
-  { value: "neet", label: "NEET" },
-  { value: "cat", label: "CAT" },
-  { value: "upsc", label: "UPSC" },
-  { value: "gate", label: "GATE" },
-  { value: "other_govt_exam", label: "Other Govt Exams" }
-];
+  // Load data from API
+  useEffect(() => {
+    loadExams();
+    loadSubjects();
+    loadStats();
+  }, []);
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'active': return 'bg-green-100 text-green-800';
-    case 'draft': return 'bg-yellow-100 text-yellow-800';
-    case 'archived': return 'bg-gray-100 text-gray-800';
-    default: return 'bg-gray-100 text-gray-800';
-  }
-};
+  useEffect(() => {
+    if (selectedExam) {
+      loadCourses(selectedExam);
+    }
+  }, [selectedExam]);
 
-export function CourseManagement() {
-  const [activeTab, setActiveTab] = useState("courses");
-  const [isCreateCourseOpen, setIsCreateCourseOpen] = useState(false);
-  const [isCreateModuleOpen, setIsCreateModuleOpen] = useState(false);
-  const [isCreateLessonOpen, setIsCreateLessonOpen] = useState(false);
-  const [selectedCourse, setSelectedCourse] = useState(null);
+  useEffect(() => {
+    if (courses.length > 0) {
+      loadModules();
+    }
+  }, [courses]);
 
-  const CourseForm = ({ course = null, onSave }) => {
-    const [formData, setFormData] = useState({
+  const loadExams = async (): Promise<void> => {
+    try {
+      const data = await examApi.getExams();
+      setExams(data);
+      if (data.length > 0 && !selectedExam) {
+        setSelectedExam(data[0].name);
+      }
+    } catch (error) {
+      console.error('Failed to load exams:', error);
+    }
+  };
+
+  const loadCourses = async (examType: string): Promise<void> => {
+    setLoading(true);
+    try {
+      const data = await courseApi.getCourses(examType);
+      setCourses(data);
+    } catch (error) {
+      console.error('Failed to load courses:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadSubjects = async (): Promise<void> => {
+    try {
+      const data = await subjectApi.getSubjects();
+      setSubjects(data);
+    } catch (error) {
+      console.error('Failed to load subjects:', error);
+    }
+  };
+
+  const loadModules = async (): Promise<void> => {
+    try {
+      const allModules: Module[] = [];
+      for (const course of courses) {
+        const courseModules = await moduleApi.getModules(course.id);
+        allModules.push(...courseModules);
+      }
+      setModules(allModules);
+    } catch (error) {
+      console.error('Failed to load modules:', error);
+    }
+  };
+
+  const loadStats = async (): Promise<void> => {
+    try {
+      const data = await statsApi.getCourseStats();
+      setStats(data);
+    } catch (error) {
+      console.error('Failed to load stats:', error);
+    }
+  };
+
+  const currentExam = exams.find(exam => exam.name === selectedExam);
+  const filteredCourses = courses.filter(course => course.exam_type === selectedExam);
+
+  const CourseForm: React.FC<{ 
+    course?: Course | null; 
+    onSave: (data: CourseFormData) => Promise<void>;
+  }> = ({ course = null, onSave }) => {
+    const [formData, setFormData] = useState<CourseFormData>({
       title: course?.title || "",
       description: course?.description || "",
-      examType: course?.examType || "jee",
+      exam_type: course?.exam_type || selectedExam,
       instructor: course?.instructor || "",
       price: course?.price || 0,
       duration: course?.duration || "",
       status: course?.status || "draft",
-      isPublished: course?.status === "active" || false
+      exam_id: currentExam?.id || exams[0]?.id || 1,
+      subject_ids: course?.subjects?.map(s => s.id) || []
     });
+
+    const handleSave = async (): Promise<void> => {
+      try {
+        await onSave(formData);
+        setIsCreateCourseOpen(false);
+        if (selectedExam) {
+          loadCourses(selectedExam);
+        }
+      } catch (error) {
+        console.error('Failed to save course:', error);
+      }
+    };
+
+    const availableSubjects = subjects.filter(subject => 
+      subject.exam_id === formData.exam_id
+    );
 
     return (
       <div className="space-y-4">
@@ -206,13 +156,18 @@ export function CourseManagement() {
           </div>
           <div>
             <Label htmlFor="examType">Exam Type</Label>
-            <Select value={formData.examType} onValueChange={(value) => setFormData(prev => ({ ...prev, examType: value }))}>
+            <Select 
+              value={formData.exam_type} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, exam_type: value }))}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select exam type" />
               </SelectTrigger>
               <SelectContent>
-                {examTypes.slice(1).map((exam) => (
-                  <SelectItem key={exam.value} value={exam.value}>{exam.label}</SelectItem>
+                {exams.map((exam) => (
+                  <SelectItem key={exam.name} value={exam.name}>
+                    {exam.display_name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -246,7 +201,7 @@ export function CourseManagement() {
               id="price"
               type="number"
               value={formData.price}
-              onChange={(e) => setFormData(prev => ({ ...prev, price: parseInt(e.target.value) }))}
+              onChange={(e) => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) }))}
               placeholder="0"
             />
           </div>
@@ -262,8 +217,58 @@ export function CourseManagement() {
         </div>
 
         <div>
+          <Label htmlFor="subjects">Subjects</Label>
+          <Select 
+            value="" 
+            onValueChange={(value) => {
+              const subjectId = parseInt(value);
+              if (!formData.subject_ids.includes(subjectId)) {
+                setFormData(prev => ({ 
+                  ...prev, 
+                  subject_ids: [...prev.subject_ids, subjectId]
+                }));
+              }
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select subjects" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableSubjects.map((subject) => (
+                <SelectItem key={subject.id} value={subject.id.toString()}>
+                  {subject.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {formData.subject_ids.map(subjectId => {
+              const subject = subjects.find(s => s.id === subjectId);
+              return subject ? (
+                <Badge key={subjectId} variant="secondary" className="flex items-center gap-1">
+                  {subject.name}
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({
+                      ...prev,
+                      subject_ids: prev.subject_ids.filter(id => id !== subjectId)
+                    }))}
+                    className="ml-1 hover:text-destructive"
+                  >
+                    ×
+                  </button>
+                </Badge>
+              ) : null;
+            })}
+          </div>
+        </div>
+
+        <div>
           <Label htmlFor="status">Status</Label>
-          <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
+          <Select 
+            value={formData.status} 
+            onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Select status" />
             </SelectTrigger>
@@ -275,23 +280,11 @@ export function CourseManagement() {
           </Select>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="published"
-            checked={formData.isPublished}
-            onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isPublished: checked }))}
-          />
-          <Label htmlFor="published">Publish course immediately</Label>
-        </div>
-
         <div className="flex justify-end gap-2 pt-4">
           <Button variant="outline" onClick={() => setIsCreateCourseOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={() => {
-            onSave(formData);
-            setIsCreateCourseOpen(false);
-          }}>
+          <Button onClick={handleSave}>
             {course ? 'Update Course' : 'Create Course'}
           </Button>
         </div>
@@ -299,13 +292,28 @@ export function CourseManagement() {
     );
   };
 
-  const ModuleForm = ({ module = null, onSave }) => {
-    const [formData, setFormData] = useState({
+  const ModuleForm: React.FC<{ 
+    module?: Module | null; 
+    courseId: number;
+    onSave: (data: ModuleFormData) => Promise<void>;
+  }> = ({ module = null, courseId, onSave }) => {
+    const [formData, setFormData] = useState<ModuleFormData>({
       title: module?.title || "",
       description: module?.description || "",
-      order: module?.order || 1,
+      course_id: courseId,
+      order_index: module?.order_index || 0,
       duration: module?.duration || ""
     });
+
+    const handleSave = async (): Promise<void> => {
+      try {
+        await onSave(formData);
+        setIsCreateModuleOpen(false);
+        loadModules();
+      } catch (error) {
+        console.error('Failed to save module:', error);
+      }
+    };
 
     return (
       <div className="space-y-4">
@@ -336,8 +344,8 @@ export function CourseManagement() {
             <Input
               id="order"
               type="number"
-              value={formData.order}
-              onChange={(e) => setFormData(prev => ({ ...prev, order: parseInt(e.target.value) }))}
+              value={formData.order_index}
+              onChange={(e) => setFormData(prev => ({ ...prev, order_index: parseInt(e.target.value) }))}
               placeholder="1"
             />
           </div>
@@ -356,10 +364,7 @@ export function CourseManagement() {
           <Button variant="outline" onClick={() => setIsCreateModuleOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={() => {
-            onSave(formData);
-            setIsCreateModuleOpen(false);
-          }}>
+          <Button onClick={handleSave}>
             {module ? 'Update Module' : 'Create Module'}
           </Button>
         </div>
@@ -367,59 +372,191 @@ export function CourseManagement() {
     );
   };
 
+  const handleCreateCourse = async (courseData: CourseFormData): Promise<void> => {
+    await courseApi.createCourse(courseData);
+  };
+
+  const handleCreateModule = async (moduleData: ModuleFormData): Promise<void> => {
+    await moduleApi.createModule(moduleData);
+  };
+
+  const handleUpdateCourse = async (courseId: number, courseData: Partial<CourseFormData>): Promise<void> => {
+    await courseApi.updateCourse(courseId, courseData);
+  };
+
+  const handleDeleteCourse = async (courseId: number): Promise<void> => {
+    if (window.confirm('Are you sure you want to delete this course?')) {
+      await courseApi.deleteCourse(courseId);
+      loadCourses(selectedExam);
+    }
+  };
+
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case 'active': return 'bg-green-100 text-green-800';
+      case 'draft': return 'bg-yellow-100 text-yellow-800';
+      case 'archived': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const totalEngagement = filteredCourses.reduce((sum, course) => sum + course.enrolled_students, 0);
+  const totalTopics = filteredCourses.reduce((sum, course) => {
+    const courseSubjects = subjects.filter(s => 
+      course.subjects?.some(cs => cs.id === s.id)
+    );
+    return sum + courseSubjects.reduce((subjectSum, subject) => subjectSum + subject.topics_count, 0);
+  }, 0);
+
   return (
     <div className="space-y-6">
-      {/* Course Stats */}
+      {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Total Courses</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm">Total Courses</CardTitle>
+            <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">{courses.length}</div>
-            <p className="text-xs text-green-600">+{courses.filter(c => c.status === 'active').length} active</p>
+            <div className="text-2xl">{filteredCourses.length}</div>
+            <p className="text-xs text-muted-foreground">
+              Across {exams.length} exam categories
+            </p>
           </CardContent>
         </Card>
-        
+
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Total Students</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm">Total Topics</CardTitle>
+            <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">{courses.reduce((sum, course) => sum + course.enrolledStudents, 0).toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Across all courses</p>
+            <div className="text-2xl">{totalTopics}</div>
+            <p className="text-xs text-muted-foreground">
+              For {selectedExam.toUpperCase()} preparation
+            </p>
           </CardContent>
         </Card>
-        
+
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Avg Completion</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm">Student Engagement</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">{Math.round(courses.reduce((sum, course) => sum + course.completionRate, 0) / courses.length)}%</div>
-            <p className="text-xs text-green-600">+2% this month</p>
+            <div className="text-2xl">{totalEngagement.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              Active learning sessions
+            </p>
           </CardContent>
         </Card>
-        
+
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Total Revenue</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm">AI Sessions</CardTitle>
+            <Brain className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">₹{Math.round(courses.reduce((sum, course) => sum + (course.price * course.enrolledStudents), 0) / 100000)}L</div>
-            <p className="text-xs text-green-600">+15% this month</p>
+            <div className="text-2xl">2,847</div>
+            <p className="text-xs text-muted-foreground">
+              +18% from last week
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Main Content */}
+      {/* Exam Selector */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Course Management</CardTitle>
+          <CardTitle>Select Exam Category</CardTitle>
+          <CardDescription>Choose an exam to manage its courses and content</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Select value={selectedExam} onValueChange={setSelectedExam}>
+            <SelectTrigger className="w-64">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {exams.map((exam) => (
+                <SelectItem key={exam.name} value={exam.name}>
+                  {exam.display_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="courses">Courses</TabsTrigger>
+          <TabsTrigger value="modules">Modules</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Popular Courses</CardTitle>
+                <CardDescription>Most enrolled courses this month</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {filteredCourses
+                    .sort((a, b) => b.enrolled_students - a.enrolled_students)
+                    .slice(0, 5)
+                    .map((course, index) => (
+                      <div key={course.id} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs">
+                            {index + 1}
+                          </div>
+                          <span className="truncate">{course.title}</span>
+                        </div>
+                        <Badge variant="secondary">{course.enrolled_students}</Badge>
+                      </div>
+                    ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Course Performance</CardTitle>
+                <CardDescription>Completion rates by course</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {filteredCourses.map((course) => (
+                    <div key={course.id} className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="truncate">{course.title}</span>
+                        <span>{course.completion_rate}%</span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div 
+                          className="bg-primary h-2 rounded-full" 
+                          style={{ width: `${course.completion_rate}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="courses" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-lg font-semibold">Courses for {currentExam?.display_name}</h3>
+              <p className="text-muted-foreground">Manage courses and their content</p>
+            </div>
             <Dialog open={isCreateCourseOpen} onOpenChange={setIsCreateCourseOpen}>
               <DialogTrigger asChild>
-                <Button size="sm">
+                <Button>
                   <Plus className="w-4 h-4 mr-2" />
                   New Course
                 </Button>
@@ -427,202 +564,193 @@ export function CourseManagement() {
               <DialogContent className="max-w-3xl">
                 <DialogHeader>
                   <DialogTitle>Create New Course</DialogTitle>
+                  <DialogDescription>
+                    Add a new course to the {currentExam?.display_name} category
+                  </DialogDescription>
                 </DialogHeader>
-                <CourseForm onSave={(data) => console.log("Creating course:", data)} />
+                <CourseForm onSave={handleCreateCourse} />
               </DialogContent>
             </Dialog>
           </div>
-        </CardHeader>
-        
-        <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="courses">Courses</TabsTrigger>
-              <TabsTrigger value="modules">Modules</TabsTrigger>
-              <TabsTrigger value="lessons">Lessons</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="courses" className="space-y-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Course</TableHead>
-                    <TableHead>Exam Type</TableHead>
-                    <TableHead>Instructor</TableHead>
-                    <TableHead>Students</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Progress</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {courses.map((course) => (
-                    <TableRow key={course.id}>
-                      <TableCell>
-                        <div>
-                          <p>{course.title}</p>
-                          <p className="text-muted-foreground text-xs">{course.examType.toUpperCase()}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{course.examType.toUpperCase()}</Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {course.instructor}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Users className="w-4 h-4 text-muted-foreground" />
-                          <span>{course.enrolledStudents.toLocaleString()}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(course.status)}>
-                          {course.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="w-full bg-muted rounded-full h-2">
-                          <div 
-                            className="bg-primary h-2 rounded-full" 
-                            style={{ width: `${course.completionRate}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-xs text-muted-foreground">{course.completionRate}%</span>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        ₹{course.price}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <Eye className="mr-2 h-4 w-4" />
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit Course
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <BookOpen className="mr-2 h-4 w-4" />
-                              Manage Content
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Archive
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+
+          {loading ? (
+            <div className="text-center py-8">Loading courses...</div>
+          ) : (
+            <Card>
+              <CardContent className="p-6">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Course</TableHead>
+                      <TableHead>Instructor</TableHead>
+                      <TableHead>Students</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Progress</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TabsContent>
-            
-            <TabsContent value="modules" className="space-y-4">
-              <div className="flex justify-end">
-                <Dialog open={isCreateModuleOpen} onOpenChange={setIsCreateModuleOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm">
-                      <Plus className="w-4 h-4 mr-2" />
-                      New Module
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle>Create New Module</DialogTitle>
-                    </DialogHeader>
-                    <ModuleForm onSave={(data) => console.log("Creating module:", data)} />
-                  </DialogContent>
-                </Dialog>
-              </div>
-              
-              <div className="space-y-4">
-                {courses.map((course) => (
-                  <Card key={course.id}>
-                    <CardHeader>
-                      <CardTitle className="text-lg">{course.title}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {course.modules.map((module) => (
-                          <div key={module.id} className="flex items-center justify-between p-3 border rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <BookOpen className="w-5 h-5 text-muted-foreground" />
-                              <div>
-                                <p>{module.title}</p>
-                                <p className="text-muted-foreground text-xs">
-                                  {module.lessons} lessons • {module.duration}
-                                </p>
-                              </div>
-                            </div>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem>
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Edit Module
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <Play className="mr-2 h-4 w-4" />
-                                  Manage Lessons
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive">
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredCourses.map((course) => (
+                      <TableRow key={course.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{course.title}</p>
+                            <p className="text-muted-foreground text-xs">{course.exam_type.toUpperCase()}</p>
                           </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="lessons" className="space-y-4">
-              <div className="flex justify-end">
-                <Dialog open={isCreateLessonOpen} onOpenChange={setIsCreateLessonOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm">
-                      <Plus className="w-4 h-4 mr-2" />
-                      New Lesson
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle>Create New Lesson</DialogTitle>
-                    </DialogHeader>
-                    <div className="text-center text-muted-foreground py-8">
-                      <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>Lesson creation form coming soon...</p>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {course.instructor}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Users className="w-4 h-4 text-muted-foreground" />
+                            <span>{course.enrolled_students.toLocaleString()}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(course.status)}>
+                            {course.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div 
+                              className="bg-primary h-2 rounded-full" 
+                              style={{ width: `${course.completion_rate}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-xs text-muted-foreground">{course.completion_rate}%</span>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          ₹{course.price}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedCourse(course);
+                                  setIsCreateCourseOpen(true);
+                                }}
+                              >
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Course
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <BookOpen className="mr-2 h-4 w-4" />
+                                Manage Content
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="text-destructive"
+                                onClick={() => handleDeleteCourse(course.id)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Archive
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="modules" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-lg font-semibold">Course Modules</h3>
+              <p className="text-muted-foreground">Manage modules and lessons for courses</p>
+            </div>
+            <Dialog open={isCreateModuleOpen} onOpenChange={setIsCreateModuleOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Module
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Create New Module</DialogTitle>
+                </DialogHeader>
+                <ModuleForm 
+                  courseId={filteredCourses[0]?.id || 0} 
+                  onSave={handleCreateModule} 
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <div className="space-y-4">
+            {filteredCourses.map((course) => {
+              const courseModules = modules.filter(module => module.course_id === course.id);
+              return (
+                <Card key={course.id}>
+                  <CardHeader>
+                    <CardTitle className="text-lg">{course.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {courseModules.map((module) => (
+                        <div key={module.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <BookOpen className="w-5 h-5 text-muted-foreground" />
+                            <div>
+                              <p>{module.title}</p>
+                              <p className="text-muted-foreground text-xs">
+                                {module.lessons_count} lessons • {module.duration}
+                              </p>
+                            </div>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Module
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <Play className="mr-2 h-4 w-4" />
+                                Manage Lessons
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      ))}
+                      {courseModules.length === 0 && (
+                        <div className="text-center text-muted-foreground py-4">
+                          No modules yet. Create your first module!
+                        </div>
+                      )}
                     </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-              
-              <div className="text-center text-muted-foreground py-8">
-                <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>Select a course and module to view lessons</p>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
-}
+};
