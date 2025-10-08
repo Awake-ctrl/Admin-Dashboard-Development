@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Button } from "./ui/button";
@@ -6,7 +6,7 @@ import { Badge } from "./ui/badge";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { MoreHorizontal, Edit, Trash2, Download, Upload, FileText, Video, Image, Link, Eye, History } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Download, Upload, FileText, Video, Image, Link, Eye, History, Plus } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,194 +23,108 @@ import {
 import { Textarea } from "./ui/textarea";
 import { Progress } from "./ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { contentApi, courseApi, topicApi, statsApi } from "./api/course";
+import { Content, ContentVersion, Course, Topic, ContentFormData, ContentStats, QuizFormData, QuizQuestion } from "../types";
 
-const content = [
-  {
-    id: 1,
-    title: "JEE Physics - Mechanics Study Guide",
-    type: "document",
-    course: "JEE Main & Advanced Preparation",
-    size: "4.2 MB",
-    downloads: 1289,
-    status: "published",
-    lastModified: "2025-01-15",
-    author: "Dr. Priya Sharma",
-    version: "2.1",
-    subject: "Physics",
-    examType: "jee",
-    versions: [
-      { version: "2.1", date: "2025-01-15", changes: "Updated formulas and examples", size: "4.2 MB" },
-      { version: "2.0", date: "2025-01-10", changes: "Added practice problems", size: "4.0 MB" },
-      { version: "1.0", date: "2024-12-01", changes: "Initial version", size: "3.8 MB" }
-    ]
-  },
-  {
-    id: 2,
-    title: "NEET Biology - Cell Structure Lecture",
-    type: "video",
-    course: "NEET Preparation Course",
-    size: "85.6 MB",
-    downloads: 2134,
-    status: "published",
-    lastModified: "2025-01-14",
-    author: "Dr. Rajesh Kumar",
-    version: "1.2",
-    subject: "Biology",
-    examType: "neet",
-    versions: [
-      { version: "1.2", date: "2025-01-14", changes: "Enhanced visual diagrams", size: "85.6 MB" },
-      { version: "1.0", date: "2024-12-20", changes: "Initial HD recording", size: "78.3 MB" }
-    ]
-  },
-  {
-    id: 3,
-    title: "CAT Quantitative Aptitude - Practice Set 1",
-    type: "quiz",
-    course: "CAT Preparation",
-    size: "1.2 MB",
-    downloads: 956,
-    status: "published",
-    lastModified: "2025-01-12",
-    author: "Prof. Anita Desai",
-    version: "1.5",
-    subject: "Quantitative Aptitude",
-    examType: "cat",
-    versions: [
-      { version: "1.5", date: "2025-01-12", changes: "Added detailed solutions", size: "1.2 MB" },
-      { version: "1.0", date: "2024-11-15", changes: "Initial version", size: "890 KB" }
-    ]
-  },
-  {
-    id: 4,
-    title: "UPSC History - Ancient India Notes",
-    type: "document",
-    course: "UPSC Civil Services",
-    size: "6.8 MB",
-    downloads: 1567,
-    status: "published",
-    lastModified: "2025-01-10",
-    author: "Dr. Vikram Singh",
-    version: "3.0",
-    subject: "History",
-    examType: "upsc",
-    versions: [
-      { version: "3.0", date: "2025-01-10", changes: "Comprehensive revision with maps", size: "6.8 MB" },
-      { version: "2.1", date: "2024-12-05", changes: "Added timeline charts", size: "5.9 MB" }
-    ]
-  },
-  {
-    id: 5,
-    title: "GATE Mathematics - Linear Algebra Video Series",
-    type: "video",
-    course: "GATE Engineering",
-    size: "120.4 MB",
-    downloads: 876,
-    status: "published",
-    lastModified: "2025-01-08",
-    author: "Prof. Suresh Gupta",
-    version: "1.0",
-    subject: "Engineering Mathematics",
-    examType: "gate",
-    versions: [
-      { version: "1.0", date: "2025-01-08", changes: "Complete video series", size: "120.4 MB" }
-    ]
-  },
-  {
-    id: 6,
-    title: "Banking Awareness - Current Affairs Quiz",
-    type: "quiz",
-    course: "Banking & SSC Exams",
-    size: "750 KB",
-    downloads: 1245,
-    status: "published",
-    lastModified: "2025-01-14",
-    author: "Ms. Ritu Agarwal",
-    version: "1.3",
-    subject: "General Awareness",
-    examType: "other_govt_exam",
-    versions: [
-      { version: "1.3", date: "2025-01-14", changes: "Updated with latest current affairs", size: "750 KB" }
-    ]
-  },
-  {
-    id: 7,
-    title: "JEE Chemistry - Organic Reactions Flowchart",
-    type: "image",
-    course: "JEE Main & Advanced Preparation",
-    size: "2.1 MB",
-    downloads: 1834,
-    status: "published",
-    lastModified: "2025-01-11",
-    author: "Dr. Priya Sharma",
-    version: "1.0",
-    subject: "Chemistry",
-    examType: "jee",
-    versions: [
-      { version: "1.0", date: "2025-01-11", changes: "High-resolution flowchart", size: "2.1 MB" }
-    ]
-  },
-  {
-    id: 8,
-    title: "NEET Physics - Optics Problem Solutions",
-    type: "document",
-    course: "NEET Preparation Course",
-    size: "3.5 MB",
-    downloads: 1123,
-    status: "draft",
-    lastModified: "2025-01-13",
-    author: "Dr. Rajesh Kumar",
-    version: "1.0",
-    subject: "Physics",
-    examType: "neet",
-    versions: [
-      { version: "1.0", date: "2025-01-13", changes: "Draft with 50 solved problems", size: "3.5 MB" }
-    ]
-  }
-];
+export const ContentManagement: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<string>("content");
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState<boolean>(false);
+  const [isCreateQuizOpen, setIsCreateQuizOpen] = useState<boolean>(false);
+  const [contents, setContents] = useState<Content[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [contentVersions, setContentVersions] = useState<{[key: number]: ContentVersion[]}>({});
+  const [stats, setStats] = useState<ContentStats | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [selectedContent, setSelectedContent] = useState<Content | null>(null);
 
-const getTypeIcon = (type: string) => {
-  switch (type) {
-    case 'document': return FileText;
-    case 'video': return Video;
-    case 'image': return Image;
-    case 'quiz': return FileText;
-    case 'link': return Link;
-    default: return FileText;
-  }
-};
+  // Load data from API
+  useEffect(() => {
+    loadContents();
+    loadCourses();
+    loadTopics();
+    loadStats();
+  }, []);
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'published': return 'bg-green-100 text-green-800';
-    case 'draft': return 'bg-yellow-100 text-yellow-800';
-    case 'archived': return 'bg-gray-100 text-gray-800';
-    default: return 'bg-gray-100 text-gray-800';
-  }
-};
+  const loadContents = async (): Promise<void> => {
+    setLoading(true);
+    try {
+      const data = await contentApi.getContents();
+      setContents(data);
+    } catch (error) {
+      console.error('Failed to load contents:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-export function ContentManagement() {
-  const [activeTab, setActiveTab] = useState("content");
-  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
-  const [isCreateQuizOpen, setIsCreateQuizOpen] = useState(false);
-  const [selectedContent, setSelectedContent] = useState(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isUploading, setIsUploading] = useState(false);
+  const loadCourses = async (): Promise<void> => {
+    try {
+      const data = await courseApi.getCourses();
+      setCourses(data);
+    } catch (error) {
+      console.error('Failed to load courses:', error);
+    }
+  };
 
-  const UploadForm = ({ onSave }) => {
-    const [formData, setFormData] = useState({
+  const loadTopics = async (): Promise<void> => {
+    try {
+      const data = await topicApi.getTopics();
+      setTopics(data);
+    } catch (error) {
+      console.error('Failed to load topics:', error);
+    }
+  };
+
+  const loadStats = async (): Promise<void> => {
+    try {
+      const data = await statsApi.getContentStats();
+      setStats(data);
+    } catch (error) {
+      console.error('Failed to load stats:', error);
+    }
+  };
+
+  const loadContentVersions = async (contentId: number): Promise<void> => {
+    try {
+      const versions = await contentApi.getContentVersions(contentId);
+      setContentVersions(prev => ({
+        ...prev,
+        [contentId]: versions
+      }));
+    } catch (error) {
+      console.error('Failed to load content versions:', error);
+    }
+  };
+
+  const UploadForm: React.FC<{ 
+    onSave: (data: ContentFormData) => Promise<void>;
+  }> = ({ onSave }) => {
+    const [formData, setFormData] = useState<ContentFormData>({
       title: "",
       description: "",
-      type: "document",
-      course: "",
-      file: null,
-      tags: "",
-      isPublic: false
+      content_type: "document",
+      file_path: "",
+      file_size: "",
+      topic_id: undefined,
+      course_id: undefined,
+      author: ""
     });
 
-    const handleFileUpload = (event) => {
-      const file = event.target.files[0];
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+    const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>): void => {
+      const file = event.target.files?.[0];
       if (file) {
-        setFormData(prev => ({ ...prev, file }));
+        setSelectedFile(file);
+        setFormData(prev => ({
+          ...prev,
+          title: file.name.split('.')[0],
+          file_size: formatFileSize(file.size)
+        }));
+
         // Simulate upload progress
         setIsUploading(true);
         let progress = 0;
@@ -220,9 +134,34 @@ export function ContentManagement() {
           if (progress >= 100) {
             clearInterval(interval);
             setIsUploading(false);
+            setFormData(prev => ({ ...prev, file_path: file.name }));
           }
         }, 200);
       }
+    };
+
+    const handleSave = async (): Promise<void> => {
+      try {
+        if (selectedFile) {
+          // Upload file first
+          const uploadResult = await contentApi.uploadFile(selectedFile);
+          console.log('File uploaded:', uploadResult);
+        }
+        
+        await onSave(formData);
+        setIsUploadDialogOpen(false);
+        loadContents();
+      } catch (error) {
+        console.error('Failed to save content:', error);
+      }
+    };
+
+    const formatFileSize = (bytes: number): string => {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     };
 
     return (
@@ -239,7 +178,10 @@ export function ContentManagement() {
           </div>
           <div>
             <Label htmlFor="content-type">Content Type</Label>
-            <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
+            <Select 
+              value={formData.content_type} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, content_type: value }))}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
@@ -264,21 +206,43 @@ export function ContentManagement() {
           />
         </div>
 
-        <div>
-          <Label htmlFor="content-course">Assign to Course</Label>
-          <Select value={formData.course} onValueChange={(value) => setFormData(prev => ({ ...prev, course: value }))}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select course" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="jee-prep">JEE Main & Advanced Preparation</SelectItem>
-              <SelectItem value="neet-prep">NEET Preparation Course</SelectItem>
-              <SelectItem value="cat-prep">CAT Preparation</SelectItem>
-              <SelectItem value="upsc-prep">UPSC Civil Services</SelectItem>
-              <SelectItem value="gate-prep">GATE Engineering</SelectItem>
-              <SelectItem value="banking-ssc">Banking & SSC Exams</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="content-course">Assign to Course</Label>
+            <Select 
+              value={formData.course_id?.toString() || ""} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, course_id: value ? parseInt(value) : undefined }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select course" />
+              </SelectTrigger>
+              <SelectContent>
+                {courses.map((course) => (
+                  <SelectItem key={course.id} value={course.id.toString()}>
+                    {course.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="content-topic">Assign to Topic</Label>
+            <Select 
+              value={formData.topic_id?.toString() || ""} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, topic_id: value ? parseInt(value) : undefined }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select topic" />
+              </SelectTrigger>
+              <SelectContent>
+                {topics.map((topic) => (
+                  <SelectItem key={topic.id} value={topic.id.toString()}>
+                    {topic.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div>
@@ -286,7 +250,7 @@ export function ContentManagement() {
           <Input
             id="file-upload"
             type="file"
-            onChange={handleFileUpload}
+            onChange={handleFileSelect}
             accept=".pdf,.doc,.docx,.mp4,.mov,.jpg,.jpeg,.png"
           />
           {isUploading && (
@@ -298,12 +262,12 @@ export function ContentManagement() {
         </div>
 
         <div>
-          <Label htmlFor="tags">Tags (comma separated)</Label>
+          <Label htmlFor="author">Author</Label>
           <Input
-            id="tags"
-            value={formData.tags}
-            onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
-            placeholder="e.g., physics, mechanics, jee, practice-problems"
+            id="author"
+            value={formData.author}
+            onChange={(e) => setFormData(prev => ({ ...prev, author: e.target.value }))}
+            placeholder="Enter author name"
           />
         </div>
 
@@ -311,10 +275,7 @@ export function ContentManagement() {
           <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={() => {
-            onSave(formData);
-            setIsUploadDialogOpen(false);
-          }}>
+          <Button onClick={handleSave} disabled={isUploading}>
             Upload Content
           </Button>
         </div>
@@ -322,23 +283,51 @@ export function ContentManagement() {
     );
   };
 
-  const QuizForm = ({ quiz = null, onSave }) => {
-    const [formData, setFormData] = useState({
+  const QuizForm: React.FC<{ 
+    quiz?: Content | null;
+    onSave: (data: QuizFormData) => Promise<void>;
+  }> = ({ quiz = null, onSave }) => {
+    const [formData, setFormData] = useState<QuizFormData>({
       title: quiz?.title || "",
       description: quiz?.description || "",
-      course: quiz?.course || "",
-      timeLimit: quiz?.timeLimit || 30,
-      passingScore: quiz?.passingScore || 70,
-      questions: quiz?.questions || [
+      course: quiz?.course_id?.toString() || "",
+      timeLimit: 30,
+      passingScore: 70,
+      questions: quiz ? [] : [
         { question: "", options: ["", "", "", ""], correctAnswer: 0 }
       ]
     });
 
-    const addQuestion = () => {
+    const addQuestion = (): void => {
       setFormData(prev => ({
         ...prev,
         questions: [...prev.questions, { question: "", options: ["", "", "", ""], correctAnswer: 0 }]
       }));
+    };
+
+    const updateQuestion = (index: number, field: string, value: string | number): void => {
+      setFormData(prev => {
+        const newQuestions = [...prev.questions];
+        if (field === 'question') {
+          newQuestions[index].question = value as string;
+        } else if (field.startsWith('option')) {
+          const optIndex = parseInt(field.replace('option', ''));
+          newQuestions[index].options[optIndex] = value as string;
+        } else if (field === 'correctAnswer') {
+          newQuestions[index].correctAnswer = value as number;
+        }
+        return { ...prev, questions: newQuestions };
+      });
+    };
+
+    const handleSave = async (): Promise<void> => {
+      try {
+        await onSave(formData);
+        setIsCreateQuizOpen(false);
+        loadContents();
+      } catch (error) {
+        console.error('Failed to save quiz:', error);
+      }
     };
 
     return (
@@ -355,17 +344,19 @@ export function ContentManagement() {
           </div>
           <div>
             <Label htmlFor="quiz-course">Course</Label>
-            <Select value={formData.course} onValueChange={(value) => setFormData(prev => ({ ...prev, course: value }))}>
+            <Select 
+              value={formData.course} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, course: value }))}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select course" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="jee-prep">JEE Main & Advanced Preparation</SelectItem>
-                <SelectItem value="neet-prep">NEET Preparation Course</SelectItem>
-                <SelectItem value="cat-prep">CAT Preparation</SelectItem>
-                <SelectItem value="upsc-prep">UPSC Civil Services</SelectItem>
-                <SelectItem value="gate-prep">GATE Engineering</SelectItem>
-                <SelectItem value="banking-ssc">Banking & SSC Exams</SelectItem>
+                {courses.map((course) => (
+                  <SelectItem key={course.id} value={course.id.toString()}>
+                    {course.title}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -419,11 +410,7 @@ export function ContentManagement() {
                     <Input
                       placeholder={`Question ${index + 1}`}
                       value={q.question}
-                      onChange={(e) => {
-                        const newQuestions = [...formData.questions];
-                        newQuestions[index].question = e.target.value;
-                        setFormData(prev => ({ ...prev, questions: newQuestions }));
-                      }}
+                      onChange={(e) => updateQuestion(index, 'question', e.target.value)}
                     />
                     <div className="grid grid-cols-2 gap-2">
                       {q.options.map((option, optIndex) => (
@@ -431,21 +418,13 @@ export function ContentManagement() {
                           key={optIndex}
                           placeholder={`Option ${optIndex + 1}`}
                           value={option}
-                          onChange={(e) => {
-                            const newQuestions = [...formData.questions];
-                            newQuestions[index].options[optIndex] = e.target.value;
-                            setFormData(prev => ({ ...prev, questions: newQuestions }));
-                          }}
+                          onChange={(e) => updateQuestion(index, `option${optIndex}`, e.target.value)}
                         />
                       ))}
                     </div>
                     <Select
                       value={q.correctAnswer.toString()}
-                      onValueChange={(value) => {
-                        const newQuestions = [...formData.questions];
-                        newQuestions[index].correctAnswer = parseInt(value);
-                        setFormData(prev => ({ ...prev, questions: newQuestions }));
-                      }}
+                      onValueChange={(value) => updateQuestion(index, 'correctAnswer', parseInt(value))}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Correct answer" />
@@ -468,15 +447,70 @@ export function ContentManagement() {
           <Button variant="outline" onClick={() => setIsCreateQuizOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={() => {
-            onSave(formData);
-            setIsCreateQuizOpen(false);
-          }}>
+          <Button onClick={handleSave}>
             {quiz ? 'Update Quiz' : 'Create Quiz'}
           </Button>
         </div>
       </div>
     );
+  };
+
+  const handleCreateContent = async (contentData: ContentFormData): Promise<void> => {
+    await contentApi.createContent(contentData);
+  };
+
+  const handleCreateQuiz = async (quizData: QuizFormData): Promise<void> => {
+    const contentData: ContentFormData = {
+      title: quizData.title,
+      description: quizData.description,
+      content_type: "quiz",
+      author: "System", // You might want to get this from user context
+      course_id: quizData.course ? parseInt(quizData.course) : undefined
+    };
+    await contentApi.createContent(contentData);
+  };
+
+  const handleDeleteContent = async (contentId: number): Promise<void> => {
+    if (window.confirm('Are you sure you want to delete this content?')) {
+      await contentApi.deleteContent(contentId);
+      loadContents();
+    }
+  };
+
+  const handleDownloadContent = async (contentId: number): Promise<void> => {
+    try {
+      await contentApi.incrementDownload(contentId);
+      // In a real app, you would trigger the actual file download here
+      alert('Download started!');
+      loadContents(); // Refresh to update download count
+    } catch (error) {
+      console.error('Download failed:', error);
+    }
+  };
+
+  const getTypeIcon = (type: string): React.FC<{ className?: string }> => {
+    switch (type) {
+      case 'document': return FileText;
+      case 'video': return Video;
+      case 'image': return Image;
+      case 'quiz': return FileText;
+      case 'link': return Link;
+      default: return FileText;
+    }
+  };
+
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case 'published': return 'bg-green-100 text-green-800';
+      case 'draft': return 'bg-yellow-100 text-yellow-800';
+      case 'archived': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const formatFileSize = (size: string): string => {
+    if (!size) return '0 Bytes';
+    return size;
   };
 
   return (
@@ -485,40 +519,40 @@ export function ContentManagement() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-muted-foreground">Total Content</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">Total Content</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-foreground">486</div>
+            <div className="text-2xl">{stats?.total_content || 0}</div>
             <p className="text-xs text-green-600">+34 this month</p>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-muted-foreground">Documents</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">Documents</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-foreground">245</div>
-            <p className="text-xs text-muted-foreground">50% of total</p>
+            <div className="text-2xl">{stats?.total_documents || 0}</div>
+            <p className="text-xs text-muted-foreground">{stats ? Math.round((stats.total_documents / stats.total_content) * 100) : 0}% of total</p>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-muted-foreground">Videos</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">Videos</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-foreground">189</div>
-            <p className="text-xs text-muted-foreground">39% of total</p>
+            <div className="text-2xl">{stats?.total_videos || 0}</div>
+            <p className="text-xs text-muted-foreground">{stats ? Math.round((stats.total_videos / stats.total_content) * 100) : 0}% of total</p>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-muted-foreground">Storage Used</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">Storage Used</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-foreground">3.2 GB</div>
+            <div className="text-2xl">{stats?.storage_used || '0 GB'}</div>
             <p className="text-xs text-muted-foreground">64% of 5GB</p>
           </CardContent>
         </Card>
@@ -541,7 +575,7 @@ export function ContentManagement() {
                   <DialogHeader>
                     <DialogTitle>Create New Quiz</DialogTitle>
                   </DialogHeader>
-                  <QuizForm onSave={(data) => console.log("Creating quiz:", data)} />
+                  <QuizForm onSave={handleCreateQuiz} />
                 </DialogContent>
               </Dialog>
               
@@ -556,7 +590,7 @@ export function ContentManagement() {
                   <DialogHeader>
                     <DialogTitle>Upload New Content</DialogTitle>
                   </DialogHeader>
-                  <UploadForm onSave={(data) => console.log("Uploading content:", data)} />
+                  <UploadForm onSave={handleCreateContent} />
                 </DialogContent>
               </Dialog>
             </div>
@@ -571,111 +605,118 @@ export function ContentManagement() {
             </TabsList>
             
             <TabsContent value="content" className="space-y-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Content</TableHead>
-                    <TableHead>Course</TableHead>
-                    <TableHead>Author</TableHead>
-                    <TableHead>Size</TableHead>
-                    <TableHead>Downloads</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Version</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {content.map((item) => {
-                    const TypeIcon = getTypeIcon(item.type);
-                    return (
-                      <TableRow key={item.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <TypeIcon className="w-5 h-5 text-muted-foreground" />
-                            <div>
-                              <p className="text-foreground">{item.title}</p>
-                              <p className="text-muted-foreground text-xs capitalize">{item.type}</p>
+              {loading ? (
+                <div className="text-center py-8">Loading content...</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Content</TableHead>
+                      <TableHead>Course</TableHead>
+                      <TableHead>Author</TableHead>
+                      <TableHead>Size</TableHead>
+                      <TableHead>Downloads</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Version</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {contents.map((item) => {
+                      const TypeIcon = getTypeIcon(item.content_type);
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <TypeIcon className="w-5 h-5 text-muted-foreground" />
+                              <div>
+                                <p className="text-foreground">{item.title}</p>
+                                <p className="text-muted-foreground text-xs capitalize">{item.content_type}</p>
+                              </div>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {item.course}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {item.author}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {item.size}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Download className="w-4 h-4 text-muted-foreground" />
-                            <span>{item.downloads}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getStatusColor(item.status)}>
-                            {item.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          v{item.version}
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
-                                <Eye className="mr-2 h-4 w-4" />
-                                Preview
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Download className="mr-2 h-4 w-4" />
-                                Download
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <History className="mr-2 h-4 w-4" />
-                                Version History
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {item.course?.title || 'Unassigned'}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {item.author}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {formatFileSize(item.file_size || '')}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Download className="w-4 h-4 text-muted-foreground" />
+                              <span>{item.downloads}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getStatusColor(item.status)}>
+                              {item.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            v{item.version}
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem>
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  Preview
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleDownloadContent(item.id)}>
+                                  <Download className="mr-2 h-4 w-4" />
+                                  Download
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => loadContentVersions(item.id)}>
+                                  <History className="mr-2 h-4 w-4" />
+                                  Version History
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  className="text-destructive"
+                                  onClick={() => handleDeleteContent(item.id)}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
             </TabsContent>
             
             <TabsContent value="versions" className="space-y-4">
               <div className="space-y-4">
-                {content.map((item) => (
+                {contents.map((item) => (
                   <Card key={item.id}>
                     <CardHeader>
                       <CardTitle className="text-lg">{item.title}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
-                        {item.versions.map((version, index) => (
+                        {contentVersions[item.id]?.map((version, index) => (
                           <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                             <div className="flex items-center gap-3">
                               <Badge variant="outline">v{version.version}</Badge>
                               <div>
                                 <p className="text-foreground">{version.changes}</p>
                                 <p className="text-muted-foreground text-xs">
-                                  {version.date} • {version.size}
+                                  {new Date(version.created_at).toLocaleDateString()} • {version.file_size}
                                 </p>
                               </div>
                             </div>
@@ -689,6 +730,11 @@ export function ContentManagement() {
                             </div>
                           </div>
                         ))}
+                        {(!contentVersions[item.id] || contentVersions[item.id].length === 0) && (
+                          <div className="text-center text-muted-foreground py-4">
+                            No version history available
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -700,4 +746,4 @@ export function ContentManagement() {
       </Card>
     </div>
   );
-}
+};
