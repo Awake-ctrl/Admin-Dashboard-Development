@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import os
-from datetime import datetime, date
+from datetime import datetime, date,timedelta
 import uuid
 from sqlalchemy import func
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, ForeignKey, Table, Date, func
@@ -13,7 +13,7 @@ import schemas
 import crud
 
 from services.revenue_service import RevenueService
-
+from routers import roles
 # Create tables
 Base.metadata.create_all(bind=engine)
 
@@ -22,12 +22,24 @@ app = FastAPI(title="Edu Dashboard API", version="1.0.0")
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Update with your frontend URL in production
+    allow_origins=["http://localhost:3000"],  # React app origin
+    # allow_origins=["*"],  # Update with your frontend URL in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# In your main.py, add this after creating the tables
 
+# Initialize roles data
+@app.on_event("startup")
+async def startup_event():
+    db = SessionLocal()
+    try:
+        # Initialize roles and permissions
+        from routers.roles import initialize_roles_data
+        initialize_roles_data(db)
+    finally:
+        db.close()
 # Dependency
 def get_db():
     db = SessionLocal()
@@ -35,7 +47,7 @@ def get_db():
         yield db
     finally:
         db.close()
-
+app.include_router(roles.router)
 # Health check endpoint
 @app.get("/")
 async def root():
@@ -504,17 +516,17 @@ def get_refund_request(request_id: int, db: Session = Depends(get_db)):
 def get_course_stats(db: Session = Depends(get_db)):
     total_courses = db.query(models.Course).count()
     
-    # Use func.sum directly
+    # FIXED: Use func.sum directly
     total_students_result = db.query(func.sum(models.Course.enrolled_students)).scalar()
     total_students = total_students_result if total_students_result is not None else 0
     
-    # Use func.sum directly
+    # FIXED: Use func.sum directly
     total_revenue_result = db.query(
         func.sum(models.Course.price * models.Course.enrolled_students)
     ).scalar()
     total_revenue = total_revenue_result if total_revenue_result is not None else 0
     
-    # Use func.avg directly
+    # FIXED: Use func.avg directly
     avg_completion_rate_result = db.query(func.avg(models.Course.completion_rate)).scalar()
     avg_completion_rate = avg_completion_rate_result if avg_completion_rate_result is not None else 0
     
@@ -528,7 +540,6 @@ def get_course_stats(db: Session = Depends(get_db)):
         "average_completion_rate": round(avg_completion_rate, 2),
         "popular_courses": popular_courses
     }
-@app.get("/api/stats/contents")
 @app.get("/api/stats/contents")
 def get_content_stats(db: Session = Depends(get_db)):
     try:
@@ -579,9 +590,11 @@ def get_user_stats(db: Session = Depends(get_db)):
 
 @app.get("/api/stats/subscriptions")
 def get_subscription_stats(db: Session = Depends(get_db)):
-    total_revenue = db.query(models.Transaction).filter(
+    # FIXED: Use func.sum directly, not db.func.sum
+    total_revenue_result = db.query(models.Transaction).filter(
         models.Transaction.status == 'captured'
-    ).with_entities(db.func.sum(models.Transaction.amount)).scalar() or 0
+    ).with_entities(func.sum(models.Transaction.amount)).scalar()
+    total_revenue = total_revenue_result if total_revenue_result is not None else 0
     
     active_subscriptions = db.query(models.User).filter(
         models.User.subscription_status == 'active'
@@ -591,48 +604,74 @@ def get_subscription_stats(db: Session = Depends(get_db)):
         "total_revenue": total_revenue,
         "active_subscriptions": active_subscriptions
     }
-
 # ========== ANALYTICS ENDPOINTS ==========
-@app.get("/api/analytics/subscription-stats")
+@app.get("/api/analytics/subscription-analytics")
 def get_subscription_analytics(db: Session = Depends(get_db)):
-    total_subscribers = db.query(models.SubscriptionPlan).with_entities(
-        func.sum(models.SubscriptionPlan.subscribers)
-    ).scalar() or 0
+    # FIXED: Use func.sum directly
+    total_subscribers_result = db.query(func.sum(models.SubscriptionPlan.subscribers)).scalar()
+    total_subscribers = total_subscribers_result if total_subscribers_result is not None else 0
     
-    total_revenue = db.query(models.SubscriptionPlan).with_entities(
-        func.sum(models.SubscriptionPlan.revenue)
-    ).scalar() or 0
+    # FIXED: Use func.sum directly
+    total_revenue_result = db.query(func.sum(models.SubscriptionPlan.revenue)).scalar()
+    total_revenue = total_revenue_result if total_revenue_result is not None else 0
     
     active_plans = db.query(models.SubscriptionPlan).filter(
         models.SubscriptionPlan.is_active == True
     ).count()
     
-    # Simplified calculations
-    conversion_rate = 15.5
-    churn_rate = 2.3
+    # Calculate actual metrics based on your data
+    total_users = db.query(models.User).count()
+    active_users = db.query(models.User).filter(models.User.subscription_status == 'active').count()
+    
+    conversion_rate = (active_users / total_users * 100) if total_users > 0 else 0
+    churn_rate = 2.3  # You might want to calculate this based on historical data
     monthly_recurring_revenue = total_revenue // 12
     
     return {
         "total_revenue": total_revenue,
         "total_subscribers": total_subscribers,
-        "conversion_rate": conversion_rate,
+        "conversion_rate": round(conversion_rate, 1),
         "churn_rate": churn_rate,
         "active_plans": active_plans,
         "monthly_recurring_revenue": monthly_recurring_revenue
     }
-
 @app.get("/api/analytics/revenue")
 def get_revenue_analytics(
     period: str = Query("monthly", regex="^(daily|weekly|monthly)$"),
     db: Session = Depends(get_db)
 ):
-    # Simplified revenue data
-    if period == "daily":
-        data = [{"date": f"2024-08-{i:02d}", "revenue": 1000 + i * 200} for i in range(1, 20)]
+    # Get actual transaction data for revenue analytics
+    if period == "monthly":
+        # Group transactions by month - FIXED: use func.strftime for SQLite
+        monthly_data = db.query(
+            func.strftime('%Y-%m', models.Transaction.date).label('month'),
+            func.sum(models.Transaction.amount).label('revenue')
+        ).filter(
+            models.Transaction.status == 'captured'
+        ).group_by('month').order_by('month').all()
+        
+        data = [{"month": item[0], "revenue": item[1] or 0} for item in monthly_data]
     elif period == "weekly":
-        data = [{"week": f"Week {i}", "revenue": 5000 + i * 1000} for i in range(1, 5)]
-    else:  # monthly
-        data = [{"month": f"2024-{i:02d}", "revenue": 20000 + i * 5000} for i in range(1, 9)]
+        # For SQLite, weekly grouping is more complex, so use simplified data
+        weekly_data = db.query(
+            func.strftime('%Y-%W', models.Transaction.date).label('week'),
+            func.sum(models.Transaction.amount).label('revenue')
+        ).filter(
+            models.Transaction.status == 'captured'
+        ).group_by('week').order_by('week').limit(4).all()
+        
+        data = [{"week": f"Week {i+1}", "revenue": item[1] or 0} for i, item in enumerate(weekly_data)]
+    else:  # daily
+        # Get last 7 days of data
+        daily_data = db.query(
+            func.date(models.Transaction.date).label('date'),
+            func.sum(models.Transaction.amount).label('revenue')
+        ).filter(
+            models.Transaction.status == 'captured',
+            models.Transaction.date >= datetime.utcnow().date() - timedelta(days=7)
+        ).group_by('date').order_by('date').all()
+        
+        data = [{"date": item[0].strftime('%Y-%m-%d'), "revenue": item[1] or 0} for item in daily_data]
     
     return {"period": period, "data": data}
 
@@ -692,20 +731,84 @@ def get_refund_requests_old(db: Session = Depends(get_db)):
 # ========== ANALYTICS ENDPOINTS ==========
 @app.get("/api/analytics/user-stats")
 def get_user_analytics_stats(db: Session = Depends(get_db)):
+    # Basic counts
     total_users = db.query(models.User).count()
     active_users = db.query(models.User).filter(models.User.account_status == "active").count()
-    deletion_requests = db.query(models.AccountDeletionRequest).filter(
+    
+    # Get current date info
+    today = date.today()
+    current_month = today.month
+    current_year = today.year
+    print(today)
+    print(current_month,current_year)
+    last_month = current_month - 1 if current_month > 1 else 12
+    last_month_year = current_year if current_month > 1 else current_year - 1
+    
+    # Calculate changes from last month
+    # Total users last month
+    total_users_last_month = db.query(models.User).filter(
+        func.extract('month', models.User.join_date) <= last_month,
+        func.extract('year', models.User.join_date) <= last_month_year
+    ).count()
+    print(total_users,total_users_last_month)
+    total_user_this_month=db.query(models.User).filter(
+        func.extract('month',models.User.join_date)<=current_month,
+        func.extract('year',models.User.join_date)<=current_year,
+    ).count()
+    total_users_change = total_user_this_month - total_users_last_month
+    
+    # Active users change (percentage)
+    active_users_last_month = db.query(models.User).filter(
+        models.User.account_status == "active",
+        func.extract('month', models.User.last_active) == last_month,
+        func.extract('year', models.User.last_active) == last_month_year
+    ).count()
+    
+    active_users_change = (
+        ((active_users - active_users_last_month) / active_users_last_month * 100) 
+        if active_users_last_month > 0 else 0
+    )
+    
+    # Monthly churn calculation
+    users_left_this_month = db.query(models.User).filter(
+        models.User.account_status == 'inactive',
+        func.extract('month', models.User.last_active) == current_month,
+        func.extract('year', models.User.last_active) == current_year
+    ).count()
+    
+    monthly_churn = (users_left_this_month / total_users * 100) # if total_users > 0 else 0
+    
+    # Churn change from last month
+    users_left_last_month = db.query(models.User).filter(
+        models.User.account_status == 'inactive',
+        func.extract('month', models.User.last_active) == last_month,
+        func.extract('year', models.User.last_active) == last_month_year
+    ).count()
+    
+    churn_last_month = (users_left_last_month / total_users_last_month * 100) #if total_users_last_month > 0 else 0
+    churn_change = monthly_churn - churn_last_month
+    
+    # Deletion requests
+    deletion_requests = db.query(models.AccountDeletionRequest).count()
+    pending_review_requests = db.query(models.AccountDeletionRequest).filter(
         models.AccountDeletionRequest.status == "pending_review"
     ).count()
     
-    # Mock monthly churn calculation
-    monthly_churn = 2.3
+    # New users today
+    new_users_today = db.query(models.User).filter(
+        func.date(models.User.join_date) == today
+    ).count()
     
     return {
         "total_users": total_users,
+        "total_users_change": total_users_change,
         "active_users": active_users,
+        "active_users_change": round(active_users_change, 1),
         "deletion_requests": deletion_requests,
-        "monthly_churn": monthly_churn
+        "pending_review_requests": pending_review_requests,
+        "monthly_churn": round(monthly_churn, 1),
+        "churn_change": round(churn_change, 1),
+        "new_users_today": new_users_today
     }
     
 @app.get("/api/analytics/user-demographics")
@@ -729,21 +832,142 @@ def get_user_demographics(db: Session = Depends(get_db)):
 
 @app.get("/api/analytics/subscription-stats")
 def get_subscription_stats_analytics(db: Session = Depends(get_db)):
-    subscription_statuses = db.query(models.User.subscription_status).distinct().all()
-    total_users = db.query(models.User).count()
+    today = date.today()
+    current_month_start = today.replace(day=1)
+    last_month_start = (current_month_start - timedelta(days=1)).replace(day=1)
     
-    stats = []
+    # 1. TOTAL REVENUE - From actual transactions
+    total_revenue_result = db.query(func.sum(models.Transaction.amount)).filter(
+        models.Transaction.status == 'captured'
+    ).scalar()
+    total_revenue = total_revenue_result if total_revenue_result else 0
+    
+    # Revenue from last month for comparison
+    last_month_revenue_result = db.query(func.sum(models.Transaction.amount)).filter(
+        models.Transaction.status == 'captured',
+        func.extract('month', models.Transaction.date) == last_month_start.month,
+        func.extract('year', models.Transaction.date) == last_month_start.year
+    ).scalar()
+    last_month_revenue = last_month_revenue_result if last_month_revenue_result else 0
+    
+    # Calculate revenue change percentage
+    revenue_change = (
+        ((total_revenue - last_month_revenue) / last_month_revenue * 100) 
+        if last_month_revenue > 0 else 0
+    )
+
+    # 2. ACTIVE SUBSCRIBERS - Users with active subscriptions
+    active_subscribers = db.query(models.User).filter(
+        models.User.subscription_status == 'active'
+    ).count()
+    
+    # Active subscribers from last month
+    active_subscribers_last_month = db.query(models.User).filter(
+        models.User.subscription_status == 'active',
+        func.extract('month', models.User.last_active) == last_month_start.month,
+        func.extract('year', models.User.last_active) == last_month_start.year
+    ).count()
+    
+    # Calculate active subscribers change percentage
+    active_subscribers_change = (
+        ((active_subscribers - active_subscribers_last_month) / active_subscribers_last_month * 100) 
+        if active_subscribers_last_month > 0 else 0
+    )
+
+    # 3. CONVERSION RATE - Percentage of total users with active subscriptions
+    total_users = db.query(models.User).count()
+    conversion_rate = (active_subscribers / total_users * 100) if total_users > 0 else 0
+    
+    # Conversion rate from last month
+    total_users_last_month = db.query(models.User).filter(
+        models.User.join_date <= last_month_start
+    ).count()
+    active_subscribers_last_month_for_conversion = db.query(models.User).filter(
+        models.User.subscription_status == 'active',
+        models.User.join_date <= last_month_start
+    ).count()
+    
+    conversion_rate_last_month = (
+        (active_subscribers_last_month_for_conversion / total_users_last_month * 100) 
+        if total_users_last_month > 0 else 0
+    )
+    
+    conversion_rate_change = conversion_rate - conversion_rate_last_month
+
+    # 4. CHURN RATE - Percentage of subscribers who canceled
+    # Users who had active subscription last month but not this month
+    subscribers_last_month = db.query(models.User).filter(
+        models.User.subscription_status == 'active',
+        func.extract('month', models.User.last_active) == last_month_start.month,
+        func.extract('year', models.User.last_active) == last_month_start.year
+    ).count()
+    
+    subscribers_still_active = db.query(models.User).filter(
+        models.User.id.in_(
+            db.query(models.User.id).filter(
+                models.User.subscription_status == 'active',
+                func.extract('month', models.User.last_active) == last_month_start.month,
+                func.extract('year', models.User.last_active) == last_month_start.year
+            )
+        ),
+        models.User.subscription_status == 'active',
+        models.User.last_active >= current_month_start
+    ).count()
+    
+    churned_subscribers = subscribers_last_month - subscribers_still_active
+    churn_rate = (churned_subscribers / subscribers_last_month * 100) if subscribers_last_month > 0 else 0
+    
+    # Churn rate from previous period for comparison
+    two_months_ago_start = (last_month_start - timedelta(days=1)).replace(day=1)
+    subscribers_two_months_ago = db.query(models.User).filter(
+        models.User.subscription_status == 'active',
+        func.extract('month', models.User.last_active) == two_months_ago_start.month,
+        func.extract('year', models.User.last_active) == two_months_ago_start.year
+    ).count()
+    
+    subscribers_still_active_previous = db.query(models.User).filter(
+        models.User.id.in_(
+            db.query(models.User.id).filter(
+                models.User.subscription_status == 'active',
+                func.extract('month', models.User.last_active) == two_months_ago_start.month,
+                func.extract('year', models.User.last_active) == two_months_ago_start.year
+            )
+        ),
+        models.User.subscription_status == 'active',
+        models.User.last_active >= last_month_start
+    ).count()
+    
+    churn_rate_last_month = (
+        ((subscribers_two_months_ago - subscribers_still_active_previous) / subscribers_two_months_ago * 100) 
+        if subscribers_two_months_ago > 0 else 0
+    )
+    
+    churn_rate_change = churn_rate - churn_rate_last_month
+
+    # 5. Additional subscription stats by status (your original functionality)
+    subscription_statuses = db.query(models.User.subscription_status).distinct().all()
+    status_stats = []
     for status in subscription_statuses:
-        if status[0]:  # Check if subscription_status is not None
+        if status[0]:
             count = db.query(models.User).filter(models.User.subscription_status == status[0]).count()
             percentage = (count / total_users * 100) if total_users > 0 else 0
-            stats.append({
+            status_stats.append({
                 "status": status[0],
                 "count": count,
                 "percentage": round(percentage, 1)
             })
-    
-    return {"subscription_stats": stats}
+
+    return {
+        "total_revenue": total_revenue,
+        "revenue_change": round(revenue_change, 1),
+        "active_subscribers": active_subscribers,
+        "active_subscribers_change": round(active_subscribers_change, 1),
+        "conversion_rate": round(conversion_rate, 1),
+        "conversion_rate_change": round(conversion_rate_change, 1),
+        "churn_rate": round(churn_rate, 1),
+        "churn_rate_change": round(churn_rate_change, 1),
+        "subscription_stats": status_stats
+    }
 
 # Also add these legacy endpoints without /api prefix for backward compatibility
 @app.get("/analytics/user-stats")
@@ -1193,6 +1417,160 @@ def delete_account_deletion_request(request_id: str, db: Session = Depends(get_d
     db.delete(request)
     db.commit()
     return {"message": "Account deletion request deleted successfully"}
+
+
+
+# ========== LEADERBOARD ENDPOINTS ==========
+@app.get("/api/leaderboard", response_model=List[schemas.Leaderboard])
+def get_leaderboard(
+    exam_type: Optional[str] = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db)
+):
+    """Get leaderboard data with optional exam type filter"""
+    query = db.query(models.User)
+    
+    if exam_type and exam_type != "all":
+        query = query.filter(models.User.exam_type == exam_type)
+    
+    # Get users and calculate scores for leaderboard
+    users = query.filter(
+        models.User.account_status == "active"
+    ).order_by(
+        models.User.average_score.desc(),
+        models.User.tests_attempted.desc(),
+        models.User.total_study_hours.desc()
+    ).limit(limit).all()
+    
+    leaderboard_data = []
+    for index, user in enumerate(users):
+        # Calculate score based on multiple factors
+        score = calculate_user_score(user)
+        
+        leaderboard_data.append({
+            "id": index + 1,
+            "user_id": user.id,
+            "user_name": user.name,
+            "email": user.email,
+            "score": score,
+            "rank": index + 1,
+            "exam": user.exam_type or "general",
+            "avatar": "",
+            "questions_attempted": user.tests_attempted * 10,  # Estimate
+            "questions_correct": calculate_correct_answers(user),
+            "accuracy": user.average_score or 0,
+            "streak": calculate_user_streak(db, user.id),  # Fixed: Use database for streak
+            "last_active": user.last_active.isoformat() if user.last_active else datetime.utcnow().isoformat(),
+            "preferred_subject": get_user_preferred_subject(db, user.id)  # Fixed: Use database for subject
+        })
+    
+    return leaderboard_data
+
+# Helper functions for leaderboard calculations
+def calculate_user_score(user):
+    """Calculate comprehensive user score for leaderboard"""
+    base_score = (user.average_score or 0) * 10  # Convert percentage to points
+    study_bonus = (user.total_study_hours or 0) * 2  # 2 points per study hour
+    test_bonus = (user.tests_attempted or 0) * 5  # 5 points per test
+    rank_bonus = (1000 - (user.current_rank or 1000)) if user.current_rank else 0
+    
+    total_score = base_score + study_bonus + test_bonus + max(rank_bonus, 0)
+    return int(total_score)
+
+def calculate_correct_answers(user):
+    """Estimate correct answers based on tests attempted and average score"""
+    total_questions = (user.tests_attempted or 0) * 10  # Assume 10 questions per test
+    correct_answers = total_questions * (user.average_score or 0) / 100
+    return int(correct_answers)
+
+def calculate_user_streak(db: Session, user_id: str):
+    """Calculate actual streak based on consecutive days with activity"""
+    # Get the last 30 days of activity
+    thirty_days_ago = date.today() - timedelta(days=30)
+    
+    activity_days = db.query(
+        func.date(models.UserActivity.activity_date).label('activity_date')
+    ).filter(
+        models.UserActivity.user_id == user_id,
+        models.UserActivity.activity_date >= thirty_days_ago
+    ).distinct().order_by(
+        func.date(models.UserActivity.activity_date).desc()
+    ).all()
+    
+    if not activity_days:
+        return 0
+    
+    # Calculate consecutive days from today
+    today = date.today()
+    streak = 0
+    
+    for i in range(30):  # Check last 30 days
+        check_date = today - timedelta(days=i)
+        
+        # Check if user had activity on this date
+        had_activity = any(
+            activity.activity_date == check_date 
+            for activity in activity_days
+        )
+        
+        if had_activity:
+            streak += 1
+        else:
+            break
+    
+    return streak
+
+def get_user_preferred_subject(db: Session, user_id: str):
+    """Get user's preferred subject from their activity or courses"""
+    # Check user's enrolled courses to determine preferred subject
+    user_courses = db.query(models.UserCourse).filter(
+        models.UserCourse.user_id == user_id
+    ).all()
+    
+    if user_courses:
+        # Get the course with highest progress or most recent activity
+        most_engaged_course = max(user_courses, key=lambda uc: uc.progress, default=None)
+        if most_engaged_course:
+            course = db.query(models.Course).filter(
+                models.Course.id == most_engaged_course.course_id
+            ).first()
+            if course:
+                # Extract subject from course title or use exam type
+                return extract_subject_from_course(course.title) or course.exam_type
+    
+    # Fallback: Get from user's exam type
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if user and user.exam_type:
+        return get_subject_from_exam_type(user.exam_type)
+    
+    return "General"
+
+def extract_subject_from_course(course_title: str):
+    """Extract subject from course title"""
+    subjects = ["Physics", "Mathematics", "Chemistry", "Biology", "History", 
+                "Geography", "Quantitative", "Verbal", "Logical", "Technical",
+                "General Knowledge", "Aptitude", "Reasoning"]
+    
+    course_lower = course_title.lower()
+    for subject in subjects:
+        if subject.lower() in course_lower:
+            return subject
+    return None
+
+def get_subject_from_exam_type(exam_type: str):
+    """Get default subject based on exam type"""
+    subject_map = {
+        'jee': 'Physics',
+        'neet': 'Biology',
+        'cat': 'Quantitative Aptitude',
+        'upsc': 'History',
+        'gate': 'Technical',
+        'other_govt_exam': 'General Knowledge'
+    }
+    return subject_map.get(exam_type, 'General')
+
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

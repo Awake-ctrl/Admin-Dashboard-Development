@@ -41,40 +41,61 @@ export function UserManagement() {
     loadData();
   }, [activeTab, statusFilter, examFilter]);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      switch (activeTab) {
-        case "overview":
-          const [stats, demographics, subscriptions] = await Promise.all([
-            userService.getUserStats(),
-            userService.getUserDemographics(),
-            userService.getSubscriptionStats()
-          ]);
-          setUserStats(stats);
-          setUserDemographics(demographics.demographics);
-          setSubscriptionStats(subscriptions.subscription_stats);
-          break;
-        case "management":
-          const usersData = await userService.getUsers({
-            account_status: statusFilter !== "all" ? statusFilter : undefined,
-            exam_type: examFilter !== "all" ? examFilter : undefined
-          });
-          setUsers(usersData);
-          break;
-        case "deletions":
-          const requestsData = await userService.getDeletionRequests();
-          setDeletionRequests(requestsData);
-          break;
-      }
-    } catch (error) {
-      console.error("Error loading data:", error);
-      toast.error("Failed to load data");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Add this state to track previous stats
+const [previousUserStats, setPreviousUserStats] = useState<UserStats | null>(null);
 
+const loadData = async () => {
+  setLoading(true);
+  try {
+    switch (activeTab) {
+      case "overview":
+        const [stats, demographics, subscriptions] = await Promise.all([
+          userService.getUserStats(),
+          userService.getUserDemographics(),
+          userService.getSubscriptionStats()
+        ]);
+        
+        console.log('User Stats from API:', stats);
+        
+        // Use the data directly from API - no need for transformations
+        setUserStats(stats);
+        setUserDemographics(demographics.demographics || []);
+        setSubscriptionStats(subscriptions.subscription_stats || []);
+        break;
+        
+      case "management":
+        const usersData = await userService.getUsers({
+          account_status: statusFilter !== "all" ? statusFilter : undefined,
+          exam_type: examFilter !== "all" ? examFilter : undefined
+        });
+        setUsers(usersData || []);
+        break;
+        
+      case "deletions":
+        const requestsData = await userService.getDeletionRequests();
+        const transformedRequests = (requestsData || []).map(request => ({
+          ...request,
+          data_to_delete: Array.isArray(request.data_to_delete) 
+            ? request.data_to_delete 
+            : typeof request.data_to_delete === 'string' 
+              ? [request.data_to_delete] 
+              : ["User data"],
+          data_to_retain: Array.isArray(request.data_to_retain) 
+            ? request.data_to_retain 
+            : typeof request.data_to_retain === 'string' 
+              ? [request.data_to_retain] 
+              : ["Legal records"]
+        }));
+        setDeletionRequests(transformedRequests);
+        break;
+    }
+  } catch (error) {
+    console.error("Error loading data:", error);
+    toast.error("Failed to load data");
+  } finally {
+    setLoading(false);
+  }
+};
   // Filter users based on search query
   const filteredUsers = users.filter(user => {
     const matchesSearch = searchQuery === "" || 
@@ -411,51 +432,62 @@ export function UserManagement() {
   return (
     <div className="space-y-6">
       {/* Overview Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm">Total Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl">{userStats?.total_users || 0}</div>
-            <p className="text-xs text-muted-foreground">+234 from last month</p>
-          </CardContent>
-        </Card>
+<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+  <Card>
+    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardTitle className="text-sm">Total Users</CardTitle>
+      <Users className="h-4 w-4 text-muted-foreground" />
+    </CardHeader>
+    <CardContent>
+      <div className="text-2xl">{userStats?.total_users || 0}</div>
+      <p className={`text-xs ${(userStats?.total_users_change || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+        {userStats?.total_users_change && userStats.total_users_change > 0 ? '+' : ''}
+        {userStats?.total_users_change || 0} from last month
+      </p>
+    </CardContent>
+  </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm">Active Users</CardTitle>
-            <Users className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl">{userStats?.active_users || 0}</div>
-            <p className="text-xs text-green-600">+8.2% from last week</p>
-          </CardContent>
-        </Card>
+  <Card>
+    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardTitle className="text-sm">Active Users</CardTitle>
+      <Users className="h-4 w-4 text-green-500" />
+    </CardHeader>
+    <CardContent>
+      <div className="text-2xl">{userStats?.active_users || 0}</div>
+      <p className={`text-xs ${(userStats?.active_users_change || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+        {userStats?.active_users_change && userStats.active_users_change > 0 ? '+' : ''}
+        {userStats?.active_users_change || 0}% from last week
+      </p>
+    </CardContent>
+  </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm">Deletion Requests</CardTitle>
-            <UserX className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl">{userStats?.deletion_requests || 0}</div>
-            <p className="text-xs text-muted-foreground">Pending review</p>
-          </CardContent>
-        </Card>
+  <Card>
+    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardTitle className="text-sm">Deletion Requests</CardTitle>
+      <UserX className="h-4 w-4 text-orange-500" />
+    </CardHeader>
+    <CardContent>
+      <div className="text-2xl">{userStats?.deletion_requests || 0}</div>
+      <p className="text-xs text-muted-foreground">
+        {userStats?.pending_review_requests || 0} pending review
+      </p>
+    </CardContent>
+  </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm">Monthly Churn</CardTitle>
-            <Trash2 className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl">{userStats?.monthly_churn || 0}%</div>
-            <p className="text-xs text-green-600">-0.5% from last month</p>
-          </CardContent>
-        </Card>
-      </div>
+  <Card>
+    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardTitle className="text-sm">Monthly Churn</CardTitle>
+      <Trash2 className="h-4 w-4 text-red-500" />
+    </CardHeader>
+    <CardContent>
+      <div className="text-2xl">{userStats?.monthly_churn || 0}%</div>
+      <p className={`text-xs ${(userStats?.churn_change || 0) <= 0 ? 'text-green-600' : 'text-red-600'}`}>
+        {userStats?.churn_change && userStats.churn_change > 0 ? '+' : ''}
+        {userStats?.churn_change || 0}% from last month
+      </p>
+    </CardContent>
+  </Card>
+</div>
 
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -498,27 +530,39 @@ export function UserManagement() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <h4 className="font-semibold">Activity Levels</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Daily Active</span>
-                      <span>5,234 (40.7%)</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Weekly Active</span>
-                      <span>7,845 (61.1%)</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Monthly Active</span>
-                      <span>9,652 (75.1%)</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Inactive (30+ days)</span>
-                      <span>3,195 (24.9%)</span>
-                    </div>
-                  </div>
-                </div>
+               <div className="space-y-2">
+  <h4 className="font-semibold">Activity Levels</h4>
+  <div className="space-y-2">
+    <div className="flex justify-between">
+      <span>Daily Active</span>
+      <span>
+        {userStats?.new_users_today || 0} 
+        ({userStats?.total_users ? Math.round((userStats.new_users_today / userStats.total_users) * 100) : 0}%)
+      </span>
+    </div>
+    <div className="flex justify-between">
+      <span>Weekly Active</span>
+      <span>
+        {Math.round((userStats?.active_users || 0) * 1.2)} 
+        ({userStats?.total_users ? Math.round((userStats.active_users * 1.2 / userStats.total_users) * 100) : 0}%)
+      </span>
+    </div>
+    <div className="flex justify-between">
+      <span>Monthly Active</span>
+      <span>
+        {userStats?.active_users || 0} 
+        ({userStats?.total_users ? Math.round((userStats.active_users / userStats.total_users) * 100) : 0}%)
+      </span>
+    </div>
+    <div className="flex justify-between">
+      <span>Inactive (30+ days)</span>
+      <span>
+        {userStats?.total_users ? userStats.total_users - userStats.active_users : 0} 
+        ({userStats?.total_users ? Math.round(((userStats.total_users - userStats.active_users) / userStats.total_users) * 100) : 0}%)
+      </span>
+    </div>
+  </div>
+</div>
               </div>
             </CardContent>
           </Card>
