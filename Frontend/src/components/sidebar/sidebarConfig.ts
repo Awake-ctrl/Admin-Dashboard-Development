@@ -54,19 +54,13 @@ export const mainMenuItems = [
     id: "courses",
     label: "Courses",
     icon: BookOpen,
-    description: "Course management"
+    description: "Courses & content library"
   },
   {
     id: "topics",
     label: "Topics",
     icon: GitBranch,
     description: "Subject hierarchy"
-  },
-  {
-    id: "content",
-    label: "Content",
-    icon: FileText,
-    description: "Educational materials"
   }
 ];
 

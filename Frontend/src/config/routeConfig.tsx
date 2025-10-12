@@ -1,7 +1,6 @@
 import { UserManagement } from "../components/UserManagement";
 import { RolesManagement } from "../components/RolesManagement";
-import { CourseManagement } from "../components/CourseManagement";
-import { ContentManagement } from "../components/ContentManagement";
+import { CourseContentManagement } from "../components/CourseContentManagement";
 import { FeedbackManagement } from "../components/FeedbackManagement";
 import { AnalyticsDashboard } from "../components/AnalyticsDashboard";
 import { Settings } from "../components/Settings";
@@ -44,9 +43,9 @@ export const mainRoutes = {
   "users": UserManagement,
   "roles": RolesManagement,
   "subscriptions": SubscriptionManagement,
-  "courses": CourseManagement,
+  "courses": CourseContentManagement,
   "topics": TopicsManagement,
-  "content": ContentManagement,
+  "content": CourseContentManagement,
   "leaderboard": LeaderboardManagement,
   "feedback": FeedbackManagement,
   "notifications": NotificationManagement,
@@ -65,9 +64,9 @@ export const sectionTitles = {
   "users": "User Management",
   "roles": "Roles Management",
   "subscriptions": "Subscription Management",
-  "courses": "Course Management",
+  "courses": "Courses & Content Management",
   "topics": "Topics & Subjects",
-  "content": "Content Management",
+  "content": "Courses & Content Management",
   "leaderboard": "Student Leaderboard",
   "feedback": "Feedback & Support",
   "notifications": "Notification Management",

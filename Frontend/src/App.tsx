@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { AdminSidebar } from "./components/AdminSidebar";
 import { demoScreens, mainRoutes, sectionTitles } from "./config/routeConfig";
-// In your main App.tsx or layout
 import { Toaster } from "sonner";
 
-// In your JSX
 export default function App() {
   const [activeSection, setActiveSection] = useState("analytics");
   const [demoMode, setDemoMode] = useState<string | null>(null);
@@ -17,6 +15,13 @@ export default function App() {
 
   const renderContent = () => {
     const RouteComponent = mainRoutes[activeSection as keyof typeof mainRoutes];
+    
+    // Special handling for course-content to pass default tab
+    if (activeSection === "course-content") {
+      const CourseContentComponent = RouteComponent as React.FC<{ defaultTab?: "courses" | "content" }>;
+      return <CourseContentComponent defaultTab="courses" />;
+    }
+    
     return RouteComponent ? <RouteComponent /> : <mainRoutes.analytics />;
   };
 
@@ -32,7 +37,7 @@ export default function App() {
         onSectionChange={setActiveSection}
         onDemoModeChange={setDemoMode}
       />
-<Toaster position="top-right" />
+      <Toaster position="top-right" />
       
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
