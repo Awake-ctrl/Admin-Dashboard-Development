@@ -72,13 +72,6 @@ export const engagementItems = [
     description: "Student rankings"
   },
   {
-    id: "feedback",
-    label: "Feedback",
-    icon: MessageSquare,
-    description: "User feedback & reviews",
-    badge: "42"
-  },
-  {
     id: "notifications",
     label: "Notifications",
     icon: Bell,
@@ -90,9 +83,9 @@ export const engagementItems = [
 export const systemItems = [
   {
     id: "support",
-    label: "Support Center",
+    label: "Support & Feedback",
     icon: LifeBuoy,
-    description: "Help desk & tickets",
+    description: "Tickets, reviews & refunds",
     badge: "15"
   },
   {

@@ -22,7 +22,14 @@ import {
   Download, 
   Upload,
   FolderOpen,
-  GraduationCap
+  GraduationCap,
+  History,
+  GitBranch,
+  RotateCcw,
+  Clock,
+  Check,
+  GitCommit,
+  Archive
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -40,6 +47,91 @@ import {
 import { Textarea } from "./ui/textarea";
 import { Switch } from "./ui/switch";
 import { Progress } from "./ui/progress";
+import { Separator } from "./ui/separator";
+import { toast } from "sonner@2.0.3";
+
+// Mock version history data
+const mockVersionHistory = {
+  1: [ // content id
+    {
+      versionId: 3,
+      versionNumber: "3.0",
+      status: "published",
+      author: "Dr. Priya Sharma",
+      timestamp: "2025-01-10 14:30",
+      changes: "Updated video quality to 4K, added Hindi subtitles",
+      size: "450 MB",
+      duration: "45 min",
+      isCurrent: true
+    },
+    {
+      versionId: 2,
+      versionNumber: "2.0",
+      status: "archived",
+      author: "Dr. Priya Sharma",
+      timestamp: "2024-12-15 10:20",
+      changes: "Improved audio quality, fixed timestamp errors",
+      size: "425 MB",
+      duration: "45 min",
+      isCurrent: false
+    },
+    {
+      versionId: 1,
+      versionNumber: "1.0",
+      status: "archived",
+      author: "Content Team",
+      timestamp: "2024-11-01 09:00",
+      changes: "Initial upload",
+      size: "400 MB",
+      duration: "45 min",
+      isCurrent: false
+    }
+  ],
+  2: [
+    {
+      versionId: 2,
+      versionNumber: "2.0",
+      status: "published",
+      author: "Dr. Priya Sharma",
+      timestamp: "2025-01-08 11:15",
+      changes: "Added 10 more practice problems, corrected solutions",
+      size: "2.8 MB",
+      isCurrent: true
+    },
+    {
+      versionId: 1,
+      versionNumber: "1.0",
+      status: "archived",
+      author: "Content Team",
+      timestamp: "2024-11-05 14:30",
+      changes: "Initial upload",
+      size: "2.4 MB",
+      isCurrent: false
+    }
+  ],
+  3: [ // Quiz version history
+    {
+      versionId: 2,
+      versionNumber: "2.0",
+      status: "published",
+      author: "Dr. Priya Sharma",
+      timestamp: "2025-01-05 16:45",
+      changes: "Added 5 new advanced questions, updated question 3 options, fixed typo in question 7",
+      questions: 25,
+      isCurrent: true
+    },
+    {
+      versionId: 1,
+      versionNumber: "1.0",
+      status: "archived",
+      author: "Content Team",
+      timestamp: "2024-11-08 10:00",
+      changes: "Initial quiz created",
+      questions: 20,
+      isCurrent: false
+    }
+  ]
+};
 
 // Mock data
 const courses = [
@@ -62,9 +154,36 @@ const courses = [
         duration: "8 hours",
         order: 1,
         contents: [
-          { id: 1, title: "Newton's Laws of Motion", type: "video", duration: "45 min", status: "published" },
-          { id: 2, title: "Mechanics Practice Problems", type: "document", size: "2.4 MB", status: "published" },
-          { id: 3, title: "Physics Quiz 1", type: "quiz", questions: 20, status: "published" }
+          { 
+            id: 1, 
+            title: "Newton's Laws of Motion", 
+            type: "video", 
+            duration: "45 min", 
+            status: "published",
+            currentVersion: "3.0",
+            totalVersions: 3,
+            lastModified: "2025-01-10 14:30"
+          },
+          { 
+            id: 2, 
+            title: "Mechanics Practice Problems", 
+            type: "document", 
+            size: "2.4 MB", 
+            status: "published",
+            currentVersion: "2.0",
+            totalVersions: 2,
+            lastModified: "2025-01-08 11:15"
+          },
+          { 
+            id: 3, 
+            title: "Physics Quiz 1", 
+            type: "quiz", 
+            questions: 25, 
+            status: "published",
+            currentVersion: "2.0",
+            totalVersions: 2,
+            lastModified: "2025-01-05 16:45"
+          }
         ]
       },
       { 
@@ -237,6 +356,16 @@ export function CourseContentManagement() {
   const [isCreateQuizOpen, setIsCreateQuizOpen] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  
+  // Version control states
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
+  const [selectedContent, setSelectedContent] = useState<any>(null);
+  const [isVersionCompareOpen, setIsVersionCompareOpen] = useState(false);
+  const [compareVersions, setCompareVersions] = useState<{v1: any, v2: any}>({v1: null, v2: null});
+  const [isUploadNewVersionOpen, setIsUploadNewVersionOpen] = useState(false);
+  const [editingContent, setEditingContent] = useState<any>(null);
+  const [isCreateQuizVersionOpen, setIsCreateQuizVersionOpen] = useState(false);
+  const [editingQuiz, setEditingQuiz] = useState<any>(null);
 
   const handleCourseClick = (course: any) => {
     setSelectedCourse(course);
@@ -256,6 +385,223 @@ export function CourseContentManagement() {
       setSelectedCourse(null);
       setView('courses');
     }
+  };
+
+  // Version History Component
+  const VersionHistory = ({ contentId, contentTitle }) => {
+    const versions = mockVersionHistory[contentId] || [];
+    
+    const handleRestore = (version: any) => {
+      console.log("Restoring version:", version);
+      toast.success(`Successfully restored version ${version.versionNumber} of "${contentTitle}"`);
+      setIsVersionHistoryOpen(false);
+    };
+
+    const handleCompare = (v1: any, v2: any) => {
+      setCompareVersions({ v1, v2 });
+      setIsVersionCompareOpen(true);
+    };
+
+    return (
+      <div className="space-y-4">
+        {versions.length === 0 ? (
+          <div className="text-center py-8">
+            <History className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <p className="text-muted-foreground">No version history available</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {versions.map((version, index) => (
+              <Card key={version.versionId} className={version.isCurrent ? "border-primary" : ""}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <GitCommit className="w-4 h-4 text-muted-foreground" />
+                        <span className="font-medium">Version {version.versionNumber}</span>
+                        {version.isCurrent && (
+                          <Badge className="bg-green-100 text-green-800">
+                            <Check className="w-3 h-3 mr-1" />
+                            Current
+                          </Badge>
+                        )}
+                        <Badge className={getStatusColor(version.status)}>
+                          {version.status}
+                        </Badge>
+                      </div>
+                      
+                      <p className="text-sm text-foreground mb-2">{version.changes}</p>
+                      
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Users className="w-3 h-3" />
+                          <span>{version.author}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          <span>{version.timestamp}</span>
+                        </div>
+                        {version.size && (
+                          <span>{version.size}</span>
+                        )}
+                        {version.duration && (
+                          <span>{version.duration}</span>
+                        )}
+                        {version.questions && (
+                          <div className="flex items-center gap-1">
+                            <GraduationCap className="w-3 h-3" />
+                            <span>{version.questions} questions</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2 ml-4">
+                      {!version.isCurrent && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleRestore(version)}
+                        >
+                          <RotateCcw className="w-4 h-4 mr-2" />
+                          Restore
+                        </Button>
+                      )}
+                      {index < versions.length - 1 && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleCompare(version, versions[index + 1])}
+                        >
+                          <GitBranch className="w-4 h-4 mr-2" />
+                          Compare
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm">
+                        <Download className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Version Comparison Component
+  const VersionCompare = ({ v1, v2, contentTitle }) => {
+    if (!v1 || !v2) return null;
+    
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          {/* Version 1 */}
+          <div className="border rounded-lg p-4 bg-muted/30">
+            <div className="flex items-center gap-2 mb-3">
+              <GitCommit className="w-4 h-4 text-blue-600" />
+              <h3>Version {v1.versionNumber}</h3>
+              {v1.isCurrent && (
+                <Badge className="bg-green-100 text-green-800 text-xs">Current</Badge>
+              )}
+            </div>
+            <div className="space-y-2 text-sm">
+              <div>
+                <Label className="text-xs text-muted-foreground">Changes</Label>
+                <p className="text-foreground">{v1.changes}</p>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Author</Label>
+                <p className="text-foreground">{v1.author}</p>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Timestamp</Label>
+                <p className="text-foreground">{v1.timestamp}</p>
+              </div>
+              {v1.size && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Size</Label>
+                  <p className="text-foreground">{v1.size}</p>
+                </div>
+              )}
+              {v1.duration && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Duration</Label>
+                  <p className="text-foreground">{v1.duration}</p>
+                </div>
+              )}
+              {v1.questions && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Questions</Label>
+                  <p className="text-foreground">{v1.questions} questions</p>
+                </div>
+              )}
+              <Badge className={getStatusColor(v1.status)}>{v1.status}</Badge>
+            </div>
+          </div>
+
+          {/* Version 2 */}
+          <div className="border rounded-lg p-4 bg-muted/30">
+            <div className="flex items-center gap-2 mb-3">
+              <GitCommit className="w-4 h-4 text-orange-600" />
+              <h3>Version {v2.versionNumber}</h3>
+              {v2.isCurrent && (
+                <Badge className="bg-green-100 text-green-800 text-xs">Current</Badge>
+              )}
+            </div>
+            <div className="space-y-2 text-sm">
+              <div>
+                <Label className="text-xs text-muted-foreground">Changes</Label>
+                <p className="text-foreground">{v2.changes}</p>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Author</Label>
+                <p className="text-foreground">{v2.author}</p>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Timestamp</Label>
+                <p className="text-foreground">{v2.timestamp}</p>
+              </div>
+              {v2.size && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Size</Label>
+                  <p className="text-foreground">{v2.size}</p>
+                </div>
+              )}
+              {v2.duration && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Duration</Label>
+                  <p className="text-foreground">{v2.duration}</p>
+                </div>
+              )}
+              {v2.questions && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Questions</Label>
+                  <p className="text-foreground">{v2.questions} questions</p>
+                </div>
+              )}
+              <Badge className={getStatusColor(v2.status)}>{v2.status}</Badge>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-4 border-t">
+          <Button variant="outline" onClick={() => setIsVersionCompareOpen(false)}>
+            Close
+          </Button>
+          <Button onClick={() => {
+            toast.success(`Successfully restored to version ${v1.versionNumber}`);
+            setIsVersionCompareOpen(false);
+            setIsVersionHistoryOpen(false);
+          }}>
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Restore to v{v1.versionNumber}
+          </Button>
+        </div>
+      </div>
+    );
   };
 
   const CourseForm = ({ course = null, onSave }) => {
@@ -461,6 +807,18 @@ export function CourseContentManagement() {
 
     return (
       <div className="space-y-4">
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start gap-2">
+            <GitCommit className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div>
+              <p className="text-sm text-blue-900">Creating New Content</p>
+              <p className="text-xs text-blue-700 mt-1">
+                This will be created as version 1.0. You can upload new versions later.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div>
           <Label htmlFor="content-title">Content Title</Label>
           <Input
@@ -506,10 +864,343 @@ export function CourseContentManagement() {
             Cancel
           </Button>
           <Button onClick={() => {
-            onSave(formData);
+            onSave({...formData, version: "1.0"});
+            toast.success(`Content created with version 1.0`);
             setIsUploadContentOpen(false);
           }}>
-            Upload Content
+            <Upload className="w-4 h-4 mr-2" />
+            Create Content (v1.0)
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  // Upload New Version Form Component
+  const UploadNewVersionForm = ({ content, onSave }) => {
+    const [formData, setFormData] = useState({
+      versionNotes: "",
+      file: null,
+      status: "draft"
+    });
+
+    const handleFileUpload = (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        setFormData(prev => ({ ...prev, file }));
+        setIsUploading(true);
+        let progress = 0;
+        const interval = setInterval(() => {
+          progress += 10;
+          setUploadProgress(progress);
+          if (progress >= 100) {
+            clearInterval(interval);
+            setIsUploading(false);
+          }
+        }, 200);
+      }
+    };
+
+    const getNextVersion = () => {
+      if (!content.currentVersion) return "1.0";
+      const [major, minor] = content.currentVersion.split(".").map(Number);
+      return `${major}.${minor + 1}`;
+    };
+
+    const nextVersion = getNextVersion();
+
+    return (
+      <div className="space-y-4">
+        {/* Current Version Info */}
+        <div className="p-4 bg-muted/50 rounded-lg border">
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <h4 className="text-foreground mb-1">{content.title}</h4>
+              <p className="text-sm text-muted-foreground">{content.type} • {content.duration || content.size}</p>
+            </div>
+            <Badge variant="outline" className="bg-blue-50 border-blue-300 text-blue-800">
+              <GitCommit className="w-3 h-3 mr-1" />
+              Current: v{content.currentVersion}
+            </Badge>
+          </div>
+          {content.lastModified && (
+            <p className="text-xs text-muted-foreground">
+              Last modified: {content.lastModified}
+            </p>
+          )}
+        </div>
+
+        {/* New Version Info */}
+        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-start gap-2">
+            <GitBranch className="w-5 h-5 text-green-600 mt-0.5" />
+            <div>
+              <p className="text-sm text-green-900">Creating New Version</p>
+              <p className="text-xs text-green-700 mt-1">
+                This will be saved as version {nextVersion}. Previous versions will be archived.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor="version-notes">Version Notes / Changelog</Label>
+          <Textarea
+            id="version-notes"
+            value={formData.versionNotes}
+            onChange={(e) => setFormData(prev => ({ ...prev, versionNotes: e.target.value }))}
+            placeholder="Describe what changed in this version (e.g., Fixed audio issues, added subtitles, updated content...)"
+            rows={3}
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            This will help track changes between versions
+          </p>
+        </div>
+
+        <div>
+          <Label htmlFor="new-version-file">Upload New File</Label>
+          <Input
+            id="new-version-file"
+            type="file"
+            onChange={handleFileUpload}
+            accept=".pdf,.doc,.docx,.mp4,.mov,.jpg,.jpeg,.png"
+          />
+          {isUploading && (
+            <div className="mt-2">
+              <Progress value={uploadProgress} className="h-2" />
+              <p className="text-xs text-muted-foreground mt-1">Uploading... {uploadProgress}%</p>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <Label htmlFor="version-status">Version Status</Label>
+          <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="draft">Draft (Not visible to students)</SelectItem>
+              <SelectItem value="published">Published (Live for students)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-4 border-t">
+          <Button variant="outline" onClick={() => setIsUploadNewVersionOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={() => {
+            onSave({...formData, newVersion: nextVersion, contentId: content.id});
+            toast.success(`New version ${nextVersion} uploaded successfully`);
+            setIsUploadNewVersionOpen(false);
+          }}>
+            <Upload className="w-4 h-4 mr-2" />
+            Upload Version {nextVersion}
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  // Create New Quiz Version Form
+  const CreateQuizVersionForm = ({ quiz, onSave }) => {
+    const getNextVersion = () => {
+      if (!quiz.currentVersion) return "1.0";
+      const [major, minor] = quiz.currentVersion.split(".").map(Number);
+      return `${major}.${minor + 1}`;
+    };
+
+    const nextVersion = getNextVersion();
+
+    const [formData, setFormData] = useState({
+      versionNotes: "",
+      timeLimit: 30,
+      passingScore: 70,
+      questions: [
+        { question: "", options: ["", "", "", ""], correctAnswer: 0 }
+      ],
+      status: "draft"
+    });
+
+    const addQuestion = () => {
+      setFormData(prev => ({
+        ...prev,
+        questions: [...prev.questions, { question: "", options: ["", "", "", ""], correctAnswer: 0 }]
+      }));
+    };
+
+    const removeQuestion = (index: number) => {
+      setFormData(prev => ({
+        ...prev,
+        questions: prev.questions.filter((_, i) => i !== index)
+      }));
+    };
+
+    return (
+      <div className="space-y-4">
+        {/* Current Version Info */}
+        <div className="p-4 bg-muted/50 rounded-lg border">
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <h4 className="text-foreground mb-1">{quiz.title}</h4>
+              <p className="text-sm text-muted-foreground">{quiz.questions} questions</p>
+            </div>
+            <Badge variant="outline" className="bg-blue-50 border-blue-300 text-blue-800">
+              <GitCommit className="w-3 h-3 mr-1" />
+              Current: v{quiz.currentVersion}
+            </Badge>
+          </div>
+          {quiz.lastModified && (
+            <p className="text-xs text-muted-foreground">
+              Last modified: {quiz.lastModified}
+            </p>
+          )}
+        </div>
+
+        {/* New Version Info */}
+        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-start gap-2">
+            <GitBranch className="w-5 h-5 text-green-600 mt-0.5" />
+            <div>
+              <p className="text-sm text-green-900">Creating New Quiz Version</p>
+              <p className="text-xs text-green-700 mt-1">
+                This will be saved as version {nextVersion}. Previous versions will be archived.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor="quiz-version-notes">Version Notes / Changelog</Label>
+          <Textarea
+            id="quiz-version-notes"
+            value={formData.versionNotes}
+            onChange={(e) => setFormData(prev => ({ ...prev, versionNotes: e.target.value }))}
+            placeholder="Describe what changed (e.g., Added 5 new questions, updated question 3 options, fixed typo...)"
+            rows={3}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="quiz-time-limit">Time Limit (minutes)</Label>
+            <Input
+              id="quiz-time-limit"
+              type="number"
+              value={formData.timeLimit}
+              onChange={(e) => setFormData(prev => ({ ...prev, timeLimit: parseInt(e.target.value) }))}
+            />
+          </div>
+          <div>
+            <Label htmlFor="quiz-passing-score">Passing Score (%)</Label>
+            <Input
+              id="quiz-passing-score"
+              type="number"
+              value={formData.passingScore}
+              onChange={(e) => setFormData(prev => ({ ...prev, passingScore: parseInt(e.target.value) }))}
+            />
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <Label>Questions</Label>
+            <Button variant="outline" size="sm" onClick={addQuestion}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Question
+            </Button>
+          </div>
+          
+          <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+            {formData.questions.map((q, index) => (
+              <Card key={index}>
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm">Question {index + 1}</Label>
+                      {formData.questions.length > 1 && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => removeQuestion(index)}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+                    <Input
+                      placeholder={`Enter question ${index + 1}`}
+                      value={q.question}
+                      onChange={(e) => {
+                        const newQuestions = [...formData.questions];
+                        newQuestions[index].question = e.target.value;
+                        setFormData(prev => ({ ...prev, questions: newQuestions }));
+                      }}
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      {q.options.map((option, optIndex) => (
+                        <Input
+                          key={optIndex}
+                          placeholder={`Option ${optIndex + 1}`}
+                          value={option}
+                          onChange={(e) => {
+                            const newQuestions = [...formData.questions];
+                            newQuestions[index].options[optIndex] = e.target.value;
+                            setFormData(prev => ({ ...prev, questions: newQuestions }));
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <Select
+                      value={q.correctAnswer.toString()}
+                      onValueChange={(value) => {
+                        const newQuestions = [...formData.questions];
+                        newQuestions[index].correctAnswer = parseInt(value);
+                        setFormData(prev => ({ ...prev, questions: newQuestions }));
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Correct answer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">Option 1</SelectItem>
+                        <SelectItem value="1">Option 2</SelectItem>
+                        <SelectItem value="2">Option 3</SelectItem>
+                        <SelectItem value="3">Option 4</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor="quiz-version-status">Version Status</Label>
+          <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="draft">Draft (Not visible to students)</SelectItem>
+              <SelectItem value="published">Published (Live for students)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-4 border-t">
+          <Button variant="outline" onClick={() => setIsCreateQuizVersionOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={() => {
+            onSave({...formData, newVersion: nextVersion, quizId: quiz.id, questionCount: formData.questions.length});
+            toast.success(`Quiz version ${nextVersion} created successfully`);
+            setIsCreateQuizVersionOpen(false);
+          }}>
+            <GraduationCap className="w-4 h-4 mr-2" />
+            Create Version {nextVersion}
           </Button>
         </div>
       </div>
@@ -535,6 +1226,18 @@ export function CourseContentManagement() {
 
     return (
       <div className="space-y-4">
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start gap-2">
+            <GitCommit className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div>
+              <p className="text-sm text-blue-900">Creating New Quiz</p>
+              <p className="text-xs text-blue-700 mt-1">
+                This will be created as version 1.0. You can create new versions later.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div>
           <Label htmlFor="quiz-title">Quiz Title</Label>
           <Input
@@ -632,10 +1335,12 @@ export function CourseContentManagement() {
             Cancel
           </Button>
           <Button onClick={() => {
-            onSave(formData);
+            onSave({...formData, version: "1.0"});
+            toast.success(`Quiz created with version 1.0`);
             setIsCreateQuizOpen(false);
           }}>
-            Create Quiz
+            <GraduationCap className="w-4 h-4 mr-2" />
+            Create Quiz (v1.0)
           </Button>
         </div>
       </div>
@@ -1029,6 +1734,7 @@ export function CourseContentManagement() {
                     <TableHead>Content</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Details</TableHead>
+                    <TableHead>Version</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
@@ -1041,7 +1747,14 @@ export function CourseContentManagement() {
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <Icon className="w-5 h-5 text-muted-foreground" />
-                            <span>{content.title}</span>
+                            <div>
+                              <p>{content.title}</p>
+                              {content.lastModified && (
+                                <p className="text-xs text-muted-foreground">
+                                  Modified: {content.lastModified}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -1051,6 +1764,53 @@ export function CourseContentManagement() {
                           {content.duration && <span>{content.duration}</span>}
                           {content.size && <span>{content.size}</span>}
                           {content.questions && <span>{content.questions} questions</span>}
+                        </TableCell>
+                        <TableCell>
+                          {content.currentVersion ? (
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="bg-blue-50 border-blue-300 text-blue-800">
+                                <GitCommit className="w-3 h-3 mr-1" />
+                                v{content.currentVersion}
+                              </Badge>
+                              {content.totalVersions > 1 && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2"
+                                  onClick={() => {
+                                    setSelectedContent(content);
+                                    setIsVersionHistoryOpen(true);
+                                  }}
+                                >
+                                  <History className="w-3 h-3 mr-1" />
+                                  {content.totalVersions} versions
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-xs"
+                                onClick={() => {
+                                  if (content.type === 'quiz') {
+                                    setEditingQuiz(content);
+                                    setIsCreateQuizVersionOpen(true);
+                                  } else {
+                                    setEditingContent(content);
+                                    setIsUploadNewVersionOpen(true);
+                                  }
+                                }}
+                                title={content.type === 'quiz' ? "Create new quiz version" : "Upload new version"}
+                              >
+                                {content.type === 'quiz' ? (
+                                  <GraduationCap className="w-3 h-3" />
+                                ) : (
+                                  <Upload className="w-3 h-3" />
+                                )}
+                              </Button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">No versions</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Badge className={getStatusColor(content.status)}>
@@ -1071,12 +1831,46 @@ export function CourseContentManagement() {
                               </DropdownMenuItem>
                               <DropdownMenuItem>
                                 <Edit className="mr-2 h-4 w-4" />
-                                Edit
+                                Edit Details
                               </DropdownMenuItem>
+                              {content.currentVersion && (
+                                <>
+                                  {content.type === 'quiz' ? (
+                                    <DropdownMenuItem onClick={() => {
+                                      setEditingQuiz(content);
+                                      setIsCreateQuizVersionOpen(true);
+                                    }}>
+                                      <GraduationCap className="mr-2 h-4 w-4" />
+                                      Create New Version
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    <DropdownMenuItem onClick={() => {
+                                      setEditingContent(content);
+                                      setIsUploadNewVersionOpen(true);
+                                    }}>
+                                      <Upload className="mr-2 h-4 w-4" />
+                                      Upload New Version
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem onClick={() => {
+                                    setSelectedContent(content);
+                                    setIsVersionHistoryOpen(true);
+                                  }}>
+                                    <History className="mr-2 h-4 w-4" />
+                                    Version History
+                                  </DropdownMenuItem>
+                                </>
+                              )}
                               <DropdownMenuItem>
                                 <Download className="mr-2 h-4 w-4" />
                                 Download
                               </DropdownMenuItem>
+                              {content.status === 'published' && (
+                                <DropdownMenuItem>
+                                  <Archive className="mr-2 h-4 w-4" />
+                                  Archive Version
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem className="text-destructive">
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete
@@ -1092,6 +1886,95 @@ export function CourseContentManagement() {
             )}
           </CardContent>
         </Card>
+
+        {/* Version History Dialog */}
+        <Dialog open={isVersionHistoryOpen} onOpenChange={setIsVersionHistoryOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <History className="w-5 h-5" />
+                Version History - {selectedContent?.title}
+              </DialogTitle>
+              <p className="text-sm text-muted-foreground">
+                View and manage all versions of this content
+              </p>
+            </DialogHeader>
+            <div className="overflow-y-auto max-h-[calc(80vh-120px)]">
+              {selectedContent && (
+                <VersionHistory 
+                  contentId={selectedContent.id} 
+                  contentTitle={selectedContent.title}
+                />
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Version Comparison Dialog */}
+        <Dialog open={isVersionCompareOpen} onOpenChange={setIsVersionCompareOpen}>
+          <DialogContent className="max-w-5xl max-h-[80vh]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <GitBranch className="w-5 h-5" />
+                Compare Versions - {selectedContent?.title}
+              </DialogTitle>
+              <p className="text-sm text-muted-foreground">
+                Side-by-side comparison of content versions
+              </p>
+            </DialogHeader>
+            <div className="overflow-y-auto max-h-[calc(80vh-120px)]">
+              <VersionCompare 
+                v1={compareVersions.v1} 
+                v2={compareVersions.v2}
+                contentTitle={selectedContent?.title}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Upload New Version Dialog */}
+        <Dialog open={isUploadNewVersionOpen} onOpenChange={setIsUploadNewVersionOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Upload className="w-5 h-5" />
+                Upload New Version
+              </DialogTitle>
+              <p className="text-sm text-muted-foreground">
+                Create a new version of this content while preserving the history
+              </p>
+            </DialogHeader>
+            {editingContent && (
+              <UploadNewVersionForm 
+                content={editingContent}
+                onSave={(data) => console.log("Uploading new version:", data)}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Create Quiz Version Dialog */}
+        <Dialog open={isCreateQuizVersionOpen} onOpenChange={setIsCreateQuizVersionOpen}>
+          <DialogContent className="max-w-4xl max-h-[85vh]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <GraduationCap className="w-5 h-5" />
+                Create New Quiz Version
+              </DialogTitle>
+              <p className="text-sm text-muted-foreground">
+                Create a new version of this quiz with updated questions
+              </p>
+            </DialogHeader>
+            <div className="overflow-y-auto max-h-[calc(85vh-120px)]">
+              {editingQuiz && (
+                <CreateQuizVersionForm 
+                  quiz={editingQuiz}
+                  onSave={(data) => console.log("Creating quiz version:", data)}
+                />
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }

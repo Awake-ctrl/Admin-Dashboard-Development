@@ -8,7 +8,6 @@ import { SubscriptionManagement } from "../components/SubscriptionManagement";
 import { TopicsManagement } from "../components/TopicsManagement";
 import { LeaderboardManagement } from "../components/LeaderboardManagement";
 import { NotificationManagement } from "../components/NotificationManagement";
-import { SupportManagement } from "../components/SupportManagement";
 import { AccountSettings } from "../components/AccountSettings";
 
 // Auth Screens
@@ -50,7 +49,7 @@ export const mainRoutes = {
   "feedback": FeedbackManagement,
   "notifications": NotificationManagement,
   "settings": Settings,
-  "support": SupportManagement,
+  "support": FeedbackManagement,
   "account": AccountSettings,
   "empty-users": EmptyUsers,
   "empty-courses": EmptyCourses,
@@ -68,10 +67,10 @@ export const sectionTitles = {
   "topics": "Topics & Subjects",
   "content": "Courses & Content Management",
   "leaderboard": "Student Leaderboard",
-  "feedback": "Feedback & Support",
+  "feedback": "Support & Feedback Center",
   "notifications": "Notification Management",
   "settings": "Platform Settings",
-  "support": "Support & Help Center",
+  "support": "Support & Feedback Center",
   "account": "Account Settings",
   "empty-users": "Empty State - No Users",
   "empty-courses": "Empty State - No Courses",
