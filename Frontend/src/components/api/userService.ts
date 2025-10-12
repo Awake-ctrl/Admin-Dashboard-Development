@@ -38,9 +38,14 @@ export interface AccountDeletionRequest {
 
 export interface UserStats {
   total_users: number;
+  total_users_change: number;
   active_users: number;
+  active_users_change: number;
   deletion_requests: number;
+  pending_review_requests: number;
   monthly_churn: number;
+  churn_change: number;
+  new_users_today?: number;
 }
 
 export interface UserDemographics {

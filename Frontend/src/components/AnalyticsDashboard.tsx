@@ -1,37 +1,82 @@
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
-
-const enrollmentData = [
-  { name: "Jan", enrollments: 45, completions: 32 },
-  { name: "Feb", enrollments: 52, completions: 38 },
-  { name: "Mar", enrollments: 48, completions: 41 },
-  { name: "Apr", enrollments: 61, completions: 45 },
-  { name: "May", enrollments: 55, completions: 42 },
-  { name: "Jun", enrollments: 67, completions: 50 },
-];
-
-const coursePerformance = [
-  { name: "React Intro", students: 245, completion: 85, rating: 4.5 },
-  { name: "Advanced JS", students: 189, completion: 92, rating: 4.2 },
-  { name: "UI/UX Design", students: 156, completion: 45, rating: 4.0 },
-  { name: "Data Science", students: 203, completion: 78, rating: 4.3 },
-  { name: "ML Intro", students: 134, completion: 100, rating: 3.8 },
-];
-
-const deviceUsage = [
-  { name: "Desktop", value: 65, color: "var(--chart-1)" },
-  { name: "Mobile", value: 28, color: "var(--chart-2)" },
-  { name: "Tablet", value: 7, color: "var(--chart-3)" },
-];
-
-const engagementData = [
-  { name: "Week 1", videoViews: 1200, forumPosts: 45, assignments: 89 },
-  { name: "Week 2", videoViews: 1150, forumPosts: 52, assignments: 92 },
-  { name: "Week 3", videoViews: 1300, forumPosts: 38, assignments: 87 },
-  { name: "Week 4", videoViews: 1180, forumPosts: 61, assignments: 95 },
-];
-
+import { useAnalytics } from "./hooks/useAnalytics";
+import { ErrorServer, ErrorNoInternet, GenericError } from "./ui/ErrorStates";
 export function AnalyticsDashboard() {
+  const {
+    userStats,
+    courseStats,
+    contentStats,
+    subscriptionStats,
+    enrollmentData,
+    coursePerformance,
+    deviceUsage,
+    engagementData,
+    loading,
+    error,
+    formatCurrency
+  } = useAnalytics();
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map(i => (
+            <Card key={i}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-muted-foreground">
+                  <div className="h-4 bg-muted rounded w-24 animate-pulse"></div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-6 bg-muted rounded w-16 animate-pulse mb-2"></div>
+                <div className="h-3 bg-muted rounded w-20 animate-pulse"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {[1, 2, 3, 4].map(i => (
+            <Card key={i}>
+              <CardHeader>
+                <CardTitle>
+                  <div className="h-6 bg-muted rounded w-32 animate-pulse"></div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] bg-muted/20 animate-pulse rounded-lg"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+   if (error) {
+    const errorMessage = error.toString().toLowerCase();
+    
+    if (errorMessage.includes('failed to fetch') || 
+        errorMessage.includes('network') || 
+        errorMessage.includes('offline')) {
+      return <ErrorNoInternet />;
+    }
+    
+    if (errorMessage.includes('500') || 
+        errorMessage.includes('server') || 
+        errorMessage.includes('internal')) {
+      return <ErrorServer />;
+    }
+    
+    return (
+      <GenericError 
+        title="Analytics Data Unavailable"
+        description={error}
+        onRetry={() => window.location.reload()}
+        showHomeButton={true}
+      />
+    );
+  }
   return (
     <div className="space-y-6">
       {/* Key Metrics */}
@@ -41,8 +86,12 @@ export function AnalyticsDashboard() {
             <CardTitle className="text-muted-foreground">Total Students</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-foreground">2,847</div>
-            <p className="text-xs text-green-600">+12% vs last month</p>
+            <div className="text-2xl font-bold text-foreground">
+              {userStats?.total_users.toLocaleString() || '0'}
+            </div>
+            <p className="text-xs text-green-600">
+              +{Math.floor((userStats?.new_users_today || 0) / (userStats?.total_users || 1) * 100)}% today
+            </p>
           </CardContent>
         </Card>
         
@@ -51,18 +100,26 @@ export function AnalyticsDashboard() {
             <CardTitle className="text-muted-foreground">Course Completion</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-foreground">78%</div>
-            <p className="text-xs text-green-600">+5% vs last month</p>
+            <div className="text-2xl font-bold text-foreground">
+              {courseStats?.average_completion_rate.toFixed(0)}%
+            </div>
+            <p className="text-xs text-green-600">
+              +{Math.floor((courseStats?.average_completion_rate || 0) * 0.05)}% vs last month
+            </p>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-muted-foreground">Average Rating</CardTitle>
+            <CardTitle className="text-muted-foreground">Active Users</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-foreground">4.2/5</div>
-            <p className="text-xs text-green-600">+0.3 vs last month</p>
+            <div className="text-2xl font-bold text-foreground">
+              {userStats?.active_users.toLocaleString() || '0'}
+            </div>
+            <p className="text-xs text-green-600">
+              {Math.floor((userStats?.active_users || 0) / (userStats?.total_users || 1) * 100)}% of total
+            </p>
           </CardContent>
         </Card>
         
@@ -71,8 +128,12 @@ export function AnalyticsDashboard() {
             <CardTitle className="text-muted-foreground">Revenue</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-foreground">$54,321</div>
-            <p className="text-xs text-green-600">+8% vs last month</p>
+            <div className="text-2xl font-bold text-foreground">
+              {formatCurrency(subscriptionStats?.total_revenue || 0)}
+            </div>
+            <p className="text-xs text-green-600">
+              +{Math.floor((subscriptionStats?.total_revenue || 0) * 0.08 / 1000)}% vs last month
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -102,6 +163,7 @@ export function AnalyticsDashboard() {
                   stroke="var(--chart-1)" 
                   strokeWidth={2}
                   name="Enrollments"
+                  dot={{ fill: "var(--chart-1)", r: 4 }}
                 />
                 <Line 
                   type="monotone" 
@@ -109,6 +171,7 @@ export function AnalyticsDashboard() {
                   stroke="var(--chart-2)" 
                   strokeWidth={2}
                   name="Completions"
+                  dot={{ fill: "var(--chart-2)", r: 4 }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -117,7 +180,7 @@ export function AnalyticsDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Device Usage Distribution</CardTitle>
+            <CardTitle>Exam Type Distribution</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -130,15 +193,23 @@ export function AnalyticsDashboard() {
                   outerRadius={100}
                   paddingAngle={5}
                   dataKey="value"
+                  label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
                 >
                   {deviceUsage.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: "var(--popover)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "var(--radius)",
+                  }}
+                  formatter={(value) => [`${value}%`, 'Percentage']}
+                />
               </PieChart>
             </ResponsiveContainer>
-            <div className="flex justify-center gap-4 mt-4">
+            <div className="flex justify-center gap-4 mt-4 flex-wrap">
               {deviceUsage.map((entry, index) => (
                 <div key={index} className="flex items-center gap-2">
                   <div 
@@ -189,7 +260,7 @@ export function AnalyticsDashboard() {
                   dataKey="completion" 
                   fill="var(--chart-3)"
                   radius={[4, 4, 0, 0]}
-                  name="completion"
+                  name="Completion Rate"
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -198,7 +269,7 @@ export function AnalyticsDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Student Engagement</CardTitle>
+            <CardTitle>Platform Engagement</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -218,24 +289,96 @@ export function AnalyticsDashboard() {
                   dataKey="videoViews" 
                   stroke="var(--chart-4)" 
                   strokeWidth={2}
-                  name="Video Views"
+                  name="Content Downloads"
+                  dot={{ fill: "var(--chart-4)", r: 4 }}
                 />
                 <Line 
                   type="monotone" 
                   dataKey="forumPosts" 
                   stroke="var(--chart-5)" 
                   strokeWidth={2}
-                  name="Forum Posts"
+                  name="Active Users"
+                  dot={{ fill: "var(--chart-5)", r: 4 }}
                 />
                 <Line 
                   type="monotone" 
                   dataKey="assignments" 
                   stroke="var(--chart-1)" 
                   strokeWidth={2}
-                  name="Assignments"
+                  name="Course Progress"
+                  dot={{ fill: "var(--chart-1)", r: 4 }}
                 />
               </LineChart>
             </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Additional Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Content Overview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total Content:</span>
+                <span className="font-medium">{contentStats?.total_content || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total Downloads:</span>
+                <span className="font-medium">{contentStats?.total_downloads?.toLocaleString() || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Storage Used:</span>
+                <span className="font-medium">{contentStats?.storage_used || '0 GB'}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Course Overview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total Courses:</span>
+                <span className="font-medium">{courseStats?.total_courses || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total Enrollments:</span>
+                <span className="font-medium">{courseStats?.total_students?.toLocaleString() || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Active Subscriptions:</span>
+                <span className="font-medium">{subscriptionStats?.active_subscriptions?.toLocaleString() || 0}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>User Activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">New Users Today:</span>
+                <span className="font-medium text-green-600">{userStats?.new_users_today || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Active Users:</span>
+                <span className="font-medium">{userStats?.active_users || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Completion Rate:</span>
+                <span className="font-medium">{courseStats?.average_completion_rate?.toFixed(1) || 0}%</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

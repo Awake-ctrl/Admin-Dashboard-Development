@@ -445,5 +445,100 @@ class SubscriptionAnalytics(BaseModel):
     active_plans: int
     monthly_recurring_revenue: int
 
+
+# Add to your schemas.py file
+
+class LeaderboardBase(BaseModel):
+    user_id: str
+    user_name: str
+    email: EmailStr
+    score: int
+    rank: int
+    exam: str
+    avatar: Optional[str] = None
+    questions_attempted: int
+    questions_correct: int
+    accuracy: float
+    streak: int
+    last_active: str
+    preferred_subject: str
+
+class Leaderboard(LeaderboardBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+# Achievement schemas
+class AchievementBase(BaseModel):
+    user_id: str
+    user_name: str
+    score: Optional[float] = None
+    study_hours: Optional[int] = None
+    tests_attempted: Optional[int] = None
+    exam_type: Optional[str] = None
+
+class Achievement(AchievementBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+# Leaderboard stats schema
+class LeaderboardStats(BaseModel):
+    total_users: int
+    average_score: float
+    average_study_hours: float
+    total_tests_attempted: int
+    exam_distribution: List[Dict[str, Any]]
+    top_performers: List[Dict[str, Any]]
+
+class AchievementStats(BaseModel):
+    high_scorers: List[Dict[str, Any]]
+    most_dedicated: List[Dict[str, Any]]
+    most_tests: List[Dict[str, Any]]
+    consistent_performers: List[Dict[str, Any]]
+    
+    
+class CourseSubscriptionPlanBase(BaseModel):
+    name: str
+    description: str
+    price: int
+    duration_days: int
+    max_courses: int
+    course_categories: List[str]
+    features: List[str]
+    is_active: bool = True
+
+class CourseSubscriptionPlanCreate(CourseSubscriptionPlanBase):
+    pass
+
+class CourseSubscriptionPlan(CourseSubscriptionPlanBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class UserCourseSubscriptionBase(BaseModel):
+    user_id: int
+    plan_id: int
+    auto_renew: bool = True
+
+class UserCourseSubscriptionCreate(UserCourseSubscriptionBase):
+    pass
+
+class UserCourseSubscription(UserCourseSubscriptionBase):
+    id: int
+    starts_at: datetime
+    expires_at: datetime
+    status: str
+    created_at: datetime
+    plan: CourseSubscriptionPlan
+    
+    class Config:
+        from_attributes = True
+    
 # Update forward references
 CourseWithDetails.update_forward_refs()

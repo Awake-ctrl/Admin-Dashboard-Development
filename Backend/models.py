@@ -1,12 +1,15 @@
 # models.py
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, ForeignKey, Table, Date
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Table, Date
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
-from typing import  Optional
-from pydantic import BaseModel, EmailStr
+from typing import   List,Optional
+from pydantic import BaseModel, EmailStr,Field
+import json
+from sqlalchemy import TypeDecorator, Text
 
-
+from datetime import datetime
+from enum import Enum
 
 # Association table for course subjects
 course_subjects = Table(
@@ -38,7 +41,7 @@ class User(Base):
     deletion_reason = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
+    activities = relationship("UserActivity", back_populates="user")
     # Relationships
     account_deletion_requests = relationship("AccountDeletionRequest", back_populates="user")
     transactions = relationship("Transaction", back_populates="user")
@@ -291,3 +294,166 @@ class UserCourse(Base):
     # Relationships
     user = relationship("User", back_populates="user_courses")
     course = relationship("Course", back_populates="user_courses")
+    
+    
+class UserActivity(Base):
+    __tablename__ = "user_activities"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    activity_date = Column(Date, nullable=False)
+    activity_type = Column(String(50))  # 'study', 'test', 'login', etc.
+    duration_minutes = Column(Integer, default=0)
+    score = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    user = relationship("User", back_populates="activities")
+
+# Add to User model:
+
+
+role_permissions = Table(
+    'role_permissions',
+    Base.metadata,
+    Column('role_id', String, ForeignKey('roles.id')),
+    Column('permission_id', String, ForeignKey('permissions.id'))
+)
+
+# Association table for user roles
+user_roles = Table(
+    'user_roles',
+    Base.metadata,
+    Column('user_id', String, ForeignKey('users.id')),
+    Column('role_id', String, ForeignKey('roles.id')),
+    Column('assigned_at', DateTime, default=func.now()),
+    Column('assigned_by', String)
+)
+
+class Permission(Base):
+    __tablename__ = "permissions"
+    
+    id = Column(String, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    description = Column(String)
+    category = Column(String, nullable=False)
+
+
+
+class JSONEncodedList(TypeDecorator):
+    """Represents a list as a json-encoded string."""
+    
+    impl = Text
+    
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            value = json.dumps(value)
+        return value
+    
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            value = json.loads(value)
+        return value
+
+class Role(Base):
+    __tablename__ = "roles"
+    
+    id = Column(String, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False, index=True)
+    description = Column(Text)
+    level = Column(Integer, nullable=False, default=1)
+    is_active = Column(Boolean, default=True)
+    is_system = Column(Boolean, default=False)
+    
+    # Use custom JSON type for permissions
+    permissions = Column(JSONEncodedList, default=list)
+    
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+class RoleAssignmentHistory(Base):
+    __tablename__ = "role_assignment_history"
+    
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    role_id = Column(String, ForeignKey("roles.id"), nullable=False)
+    action = Column(String, nullable=False)  # assigned, updated, removed
+    assigned_by = Column(String, nullable=False)
+    timestamp = Column(DateTime, default=func.now())
+    
+    # Relationships
+    user = relationship("User")
+    role = relationship("Role")
+
+# Add these to your existing models.py file, after the SQLAlchemy models
+
+# Pydantic Models for Roles
+
+
+class RoleAction(str, Enum):
+    ASSIGNED = "assigned"
+    UPDATED = "updated"
+    REMOVED = "removed"
+
+class PermissionCategory(str, Enum):
+    USER_MANAGEMENT = "user_management"
+    CONTENT_MANAGEMENT = "content_management"
+    COURSE_MANAGEMENT = "course_management"
+    ANALYTICS = "analytics"
+    SYSTEM = "system"
+
+class PermissionBase(BaseModel):
+    id: str
+    name: str
+    description: str
+    category: PermissionCategory
+
+class RoleBase(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    description: str = Field(..., min_length=1, max_length=500)
+    level: int = Field(..., ge=1, le=10)
+    permissions: List[str] = Field(default_factory=list)
+
+class RoleCreate(RoleBase):
+    pass
+
+class RoleUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    description: Optional[str] = Field(None, min_length=1, max_length=500)
+    level: Optional[int] = Field(None, ge=1, le=10)
+    permissions: Optional[List[str]] = None
+    is_active: Optional[bool] = None
+
+class RoleResponse(RoleBase):
+    id: str
+    user_count: int
+    is_active: bool
+    is_system: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class RoleAssignmentBase(BaseModel):
+    user_id: str
+    role_id: str
+    assigned_by: str
+
+class RoleAssignmentCreate(RoleAssignmentBase):
+    pass
+
+class RoleAssignmentResponse(BaseModel):
+    id: str
+    user: dict
+    role: str
+    action: RoleAction
+    date: datetime
+    assigned_by: str
+
+    class Config:
+        from_attributes = True
+
+class BulkRoleAssignment(BaseModel):
+    user_ids: List[str]
+    role_id: str
+    assigned_by: str
