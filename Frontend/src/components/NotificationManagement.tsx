@@ -25,8 +25,6 @@ const notifications = [
     tag: "jee",
     status: "sent",
     recipients: 1250,
-    openRate: 68.5,
-    clickRate: 12.3
   },
   {
     id: 2,
@@ -38,8 +36,6 @@ const notifications = [
     tag: "personlized",
     status: "sent",
     recipients: 45,
-    openRate: 89.2,
-    clickRate: 34.1
   },
   {
     id: 3,
@@ -51,8 +47,6 @@ const notifications = [
     tag: "global",
     status: "draft",
     recipients: 0,
-    openRate: 0,
-    clickRate: 0
   },
   {
     id: 4,
@@ -64,38 +58,6 @@ const notifications = [
     tag: "neet",
     status: "scheduled",
     recipients: 876,
-    openRate: 0,
-    clickRate: 0
-  }
-];
-
-const subscribers = [
-  {
-    id: 1,
-    userId: 1001,
-    userName: "Arjun Sharma",
-    email: "arjun@example.com",
-    tags: ["jee", "global"],
-    joinDate: "2025-01-10T10:00:00Z",
-    isActive: true
-  },
-  {
-    id: 2,
-    userId: 1002,
-    userName: "Priya Patel",
-    email: "priya@example.com",
-    tags: ["neet", "global"],
-    joinDate: "2025-01-09T15:30:00Z",
-    isActive: true
-  },
-  {
-    id: 3,
-    userId: 1003,
-    userName: "Rahul Gupta",
-    email: "rahul@example.com",
-    tags: ["jee", "cat"],
-    joinDate: "2025-01-08T09:20:00Z",
-    isActive: false
   }
 ];
 
@@ -110,10 +72,78 @@ const notificationTypes = [
   { value: "other_govt_exam", label: "Other Govt Exam", icon: Target }
 ];
 
+// Template data
+const notificationTemplates = [
+  {
+    id: 1,
+    name: "New Content Available",
+    description: "Course updates",
+    icon: "📚",
+    title: "New Chapter Available",
+    subtitle: "Check out the latest content updates",
+    tag: "global"
+  },
+  {
+    id: 2,
+    name: "Test Reminder",
+    description: "Upcoming assessments",
+    icon: "⏰",
+    title: "Test Starting Soon",
+    subtitle: "Your test begins in 1 hour",
+    tag: "personlized"
+  },
+  {
+    id: 3,
+    name: "Goal Achievement",
+    description: "Milestone celebrations",
+    icon: "🎯",
+    title: "Congratulations!",
+    subtitle: "You've achieved a learning milestone",
+    tag: "personlized"
+  },
+  {
+    id: 4,
+    name: "Feature Update",
+    description: "New features",
+    icon: "🚀",
+    title: "New Features Available",
+    subtitle: "Check out the latest platform updates",
+    tag: "global"
+  },
+  {
+    id: 5,
+    name: "Progress Report",
+    description: "Learning analytics",
+    icon: "📊",
+    title: "Your Progress Report",
+    subtitle: "View your learning analytics and insights",
+    tag: "personlized"
+  },
+  {
+    id: 6,
+    name: "Study Tip",
+    description: "Learning advice",
+    icon: "💡",
+    title: "Study Tip of the Day",
+    subtitle: "Boost your learning with this tip",
+    tag: "global"
+  }
+];
+
 export function NotificationManagement() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("notifications");
+
+  // Form state
+  const [formData, setFormData] = useState({
+    title: "",
+    subtitle: "",
+    icon: "",
+    tag: "global",
+    schedule: "now"
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -133,15 +163,83 @@ export function NotificationManagement() {
     return <Badge variant="outline">{type?.label || tag}</Badge>;
   };
 
+  const handleUseTemplate = (template: any) => {
+    setSelectedTemplate(template);
+    setFormData({
+      title: template.title,
+      subtitle: template.subtitle,
+      icon: template.icon,
+      tag: template.tag,
+      schedule: "now"
+    });
+    setIsCreateDialogOpen(true);
+  };
+
+  const handleCreateNew = () => {
+    setSelectedTemplate(null);
+    setSelectedNotification(null);
+    setFormData({
+      title: "",
+      subtitle: "",
+      icon: "",
+      tag: "global",
+      schedule: "now"
+    });
+    setIsCreateDialogOpen(true);
+  };
+
+  const handleEditNotification = (notification: any) => {
+    setSelectedNotification(notification);
+    setSelectedTemplate(null);
+    setFormData({
+      title: notification.title,
+      subtitle: notification.subtitle,
+      icon: notification.icon,
+      tag: notification.tag,
+      schedule: "now"
+    });
+    setIsCreateDialogOpen(true);
+  };
+
+  const handleSendNotification = () => {
+    // Here you would typically send the notification to your backend
+    console.log("Sending notification:", formData);
+    
+    // Show success message
+    alert(`Notification ${formData.schedule === "draft" ? "saved as draft" : formData.schedule === "schedule" ? "scheduled" : "sent"} successfully!`);
+    
+    setIsCreateDialogOpen(false);
+    // Reset form
+    setFormData({
+      title: "",
+      subtitle: "",
+      icon: "",
+      tag: "global",
+      schedule: "now"
+    });
+    setSelectedTemplate(null);
+    setSelectedNotification(null);
+  };
+
   const totalNotifications = notifications.length;
   const sentNotifications = notifications.filter(n => n.status === "sent").length;
   const totalRecipients = notifications.reduce((sum, n) => sum + n.recipients, 0);
-  const avgOpenRate = notifications.filter(n => n.status === "sent").reduce((sum, n) => sum + n.openRate, 0) / sentNotifications || 0;
+
+  // Calculate notification type distribution
+  const notificationTypeDistribution = notificationTypes.map(type => {
+    const typeNotifications = notifications.filter(n => n.tag === type.value);
+    const percentage = (typeNotifications.length / totalNotifications) * 100;
+    return {
+      type: type,
+      count: typeNotifications.length,
+      percentage: percentage
+    };
+  }).filter(item => item.count > 0);
 
   return (
     <div className="space-y-6">
       {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm">Total Notifications</CardTitle>
@@ -170,26 +268,13 @@ export function NotificationManagement() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm">Open Rate</CardTitle>
+            <CardTitle className="text-sm">Active Templates</CardTitle>
             <MessageCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">{avgOpenRate.toFixed(1)}%</div>
+            <div className="text-2xl">{notificationTemplates.length}</div>
             <p className="text-xs text-muted-foreground">
-              Average across all notifications
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm">Subscribers</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl">{subscribers.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Active subscribers
+              Available templates
             </p>
           </CardContent>
         </Card>
@@ -198,7 +283,6 @@ export function NotificationManagement() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="subscribers">Subscribers</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="templates">Templates</TabsTrigger>
         </TabsList>
@@ -206,77 +290,13 @@ export function NotificationManagement() {
         <TabsContent value="notifications" className="space-y-4">
           <div className="flex justify-between items-center">
             <div>
-              <h3>Notification Management</h3>
+              <h3 className="text-lg font-semibold">Notification Management</h3>
               <p className="text-muted-foreground">Create and manage push notifications for your users</p>
             </div>
-            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={() => setSelectedNotification(null)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Notification
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>{selectedNotification ? "Edit Notification" : "Create New Notification"}</DialogTitle>
-                  <DialogDescription>
-                    {selectedNotification ? "Modify the notification details" : "Create a new push notification for your users"}
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="title">Title</Label>
-                    <Input id="title" defaultValue={selectedNotification?.title || ""} />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="subtitle">Subtitle</Label>
-                    <Input id="subtitle" defaultValue={selectedNotification?.subtitle || ""} />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="icon">Icon (Emoji)</Label>
-                    <Input id="icon" placeholder="📚" defaultValue={selectedNotification?.icon || ""} />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="tag">Target Audience</Label>
-                    <Select defaultValue={selectedNotification?.tag || "global"}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {notificationTypes.map((type) => (
-                          <SelectItem key={type.value} value={type.value}>
-                            <div className="flex items-center gap-2">
-                              <type.icon className="w-4 h-4" />
-                              {type.label}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="schedule">Schedule</Label>
-                    <Select defaultValue="now">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="now">Send Now</SelectItem>
-                        <SelectItem value="schedule">Schedule for Later</SelectItem>
-                        <SelectItem value="draft">Save as Draft</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="flex justify-end gap-3">
-                  <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
-                  <Button onClick={() => setIsCreateDialogOpen(false)}>
-                    <Send className="w-4 h-4 mr-2" />
-                    {selectedNotification ? "Update" : "Send"} Notification
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <Button onClick={handleCreateNew}>
+              <Plus className="w-4 h-4 mr-2" />
+              Create Notification
+            </Button>
           </div>
 
           <Card>
@@ -287,7 +307,6 @@ export function NotificationManagement() {
                     <TableHead>Notification</TableHead>
                     <TableHead>Target</TableHead>
                     <TableHead>Recipients</TableHead>
-                    <TableHead>Open Rate</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Actions</TableHead>
@@ -300,25 +319,13 @@ export function NotificationManagement() {
                         <div className="flex items-center gap-3">
                           <span className="text-2xl">{notification.icon}</span>
                           <div>
-                            <div>{notification.title}</div>
+                            <div className="font-medium">{notification.title}</div>
                             <div className="text-sm text-muted-foreground">{notification.subtitle}</div>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>{getTagBadge(notification.tag)}</TableCell>
                       <TableCell>{notification.recipients.toLocaleString()}</TableCell>
-                      <TableCell>
-                        {notification.status === "sent" ? (
-                          <div className="text-sm">
-                            {notification.openRate}%
-                            <div className="text-xs text-muted-foreground">
-                              {notification.clickRate}% clicked
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
                       <TableCell>{getStatusBadge(notification.status)}</TableCell>
                       <TableCell>{new Date(notification.date).toLocaleDateString()}</TableCell>
                       <TableCell>
@@ -326,10 +333,7 @@ export function NotificationManagement() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => {
-                              setSelectedNotification(notification);
-                              setIsCreateDialogOpen(true);
-                            }}
+                            onClick={() => handleEditNotification(notification)}
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
@@ -346,151 +350,42 @@ export function NotificationManagement() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="subscribers" className="space-y-4">
+        <TabsContent value="analytics" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Notification Subscribers</CardTitle>
-              <CardDescription>Manage users who have subscribed to notifications</CardDescription>
+              <CardTitle>Notification Distribution</CardTitle>
+              <CardDescription>Percentage of notifications sent by type</CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Subscribed Tags</TableHead>
-                    <TableHead>Join Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {subscribers.map((subscriber) => (
-                    <TableRow key={subscriber.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="w-8 h-8">
-                            <AvatarImage src="" />
-                            <AvatarFallback>{subscriber.userName.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div>{subscriber.userName}</div>
-                            <div className="text-sm text-muted-foreground">{subscriber.email}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {subscriber.tags.map((tag) => (
-                            <Badge key={tag} variant="outline" className="text-xs">
-                              {notificationTypes.find(t => t.value === tag)?.label || tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>{new Date(subscriber.joinDate).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <Badge variant={subscriber.isActive ? "default" : "secondary"}>
-                          {subscriber.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Switch 
-                            checked={subscriber.isActive} 
-                            onCheckedChange={() => {}} 
-                            size="sm"
-                          />
-                          <Button variant="ghost" size="sm">
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <div className="space-y-6">
+                {notificationTypeDistribution.map((item) => (
+                  <div key={item.type.value} className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="flex items-center gap-2 text-sm font-medium">
+                        <item.type.icon className="w-4 h-4" />
+                        {item.type.label}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {item.count} notifications ({item.percentage.toFixed(1)}%)
+                      </span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-3">
+                      <div 
+                        className="bg-blue-500 h-3 rounded-full transition-all duration-500" 
+                        style={{ width: `${item.percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+                
+                {notificationTypeDistribution.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No notification data available
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="analytics" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Notification Performance</CardTitle>
-                <CardDescription>Open and click rates by notification type</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {notificationTypes.slice(0, 5).map((type) => {
-                    const typeNotifications = notifications.filter(n => n.tag === type.value && n.status === "sent");
-                    const avgOpenRate = typeNotifications.reduce((sum, n) => sum + n.openRate, 0) / typeNotifications.length || 0;
-                    const avgClickRate = typeNotifications.reduce((sum, n) => sum + n.clickRate, 0) / typeNotifications.length || 0;
-                    
-                    return (
-                      <div key={type.value} className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="flex items-center gap-2">
-                            <type.icon className="w-4 h-4" />
-                            {type.label}
-                          </span>
-                          <span className="text-sm">{avgOpenRate.toFixed(1)}% / {avgClickRate.toFixed(1)}%</span>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="w-full bg-muted rounded-full h-2">
-                            <div 
-                              className="bg-blue-500 h-2 rounded-full" 
-                              style={{ width: `${avgOpenRate}%` }}
-                            />
-                          </div>
-                          <div className="w-full bg-muted rounded-full h-1">
-                            <div 
-                              className="bg-green-500 h-1 rounded-full" 
-                              style={{ width: `${avgClickRate}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Engagement Trends</CardTitle>
-                <CardDescription>Recent notification engagement metrics</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center p-3 border rounded-lg">
-                    <div>
-                      <div className="text-sm">Best Performing</div>
-                      <div className="text-xs text-muted-foreground">Weekly Test Reminder</div>
-                    </div>
-                    <Badge variant="default">89.2% open rate</Badge>
-                  </div>
-                  
-                  <div className="flex justify-between items-center p-3 border rounded-lg">
-                    <div>
-                      <div className="text-sm">Most Clicked</div>
-                      <div className="text-xs text-muted-foreground">Weekly Test Reminder</div>
-                    </div>
-                    <Badge variant="secondary">34.1% click rate</Badge>
-                  </div>
-                  
-                  <div className="flex justify-between items-center p-3 border rounded-lg">
-                    <div>
-                      <div className="text-sm">Widest Reach</div>
-                      <div className="text-xs text-muted-foreground">New Physics Chapter</div>
-                    </div>
-                    <Badge variant="outline">1,250 users</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         </TabsContent>
 
         <TabsContent value="templates" className="space-y-4">
@@ -501,76 +396,141 @@ export function NotificationManagement() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className="text-2xl">📚</span>
-                    <div>
-                      <div className="text-sm">New Content Available</div>
-                      <div className="text-xs text-muted-foreground">Course updates</div>
+                {notificationTemplates.map((template) => (
+                  <div key={template.id} className="p-4 border rounded-lg hover:border-primary/50 transition-colors">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-2xl">{template.icon}</span>
+                      <div>
+                        <div className="text-sm font-medium">{template.name}</div>
+                        <div className="text-xs text-muted-foreground">{template.description}</div>
+                      </div>
                     </div>
-                  </div>
-                  <Button variant="outline" size="sm" className="w-full">Use Template</Button>
-                </div>
-                
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className="text-2xl">⏰</span>
-                    <div>
-                      <div className="text-sm">Test Reminder</div>
-                      <div className="text-xs text-muted-foreground">Upcoming assessments</div>
+                    <div className="space-y-2 mb-3">
+                      <div className="text-xs">
+                        <span className="font-medium">Title:</span> {template.title}
+                      </div>
+                      <div className="text-xs">
+                        <span className="font-medium">Subtitle:</span> {template.subtitle}
+                      </div>
+                      <div className="text-xs">
+                        <span className="font-medium">Target:</span> {notificationTypes.find(t => t.value === template.tag)?.label}
+                      </div>
                     </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={() => handleUseTemplate(template)}
+                    >
+                      Use Template
+                    </Button>
                   </div>
-                  <Button variant="outline" size="sm" className="w-full">Use Template</Button>
-                </div>
-                
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className="text-2xl">🎯</span>
-                    <div>
-                      <div className="text-sm">Goal Achievement</div>
-                      <div className="text-xs text-muted-foreground">Milestone celebrations</div>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm" className="w-full">Use Template</Button>
-                </div>
-                
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className="text-2xl">🚀</span>
-                    <div>
-                      <div className="text-sm">Feature Update</div>
-                      <div className="text-xs text-muted-foreground">New features</div>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm" className="w-full">Use Template</Button>
-                </div>
-                
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className="text-2xl">📊</span>
-                    <div>
-                      <div className="text-sm">Progress Report</div>
-                      <div className="text-xs text-muted-foreground">Learning analytics</div>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm" className="w-full">Use Template</Button>
-                </div>
-                
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className="text-2xl">💡</span>
-                    <div>
-                      <div className="text-sm">Study Tip</div>
-                      <div className="text-xs text-muted-foreground">Learning advice</div>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm" className="w-full">Use Template</Button>
-                </div>
+                ))}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Create/Edit Notification Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedTemplate 
+                ? `Using Template: ${selectedTemplate.name}`
+                : selectedNotification
+                ? "Edit Notification"
+                : "Create New Notification"
+              }
+            </DialogTitle>
+            <DialogDescription>
+              {selectedTemplate 
+                ? "Edit the template details as needed" 
+                : selectedNotification
+                ? "Modify the notification details"
+                : "Create a new push notification for your users"
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="title">Title</Label>
+              <Input 
+                id="title" 
+                value={formData.title}
+                onChange={(e) => setFormData({...formData, title: e.target.value})}
+                placeholder="Enter notification title"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="subtitle">Subtitle</Label>
+              <Input 
+                id="subtitle" 
+                value={formData.subtitle}
+                onChange={(e) => setFormData({...formData, subtitle: e.target.value})}
+                placeholder="Enter notification subtitle"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="icon">Icon (Emoji)</Label>
+              <Input 
+                id="icon" 
+                value={formData.icon}
+                onChange={(e) => setFormData({...formData, icon: e.target.value})}
+                placeholder="📚"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="tag">Target Audience</Label>
+              <Select 
+                value={formData.tag} 
+                onValueChange={(value) => setFormData({...formData, tag: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {notificationTypes.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      <div className="flex items-center gap-2">
+                        <type.icon className="w-4 h-4" />
+                        {type.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="schedule">Schedule</Label>
+              <Select 
+                value={formData.schedule} 
+                onValueChange={(value) => setFormData({...formData, schedule: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="now">Send Now</SelectItem>
+                  <SelectItem value="schedule">Schedule for Later</SelectItem>
+                  <SelectItem value="draft">Save as Draft</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSendNotification}>
+              <Send className="w-4 h-4 mr-2" />
+              {formData.schedule === "draft" ? "Save Draft" : 
+               formData.schedule === "schedule" ? "Schedule" : "Send"} Notification
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -144,7 +144,6 @@ const courses = [
     instructor: "Dr. Priya Sharma",
     duration: "12 months",
     status: "active",
-    price: 299,
     modules: [
       { 
         id: 1, 
@@ -218,7 +217,6 @@ const courses = [
     instructor: "Dr. Rajesh Kumar",
     duration: "10 months",
     status: "active",
-    price: 399,
     modules: [
       { 
         id: 4, 
@@ -252,7 +250,6 @@ const courses = [
     instructor: "Prof. Anita Desai",
     duration: "8 months",
     status: "active",
-    price: 199,
     modules: [
       { 
         id: 7, 
@@ -274,7 +271,6 @@ const courses = [
     instructor: "Dr. Vikram Singh",
     duration: "18 months",
     status: "active",
-    price: 499,
     modules: [
       { 
         id: 10, 
@@ -296,7 +292,6 @@ const courses = [
     instructor: "Prof. Suresh Gupta",
     duration: "14 months",
     status: "active",
-    price: 349,
     modules: []
   },
   {
@@ -308,19 +303,12 @@ const courses = [
     instructor: "Ms. Ritu Agarwal",
     duration: "10 months",
     status: "active",
-    price: 249,
     modules: []
   }
 ];
 
-const examTypes = [
-  { value: "jee", label: "JEE Main & Advanced" },
-  { value: "neet", label: "NEET" },
-  { value: "cat", label: "CAT" },
-  { value: "upsc", label: "UPSC" },
-  { value: "gate", label: "GATE" },
-  { value: "other_govt_exam", label: "Other Govt Exams" }
-];
+// Extract unique exam types from existing courses
+const existingExamTypes = [...new Set(courses.map(course => course.examType))];
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -366,6 +354,11 @@ export function CourseContentManagement() {
   const [editingContent, setEditingContent] = useState<any>(null);
   const [isCreateQuizVersionOpen, setIsCreateQuizVersionOpen] = useState(false);
   const [editingQuiz, setEditingQuiz] = useState<any>(null);
+
+  // Exam type management
+  const [examTypes, setExamTypes] = useState(existingExamTypes);
+  const [isCreatingNewExamType, setIsCreatingNewExamType] = useState(false);
+  const [newExamType, setNewExamType] = useState("");
 
   const handleCourseClick = (course: any) => {
     setSelectedCourse(course);
@@ -608,12 +601,31 @@ export function CourseContentManagement() {
     const [formData, setFormData] = useState({
       title: course?.title || "",
       description: course?.description || "",
-      examType: course?.examType || "jee",
+      examType: course?.examType || "",
       instructor: course?.instructor || "",
-      price: course?.price || 0,
       duration: course?.duration || "",
       status: course?.status || "draft"
     });
+
+    const handleExamTypeChange = (value: string) => {
+      if (value === "create_new") {
+        setIsCreatingNewExamType(true);
+        setFormData(prev => ({ ...prev, examType: "" }));
+      } else {
+        setIsCreatingNewExamType(false);
+        setFormData(prev => ({ ...prev, examType: value }));
+      }
+    };
+
+    const handleSaveNewExamType = () => {
+      if (newExamType.trim() && !examTypes.includes(newExamType.trim())) {
+        const updatedExamTypes = [...examTypes, newExamType.trim()];
+        setExamTypes(updatedExamTypes);
+        setFormData(prev => ({ ...prev, examType: newExamType.trim() }));
+        setNewExamType("");
+        setIsCreatingNewExamType(false);
+      }
+    };
 
     return (
       <div className="space-y-4">
@@ -629,16 +641,42 @@ export function CourseContentManagement() {
           </div>
           <div>
             <Label htmlFor="examType">Exam Type</Label>
-            <Select value={formData.examType} onValueChange={(value) => setFormData(prev => ({ ...prev, examType: value }))}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select exam type" />
-              </SelectTrigger>
-              <SelectContent>
-                {examTypes.map((exam) => (
-                  <SelectItem key={exam.value} value={exam.value}>{exam.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {isCreatingNewExamType ? (
+              <div className="space-y-2">
+                <Input
+                  value={newExamType}
+                  onChange={(e) => setNewExamType(e.target.value)}
+                  placeholder="Enter new exam type"
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleSaveNewExamType}>
+                    Save
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      setIsCreatingNewExamType(false);
+                      setNewExamType("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Select value={formData.examType} onValueChange={handleExamTypeChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select exam type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {examTypes.map((exam) => (
+                    <SelectItem key={exam} value={exam}>{exam}</SelectItem>
+                  ))}
+                  <SelectItem value="create_new">+ Create New Exam Type</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
 
@@ -653,7 +691,7 @@ export function CourseContentManagement() {
           />
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <Label htmlFor="instructor">Instructor</Label>
             <Input
@@ -661,16 +699,6 @@ export function CourseContentManagement() {
               value={formData.instructor}
               onChange={(e) => setFormData(prev => ({ ...prev, instructor: e.target.value }))}
               placeholder="Instructor name"
-            />
-          </div>
-          <div>
-            <Label htmlFor="price">Price (₹)</Label>
-            <Input
-              id="price"
-              type="number"
-              value={formData.price}
-              onChange={(e) => setFormData(prev => ({ ...prev, price: parseInt(e.target.value) }))}
-              placeholder="0"
             />
           </div>
           <div>
@@ -1385,11 +1413,11 @@ export function CourseContentManagement() {
           
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-muted-foreground">Total Revenue</CardTitle>
+              <CardTitle className="text-sm text-muted-foreground">Exam Types</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl">₹{Math.round(courses.reduce((sum, course) => sum + (course.price * course.enrolledStudents), 0) / 100000)}L</div>
-              <p className="text-xs text-green-600">+15% this month</p>
+              <div className="text-2xl">{examTypes.length}</div>
+              <p className="text-xs text-muted-foreground">Available exam types</p>
             </CardContent>
           </Card>
         </div>
@@ -1437,7 +1465,6 @@ export function CourseContentManagement() {
                     <TableHead>Students</TableHead>
                     <TableHead>Modules</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Price</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1479,9 +1506,6 @@ export function CourseContentManagement() {
                         <Badge className={getStatusColor(course.status)}>
                           {course.status}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
-                        ₹{course.price}
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>

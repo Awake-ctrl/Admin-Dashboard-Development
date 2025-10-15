@@ -8,6 +8,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { Checkbox } from "./ui/checkbox";
 import { 
   CreditCard, 
   TrendingUp, 
@@ -20,10 +21,43 @@ import {
   Check, 
   X, 
   RotateCcw, 
-  Download
+  Download,
+  BookOpen,
+  Tag,
+  Zap,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { subscriptionService, SubscriptionPlan, Transaction, RefundRequest, SubscriptionStats } from "./api/subscripttionService";
 import { toast } from "sonner";
+
+// Mock courses data - in real app, this would come from your courses API
+const mockCourses = [
+  { id: 1, title: "JEE Main & Advanced Preparation", examType: "JEE" },
+  { id: 2, title: "NEET Preparation Course", examType: "NEET" },
+  { id: 3, title: "CAT Preparation", examType: "CAT" },
+  { id: 4, title: "UPSC Civil Services", examType: "UPSC" },
+  { id: 5, title: "GATE Engineering", examType: "GATE" },
+  { id: 6, title: "Banking & SSC Exams", examType: "OTHER_GOVT_EXAM" },
+  { id: 7, title: "Class 11-12 Science", examType: "SCHOOL" },
+  { id: 8, title: "Programming Fundamentals", examType: "TECH" }
+];
+
+// Feature options for plans
+const featureOptions = [
+  "Unlimited Text Queries",
+  "Unlimited Image Queries", 
+  "Unlimited Audio Queries",
+  "Priority Support",
+  "Download Content",
+  "Certificate of Completion",
+  "Live Doubt Sessions",
+  "Personalized Study Plan",
+  "Advanced Analytics",
+  "Mobile App Access",
+  "Early Access to New Features",
+  "Dedicated Account Manager"
+];
 
 export function SubscriptionManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -42,20 +76,25 @@ export function SubscriptionManagement() {
   const [transactionStatusFilter, setTransactionStatusFilter] = useState("all");
   const [refundStatusFilter, setRefundStatusFilter] = useState("all");
 
-  // Form state
+  // Form state - Updated structure
   const [formData, setFormData] = useState({
     name: "",
-    max_text: 0,
-    max_image: 0,
-    max_audio: 0,
-    max_expand: 0,
-    max_with_history: 0,
-    price: 0,
-    timedelta: 2592000,
+    slogan: "",
+    original_price: 0,
+    offer_price: 0,
+    courses: [] as number[],
+    type: "single", // "single" or "bundle"
+    duration_months: 1,
+    features: [] as string[],
+    is_popular: false,
+    is_active: true,
     subscribers: 0,
-    revenue: 0,
-    is_active: true
+    revenue: 0
   });
+
+  // Dropdown states
+  const [coursesDropdownOpen, setCoursesDropdownOpen] = useState(false);
+  const [featuresDropdownOpen, setFeaturesDropdownOpen] = useState(false);
 
   // Load data based on active tab
   useEffect(() => {
@@ -99,16 +138,17 @@ export function SubscriptionManagement() {
     setSelectedPlan(plan);
     setFormData({
       name: plan.name,
-      max_text: plan.max_text,
-      max_image: plan.max_image,
-      max_audio: plan.max_audio,
-      max_expand: plan.max_expand,
-      max_with_history: plan.max_with_history,
-      price: plan.price,
-      timedelta: plan.timedelta,
+      slogan: plan.slogan || "",
+      original_price: plan.original_price,
+      offer_price: plan.offer_price,
+      courses: plan.courses || [],
+      type: plan.type || "single",
+      duration_months: plan.duration_months || 1,
+      features: plan.features || [],
+      is_popular: plan.is_popular || false,
+      is_active: plan.is_active,
       subscribers: plan.subscribers,
-      revenue: plan.revenue,
-      is_active: plan.is_active
+      revenue: plan.revenue
     });
     setIsDialogOpen(true);
   };
@@ -117,16 +157,17 @@ export function SubscriptionManagement() {
     setSelectedPlan(null);
     setFormData({
       name: "",
-      max_text: 0,
-      max_image: 0,
-      max_audio: 0,
-      max_expand: 0,
-      max_with_history: 0,
-      price: 0,
-      timedelta: 2592000,
+      slogan: "",
+      original_price: 0,
+      offer_price: 0,
+      courses: [],
+      type: "single",
+      duration_months: 1,
+      features: [],
+      is_popular: false,
+      is_active: true,
       subscribers: 0,
-      revenue: 0,
-      is_active: true
+      revenue: 0
     });
     setIsDialogOpen(true);
   };
@@ -163,6 +204,38 @@ export function SubscriptionManagement() {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const handleCourseToggle = (courseId: number) => {
+    setFormData(prev => ({
+      ...prev,
+      courses: prev.courses.includes(courseId)
+        ? prev.courses.filter(id => id !== courseId)
+        : [...prev.courses, courseId]
+    }));
+  };
+
+  const handleFeatureToggle = (feature: string) => {
+    setFormData(prev => ({
+      ...prev,
+      features: prev.features.includes(feature)
+        ? prev.features.filter(f => f !== feature)
+        : [...prev.features, feature]
+    }));
+  };
+
+  const handleSelectAllCourses = () => {
+    setFormData(prev => ({
+      ...prev,
+      courses: prev.courses.length === mockCourses.length ? [] : mockCourses.map(course => course.id)
+    }));
+  };
+
+  const handleSelectAllFeatures = () => {
+    setFormData(prev => ({
+      ...prev,
+      features: prev.features.length === featureOptions.length ? [] : [...featureOptions]
+    }));
   };
 
   const handleRetryFailedTransaction = async (transactionId: number) => {
@@ -248,6 +321,11 @@ export function SubscriptionManagement() {
   };
 
   const handleExportTransactions = () => {
+    if (transactions.length === 0) {
+      toast.error("No transactions to export");
+      return;
+    }
+
     const dataToExport = transactions.map(transaction => ({
       ID: transaction.id,
       User: transaction.user_name,
@@ -314,9 +392,18 @@ export function SubscriptionManagement() {
     }).format(amount);
   };
 
+  const calculateDiscountPercentage = (original: number, offer: number) => {
+    if (original <= 0 || offer >= original) return 0;
+    return Math.round(((original - offer) / original) * 100);
+  };
+
+  const getCourseTitles = (courseIds: number[]) => {
+    return courseIds.map(id => mockCourses.find(course => course.id === id)?.title).filter(Boolean);
+  };
+
   return (
     <div className="space-y-6">
-      {/* Overview Cards - These update based on transaction status */}
+      {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -382,7 +469,7 @@ export function SubscriptionManagement() {
           <div className="flex justify-between items-center">
             <div>
               <h3 className="text-lg font-semibold">Subscription Plans</h3>
-              <p className="text-muted-foreground">Manage your subscription plans and pricing</p>
+              <p className="text-muted-foreground">Manage your course subscription plans and pricing</p>
             </div>
             <Button onClick={handleCreatePlan}>
               <Plus className="w-4 h-4 mr-2" />
@@ -395,31 +482,151 @@ export function SubscriptionManagement() {
               <Loader2 className="h-6 w-6 animate-spin" />
               <span className="ml-2">Loading plans...</span>
             </div>
+          ) : subscriptionPlans.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No subscription plans yet</h3>
+                <p className="text-muted-foreground text-center mb-4">
+                  Create your first subscription plan to start offering courses to students
+                </p>
+                <Button onClick={handleCreatePlan}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create First Plan
+                </Button>
+              </CardContent>
+            </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {subscriptionPlans.map((plan) => (
-                <Card key={plan.id} className={plan.name === "premium" ? "border-primary" : ""}>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="capitalize">{plan.name}</CardTitle>
-                        <CardDescription>
-                          {plan.price === 0 ? "Free" : `${formatCurrency(plan.price)}/month`}
-                        </CardDescription>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {subscriptionPlans.map((plan) => {
+                const discountPercentage = calculateDiscountPercentage(plan.original_price, plan.offer_price);
+                const includedCourses = getCourseTitles(plan.courses || []);
+                
+                return (
+                  <Card key={plan.id} className={`relative ${plan.is_popular ? 'border-primary border-2' : ''}`}>
+                    {plan.is_popular && (
+                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                        <Badge className="bg-primary text-primary-foreground px-3 py-1">
+                          <Zap className="w-3 h-3 mr-1" />
+                          Most Popular
+                        </Badge>
                       </div>
-                      <div className="flex gap-1">
+                    )}
+                    
+                    <CardHeader className="text-center pb-4">
+                      <CardTitle className="capitalize flex items-center justify-center gap-2">
+                        {plan.name}
+                        {plan.type === "bundle" && (
+                          <Badge variant="outline" className="bg-blue-50">
+                            Bundle
+                          </Badge>
+                        )}
+                      </CardTitle>
+                      {plan.slogan && (
+                        <CardDescription className="text-sm italic">
+                          "{plan.slogan}"
+                        </CardDescription>
+                      )}
+                      
+                      <div className="flex items-center justify-center gap-3 mt-2">
+                        {plan.original_price > plan.offer_price && (
+                          <div className="flex flex-col items-center">
+                            <span className="text-sm text-muted-foreground line-through">
+                              {formatCurrency(plan.original_price)}
+                            </span>
+                            <Badge variant="secondary" className="text-xs">
+                              {discountPercentage}% OFF
+                            </Badge>
+                          </div>
+                        )}
+                        <div className="text-2xl font-bold text-primary">
+                          {formatCurrency(plan.offer_price)}
+                        </div>
+                      </div>
+                      
+                      <div className="text-sm text-muted-foreground">
+                        {plan.duration_months === 1 ? 'Per month' : `For ${plan.duration_months} months`}
+                      </div>
+                    </CardHeader>
+                    
+                    <CardContent className="space-y-4">
+                      {/* Included Courses */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <BookOpen className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">Included Courses</span>
+                        </div>
+                        <div className="space-y-1">
+                          {includedCourses.slice(0, 3).map((course, index) => (
+                            <div key={index} className="flex items-center gap-2 text-xs">
+                              <Check className="w-3 h-3 text-green-500" />
+                              <span className="truncate">{course}</span>
+                            </div>
+                          ))}
+                          {includedCourses.length > 3 && (
+                            <div className="text-xs text-muted-foreground">
+                              +{includedCourses.length - 3} more courses
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Features */}
+                      {plan.features && plan.features.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Tag className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm font-medium">Features</span>
+                          </div>
+                          <div className="space-y-1">
+                            {plan.features.slice(0, 3).map((feature, index) => (
+                              <div key={index} className="flex items-center gap-2 text-xs">
+                                <Check className="w-3 h-3 text-green-500" />
+                                <span className="truncate">{feature}</span>
+                              </div>
+                            ))}
+                            {plan.features.length > 3 && (
+                              <div className="text-xs text-muted-foreground">
+                                +{plan.features.length - 3} more features
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Stats */}
+                      <div className="pt-4 border-t space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Subscribers:</span>
+                          <span className="font-semibold">{plan.subscribers}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Revenue:</span>
+                          <span className="font-semibold">{formatCurrency(plan.revenue)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Status:</span>
+                          <Badge variant={plan.is_active ? "default" : "secondary"}>
+                            {plan.is_active ? "Active" : "Inactive"}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-2 pt-4">
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
+                          className="flex-1"
                           onClick={() => handleEditPlan(plan)}
                         >
-                          <Edit className="w-4 h-4" />
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit
                         </Button>
                         {plan.name !== "free" && (
                           <Button
-                            variant="ghost"
+                            variant="destructive"
                             size="sm"
-                            className="text-red-600"
                             onClick={() => handleDeletePlan(plan.id)}
                             disabled={actionLoading === `delete-${plan.id}`}
                           >
@@ -431,50 +638,10 @@ export function SubscriptionManagement() {
                           </Button>
                         )}
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Text Queries:</span>
-                        <span>{plan.max_text}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Image Queries:</span>
-                        <span>{plan.max_image}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Audio Queries:</span>
-                        <span>{plan.max_audio}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Expand Queries:</span>
-                        <span>{plan.max_expand}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>With History:</span>
-                        <span>{plan.max_with_history}</span>
-                      </div>
-                    </div>
-                    <div className="pt-4 border-t space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Subscribers:</span>
-                        <span className="font-semibold">{plan.subscribers}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Revenue:</span>
-                        <span className="font-semibold">{formatCurrency(plan.revenue)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Status:</span>
-                        <Badge variant={plan.is_active ? "default" : "secondary"}>
-                          {plan.is_active ? "Active" : "Inactive"}
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </TabsContent>
@@ -512,6 +679,14 @@ export function SubscriptionManagement() {
                 <div className="flex items-center justify-center h-32">
                   <Loader2 className="h-6 w-6 animate-spin" />
                   <span className="ml-2">Loading transactions...</span>
+                </div>
+              ) : transactions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <CreditCard className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No transactions yet</h3>
+                  <p className="text-muted-foreground text-center">
+                    Transactions will appear here when users purchase subscription plans
+                  </p>
                 </div>
               ) : (
                 <Table>
@@ -625,6 +800,14 @@ export function SubscriptionManagement() {
                   <Loader2 className="h-6 w-6 animate-spin" />
                   <span className="ml-2">Loading refund requests...</span>
                 </div>
+              ) : refundRequests.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <AlertTriangle className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No refund requests</h3>
+                  <p className="text-muted-foreground text-center">
+                    Refund requests from users will appear here
+                  </p>
+                </div>
               ) : (
                 <Table>
                   <TableHeader>
@@ -702,89 +885,244 @@ export function SubscriptionManagement() {
         </TabsContent>
       </Tabs>
 
-      {/* Plan Dialog */}
+      {/* Plan Dialog - Updated with better responsive design */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
+        <DialogContent className="max-w-md sm:max-w-lg md:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>{selectedPlan ? "Edit Plan" : "Create New Plan"}</DialogTitle>
             <DialogDescription>
-              {selectedPlan ? "Modify the subscription plan details" : "Create a new subscription plan"}
+              {selectedPlan ? "Modify the subscription plan details" : "Create a new course subscription plan"}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Plan Name</Label>
-              <Input 
-                id="name" 
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                placeholder="Enter plan name"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="price">Price (₹)</Label>
-              <Input 
-                id="price" 
-                type="number" 
-                value={formData.price}
-                onChange={(e) => setFormData({...formData, price: parseInt(e.target.value) || 0})}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="text-limit">Text Queries</Label>
-                <Input 
-                  id="text-limit" 
-                  type="number" 
-                  value={formData.max_text}
-                  onChange={(e) => setFormData({...formData, max_text: parseInt(e.target.value) || 0})}
-                />
+          
+          <div className="flex-1 overflow-y-auto space-y-4 py-4">
+            {/* Basic Information */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Basic Information</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Plan Name *</Label>
+                  <Input 
+                    id="name" 
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    placeholder="e.g., JEE Pro, All Courses Bundle"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="type">Plan Type</Label>
+                  <Select value={formData.type} onValueChange={(value: "single" | "bundle") => setFormData({...formData, type: value})}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="single">Single Course</SelectItem>
+                      <SelectItem value="bundle">Course Bundle</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="image-limit">Image Queries</Label>
+
+              <div className="space-y-2">
+                <Label htmlFor="slogan">Slogan / Tagline</Label>
                 <Input 
-                  id="image-limit" 
-                  type="number" 
-                  value={formData.max_image}
-                  onChange={(e) => setFormData({...formData, max_image: parseInt(e.target.value) || 0})}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="audio-limit">Audio Queries</Label>
-                <Input 
-                  id="audio-limit" 
-                  type="number" 
-                  value={formData.max_audio}
-                  onChange={(e) => setFormData({...formData, max_audio: parseInt(e.target.value) || 0})}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="expand-limit">Expand Queries</Label>
-                <Input 
-                  id="expand-limit" 
-                  type="number" 
-                  value={formData.max_expand}
-                  onChange={(e) => setFormData({...formData, max_expand: parseInt(e.target.value) || 0})}
+                  id="slogan" 
+                  value={formData.slogan}
+                  onChange={(e) => setFormData({...formData, slogan: e.target.value})}
+                  placeholder="e.g., Ace your JEE exam with expert guidance"
                 />
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="history-limit">With History Limit</Label>
-              <Input 
-                id="history-limit" 
-                type="number" 
-                value={formData.max_with_history}
-                onChange={(e) => setFormData({...formData, max_with_history: parseInt(e.target.value) || 0})}
-              />
+
+            {/* Pricing */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Pricing</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="original_price">Original Price (₹) *</Label>
+                  <Input 
+                    id="original_price" 
+                    type="number" 
+                    value={formData.original_price}
+                    onChange={(e) => setFormData({...formData, original_price: parseInt(e.target.value) || 0})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="offer_price">Offer Price (₹) *</Label>
+                  <Input 
+                    id="offer_price" 
+                    type="number" 
+                    value={formData.offer_price}
+                    onChange={(e) => setFormData({...formData, offer_price: parseInt(e.target.value) || 0})}
+                  />
+                </div>
+              </div>
+
+              {formData.original_price > 0 && formData.offer_price > 0 && (
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <span className="text-sm line-through text-muted-foreground">
+                      {formatCurrency(formData.original_price)}
+                    </span>
+                    <span className="text-lg font-bold text-primary">
+                      {formatCurrency(formData.offer_price)}
+                    </span>
+                    <Badge variant="secondary">
+                      {calculateDiscountPercentage(formData.original_price, formData.offer_price)}% OFF
+                    </Badge>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Duration */}
+            <div className="space-y-2">
+              <Label htmlFor="duration_months">Duration (Months) *</Label>
+              <Select value={formData.duration_months.toString()} onValueChange={(value) => setFormData({...formData, duration_months: parseInt(value)})}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 Month</SelectItem>
+                  <SelectItem value="3">3 Months</SelectItem>
+                  <SelectItem value="6">6 Months</SelectItem>
+                  <SelectItem value="12">12 Months</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Course Selection - Dropdown Style */}
+            <div className="space-y-2">
+              <Label>Select Courses *</Label>
+              <div className="border rounded-lg">
+                <button
+                  type="button"
+                  className="w-full p-3 flex items-center justify-between text-left hover:bg-muted/50 transition-colors"
+                  onClick={() => setCoursesDropdownOpen(!coursesDropdownOpen)}
+                >
+                  <span className="text-sm">
+                    {formData.courses.length === 0 
+                      ? "Select courses..." 
+                      : `${formData.courses.length} course(s) selected`}
+                  </span>
+                  {coursesDropdownOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                
+                {coursesDropdownOpen && (
+                  <div className="border-t p-3 max-h-48 overflow-y-auto">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">Available Courses</span>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleSelectAllCourses}
+                      >
+                        {formData.courses.length === mockCourses.length ? "Deselect All" : "Select All"}
+                      </Button>
+                    </div>
+                    <div className="space-y-2">
+                      {mockCourses.map((course) => (
+                        <div key={course.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`course-${course.id}`}
+                            checked={formData.courses.includes(course.id)}
+                            onCheckedChange={() => handleCourseToggle(course.id)}
+                          />
+                          <Label htmlFor={`course-${course.id}`} className="text-sm font-normal cursor-pointer flex-1">
+                            {course.title} 
+                            <Badge variant="outline" className="ml-2 text-xs">{course.examType}</Badge>
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Features - Dropdown Style */}
+            <div className="space-y-2">
+              <Label>Plan Features</Label>
+              <div className="border rounded-lg">
+                <button
+                  type="button"
+                  className="w-full p-3 flex items-center justify-between text-left hover:bg-muted/50 transition-colors"
+                  onClick={() => setFeaturesDropdownOpen(!featuresDropdownOpen)}
+                >
+                  <span className="text-sm">
+                    {formData.features.length === 0 
+                      ? "Select features..." 
+                      : `${formData.features.length} feature(s) selected`}
+                  </span>
+                  {featuresDropdownOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                
+                {featuresDropdownOpen && (
+                  <div className="border-t p-3 max-h-48 overflow-y-auto">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">Available Features</span>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleSelectAllFeatures}
+                      >
+                        {formData.features.length === featureOptions.length ? "Deselect All" : "Select All"}
+                      </Button>
+                    </div>
+                    <div className="space-y-2">
+                      {featureOptions.map((feature) => (
+                        <div key={feature} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`feature-${feature}`}
+                            checked={formData.features.includes(feature)}
+                            onCheckedChange={() => handleFeatureToggle(feature)}
+                          />
+                          <Label htmlFor={`feature-${feature}`} className="text-sm font-normal cursor-pointer flex-1">
+                            {feature}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Settings */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Settings</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="is_popular"
+                    checked={formData.is_popular}
+                    onCheckedChange={(checked) => setFormData({...formData, is_popular: checked as boolean})}
+                  />
+                  <Label htmlFor="is_popular" className="text-sm font-normal cursor-pointer">
+                    Mark as Popular
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="is_active"
+                    checked={formData.is_active}
+                    onCheckedChange={(checked) => setFormData({...formData, is_active: checked as boolean})}
+                  />
+                  <Label htmlFor="is_active" className="text-sm font-normal cursor-pointer">
+                    Active Plan
+                  </Label>
+                </div>
+              </div>
             </div>
           </div>
-          <DialogFooter>
+
+          <DialogFooter className="flex-shrink-0 pt-4 border-t">
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
             <Button 
               onClick={handleSavePlan}
-              disabled={actionLoading === "save-plan" || !formData.name}
+              disabled={actionLoading === "save-plan" || !formData.name || !formData.courses.length}
             >
               {actionLoading === "save-plan" ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />

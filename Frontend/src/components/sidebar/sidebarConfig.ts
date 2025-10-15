@@ -56,12 +56,12 @@ export const mainMenuItems = [
     icon: BookOpen,
     description: "Courses & content library"
   },
-  {
-    id: "topics",
-    label: "Topics",
-    icon: GitBranch,
-    description: "Subject hierarchy"
-  }
+  // {
+  //   id: "topics",
+  //   label: "Topics",
+  //   icon: GitBranch,
+  //   description: "Subject hierarchy"
+  // }
 ];
 
 export const engagementItems = [
@@ -149,18 +149,18 @@ export const collapsibleSections = [
     description: "Login, signup, reset",
     items: authDemoItems
   },
-  {
-    id: "errors", 
-    label: "Error States",
-    icon: AlertTriangle,
-    description: "404, server errors",
-    items: errorDemoItems
-  },
-  {
-    id: "empty",
-    label: "Empty States", 
-    icon: Database,
-    description: "No data scenarios",
-    items: emptyStateDemoItems
-  }
+  // {
+  //   id: "errors", 
+  //   label: "Error States",
+  //   icon: AlertTriangle,
+  //   description: "404, server errors",
+  //   items: errorDemoItems
+  // },
+  // {
+  //   id: "empty",
+  //   label: "Empty States", 
+  //   icon: Database,
+  //   description: "No data scenarios",
+  //   items: emptyStateDemoItems
+  // }
 ];
