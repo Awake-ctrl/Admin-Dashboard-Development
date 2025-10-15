@@ -78,6 +78,9 @@ const teamMembers = [
   { id: 4, name: "Sarah Chen", role: "Escalation Manager", avatar: "SC" },
 ];
 
+// Mock current user (in real app, this would come from auth context)
+const currentUser = "Carol Davis";
+
 const tickets = [
   {
     id: 1,
@@ -284,12 +287,9 @@ export function FeedbackManagement() {
   const [selectedReview, setSelectedReview] = useState(null);
   const [isResponseDialogOpen, setIsResponseDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
-  const [isEscalateDialogOpen, setIsEscalateDialogOpen] = useState(false);
-  const [isInternalNoteDialogOpen, setIsInternalNoteDialogOpen] = useState(false);
   const [isResolveDialogOpen, setIsResolveDialogOpen] = useState(false);
   const [isReviewResponseDialogOpen, setIsReviewResponseDialogOpen] = useState(false);
   const [responseText, setResponseText] = useState("");
-  const [internalNoteText, setInternalNoteText] = useState("");
   const [resolutionNotes, setResolutionNotes] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [selectedAssignee, setSelectedAssignee] = useState("");
@@ -297,43 +297,73 @@ export function FeedbackManagement() {
   const [selectedStatus, setSelectedStatus] = useState("");
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
   const [bulkAction, setBulkAction] = useState("");
+  const [ticketsData, setTicketsData] = useState(tickets);
   
   // Track current item for actions
   const [currentActionItem, setCurrentActionItem] = useState(null);
 
   // Action Handlers
   const handleAssignTicket = (ticketId: number, assignee: string) => {
+    setTicketsData(prev => prev.map(ticket => 
+      ticket.id === ticketId ? { ...ticket, assignedTo: assignee } : ticket
+    ));
     toast.success(`Ticket #${ticketId} assigned to ${assignee}`);
     setIsAssignDialogOpen(false);
     setSelectedAssignee("");
   };
 
-  const handleEscalate = (ticketId: number) => {
-    toast.success(`Ticket #${ticketId} escalated to senior support`);
-    setIsEscalateDialogOpen(false);
-  };
-
-  const handleAddInternalNote = (ticketId: number, note: string) => {
-    toast.success("Internal note added");
-    setIsInternalNoteDialogOpen(false);
-    setInternalNoteText("");
-  };
-
   const handleResolveTicket = (ticketId: number, resolution: string) => {
+    setTicketsData(prev => prev.map(ticket => 
+      ticket.id === ticketId ? { 
+        ...ticket, 
+        status: "resolved",
+        responses: [
+          ...ticket.responses,
+          {
+            id: ticket.responses.length + 1,
+            author: currentUser,
+            type: "public",
+            message: resolution,
+            timestamp: new Date().toLocaleDateString()
+          }
+        ]
+      } : ticket
+    ));
     toast.success(`Ticket #${ticketId} marked as resolved`);
     setIsResolveDialogOpen(false);
     setResolutionNotes("");
   };
 
   const handleChangePriority = (ticketId: number, priority: string) => {
+    setTicketsData(prev => prev.map(ticket => 
+      ticket.id === ticketId ? { ...ticket, priority } : ticket
+    ));
     toast.success(`Priority changed to ${priority}`);
   };
 
   const handleChangeStatus = (ticketId: number, status: string) => {
+    setTicketsData(prev => prev.map(ticket => 
+      ticket.id === ticketId ? { ...ticket, status } : ticket
+    ));
     toast.success(`Status changed to ${status}`);
   };
 
   const handleSendResponse = (ticketId: number, message: string) => {
+    setTicketsData(prev => prev.map(ticket => 
+      ticket.id === ticketId ? {
+        ...ticket,
+        responses: [
+          ...ticket.responses,
+          {
+            id: ticket.responses.length + 1,
+            author: currentUser,
+            type: "public",
+            message: message,
+            timestamp: new Date().toLocaleDateString()
+          }
+        ]
+      } : ticket
+    ));
     toast.success("Response sent to student");
     setIsResponseDialogOpen(false);
     setResponseText("");
@@ -452,28 +482,6 @@ export function FeedbackManagement() {
               <UserPlus className="w-4 h-4 mr-2" />
               Assign
             </Button>
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => {
-                setCurrentActionItem(ticket);
-                setIsInternalNoteDialogOpen(true);
-              }}
-            >
-              <FileText className="w-4 h-4 mr-2" />
-              Add Note
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => {
-                setCurrentActionItem(ticket);
-                setIsEscalateDialogOpen(true);
-              }}
-            >
-              <TrendingUp className="w-4 h-4 mr-2" />
-              Escalate
-            </Button>
             {ticket.status !== "resolved" && (
               <Button 
                 size="sm" 
@@ -581,27 +589,6 @@ export function FeedbackManagement() {
             </div>
           )}
 
-          {/* Internal Notes */}
-          {ticket.internalNotes && ticket.internalNotes.length > 0 && (
-            <div>
-              <Label className="text-muted-foreground mb-2 block">Internal Notes</Label>
-              <div className="space-y-3">
-                {ticket.internalNotes.map((note) => (
-                  <div key={note.id} className="p-3 border rounded-lg bg-yellow-50">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-yellow-600" />
-                        <span className="text-foreground">{note.author}</span>
-                      </div>
-                      <span className="text-muted-foreground text-xs">{note.timestamp}</span>
-                    </div>
-                    <p className="text-foreground">{note.message}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Action History */}
           {ticket.actions && ticket.actions.length > 0 && (
             <div>
@@ -633,7 +620,7 @@ export function FeedbackManagement() {
   return (
     <div className="space-y-6">
       {/* Feedback Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-muted-foreground">Open Tickets</CardTitle>
@@ -646,21 +633,11 @@ export function FeedbackManagement() {
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-muted-foreground">Avg Response Time</CardTitle>
+            <CardTitle className="text-muted-foreground">My Assigned Tickets</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-foreground">2.4h</div>
-            <p className="text-xs text-green-600">-30min vs target</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-muted-foreground">Resolution Rate</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-foreground">94%</div>
-            <p className="text-xs text-green-600">+2% this month</p>
+            <div className="text-foreground">8</div>
+            <p className="text-xs text-green-600">2 due today</p>
           </CardContent>
         </Card>
         
@@ -735,6 +712,23 @@ export function FeedbackManagement() {
                       <SelectItem value="account">Account</SelectItem>
                     </SelectContent>
                   </Select>
+
+                  {/* Assigned To Filter */}
+                  <Select defaultValue="all">
+                    <SelectTrigger className="w-[150px]">
+                      <SelectValue placeholder="Assigned To" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Assignments</SelectItem>
+                      <SelectItem value="me">Assigned to Me</SelectItem>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {teamMembers.map(member => (
+                        <SelectItem key={member.id} value={member.name}>
+                          {member.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Bulk Actions */}
@@ -769,10 +763,10 @@ export function FeedbackManagement() {
                   <TableRow>
                     <TableHead className="w-[50px]">
                       <Checkbox 
-                        checked={selectedItems.length === tickets.length}
+                        checked={selectedItems.length === ticketsData.length}
                         onCheckedChange={(checked) => {
                           if (checked) {
-                            setSelectedItems(tickets.map(t => t.id));
+                            setSelectedItems(ticketsData.map(t => t.id));
                           } else {
                             setSelectedItems([]);
                           }
@@ -790,7 +784,7 @@ export function FeedbackManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {tickets.map((ticket) => {
+                  {ticketsData.map((ticket) => {
                     const StatusIcon = getStatusIcon(ticket.status);
                     const isSelected = selectedItems.includes(ticket.id);
                     return (
@@ -888,21 +882,6 @@ export function FeedbackManagement() {
                                   Assign Agent
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => {
-                                  setCurrentActionItem(ticket);
-                                  setIsEscalateDialogOpen(true);
-                                }}>
-                                  <TrendingUp className="mr-2 h-4 w-4" />
-                                  Escalate
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => {
-                                  setCurrentActionItem(ticket);
-                                  setIsInternalNoteDialogOpen(true);
-                                }}>
-                                  <FileText className="mr-2 h-4 w-4" />
-                                  Add Internal Note
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
                                 {ticket.status !== "resolved" && (
                                   <DropdownMenuItem onClick={() => {
                                     setCurrentActionItem(ticket);
@@ -958,19 +937,6 @@ export function FeedbackManagement() {
                     <SelectItem value="negative">Negative</SelectItem>
                   </SelectContent>
                 </Select>
-
-                <Select defaultValue="all">
-                  <SelectTrigger className="w-[150px]">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="published">Published</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="flagged">Flagged</SelectItem>
-                    <SelectItem value="hidden">Hidden</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
 
               {/* Card-based Review Display */}
@@ -1010,48 +976,48 @@ export function FeedbackManagement() {
                           
                           {/* Actions Dropdown */}
                           <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => setSelectedReview(review)}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                View Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => {
-                                setCurrentActionItem(review);
-                                setIsReviewResponseDialogOpen(true);
-                              }}>
-                                <Reply className="mr-2 h-4 w-4" />
-                                Respond Publicly
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleFeatureReview(review.id)}>
-                                <Star className="mr-2 h-4 w-4" />
-                                {review.isFeatured ? "Unfeature" : "Feature"} Review
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => handleFlagReview(review.id)}>
-                                <Flag className="mr-2 h-4 w-4" />
-                                {review.flagged ? "Unflag" : "Flag"} for Review
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Users className="mr-2 h-4 w-4" />
-                                Forward to Instructor
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                className="text-destructive"
-                                onClick={() => handleHideReview(review.id)}
-                              >
-                                <EyeOff className="mr-2 h-4 w-4" />
-                                Hide Review
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+  <DropdownMenuTrigger asChild>
+    <Button variant="ghost" size="sm">
+      <MoreHorizontal className="h-4 w-4" />
+    </Button>
+  </DropdownMenuTrigger>
+  <DropdownMenuContent align="end">
+    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+    <DropdownMenuSeparator />
+    <DropdownMenuItem onClick={() => setSelectedReview(review)}>
+      <Eye className="mr-2 h-4 w-4" />
+      View Details
+    </DropdownMenuItem>
+    <DropdownMenuItem onClick={() => {
+      setCurrentActionItem(review);
+      setIsReviewResponseDialogOpen(true);
+    }}>
+      <Reply className="mr-2 h-4 w-4" />
+      Respond Publicly
+    </DropdownMenuItem>
+    <DropdownMenuItem onClick={() => handleFeatureReview(review.id)}>
+      <Star className="mr-2 h-4 w-4" />
+      {review.isFeatured ? "Unfeature" : "Feature"} Review
+    </DropdownMenuItem>
+    <DropdownMenuSeparator />
+    <DropdownMenuItem onClick={() => handleFlagReview(review.id)}>
+      <Flag className="mr-2 h-4 w-4" />
+      {review.flagged ? "Unflag" : "Flag"} for Review
+    </DropdownMenuItem>
+    <DropdownMenuItem>
+      <Users className="mr-2 h-4 w-4" />
+      Forward to Instructor
+    </DropdownMenuItem>
+    <DropdownMenuSeparator />
+    <DropdownMenuItem 
+      className="text-destructive"
+      onClick={() => handleHideReview(review.id)}
+    >
+      <EyeOff className="mr-2 h-4 w-4" />
+      Hide Review
+    </DropdownMenuItem>
+  </DropdownMenuContent>
+</DropdownMenu>
                         </div>
 
                         {/* Rating and Sentiment */}
@@ -1151,7 +1117,7 @@ export function FeedbackManagement() {
           <DialogHeader>
             <DialogTitle>Send Response to Student</DialogTitle>
             <DialogDescription>
-              This response will be sent to the student via email and added to the ticket history.
+              This response will be sent to the student via email and added to the ticket history as a follow-up message.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1255,87 +1221,23 @@ export function FeedbackManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Escalate Dialog */}
-      <AlertDialog open={isEscalateDialogOpen} onOpenChange={setIsEscalateDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Escalate Ticket</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will escalate the ticket to senior support and mark it as high priority. 
-              The escalation team will be notified immediately.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
-              if (currentActionItem) {
-                handleEscalate(currentActionItem.id);
-              }
-            }}>
-              <TrendingUp className="w-4 h-4 mr-2" />
-              Escalate Ticket
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Internal Note Dialog */}
-      <Dialog open={isInternalNoteDialogOpen} onOpenChange={setIsInternalNoteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Internal Note</DialogTitle>
-            <DialogDescription>
-              Internal notes are only visible to support team members and won't be sent to students.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="internal-note">Internal Note</Label>
-              <Textarea
-                id="internal-note"
-                value={internalNoteText}
-                onChange={(e) => setInternalNoteText(e.target.value)}
-                placeholder="Add notes about troubleshooting, investigation, or team coordination..."
-                rows={5}
-              />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => {
-                setIsInternalNoteDialogOpen(false);
-                setInternalNoteText("");
-              }}>
-                Cancel
-              </Button>
-              <Button onClick={() => {
-                if (currentActionItem) {
-                  handleAddInternalNote(currentActionItem.id, internalNoteText);
-                }
-              }}>
-                <FileText className="w-4 h-4 mr-2" />
-                Add Note
-              </Button>
-            </DialogFooter>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Resolve Ticket Dialog */}
       <Dialog open={isResolveDialogOpen} onOpenChange={setIsResolveDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Resolve Ticket</DialogTitle>
             <DialogDescription>
-              Mark this ticket as resolved and provide a resolution summary.
+              Mark this ticket as resolved and provide a final resolution message to the student.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="resolution">Resolution Notes</Label>
+              <Label htmlFor="resolution">Final Resolution Message</Label>
               <Textarea
                 id="resolution"
                 value={resolutionNotes}
                 onChange={(e) => setResolutionNotes(e.target.value)}
-                placeholder="Describe how the issue was resolved..."
+                placeholder="Provide the final resolution message that will be sent to the student..."
                 rows={4}
               />
             </div>
@@ -1344,7 +1246,7 @@ export function FeedbackManagement() {
                 <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
                 <div>
                   <p className="text-sm text-green-900">
-                    The student will be notified that their ticket has been resolved.
+                    The student will receive this final resolution message and the ticket will be marked as resolved.
                   </p>
                   <p className="text-xs text-green-700 mt-1">
                     They can reopen the ticket if the issue persists.
