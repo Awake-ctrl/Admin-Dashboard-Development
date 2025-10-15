@@ -4,24 +4,35 @@ const API_BASE_URL = 'http://localhost:8000/api';
 export interface SubscriptionPlan {
   id: number;
   name: string;
-  max_text: number;
-  max_image: number;
-  max_audio: number;
-  max_expand: number;
-  max_with_history: number;
-  price: number;
-  timedelta: number;
-  subscribers: number;
-  revenue: number;
+  slogan?: string;
+  original_price: number;
+  offer_price: number;
+  courses: number[];
+  type: "single" | "bundle";
+  duration_months: number;
+  features: string[];
+  is_popular: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface Course {
+  id: number;
+  title: string;
+  description: string;
+  exam_type: string;
+  instructor: string;
+  duration: string;
+  enrolled_students: number;
+  status: string;
 }
 
 export interface Transaction {
   id: number;
   user_id: string;
   user_name: string;
+  subscription_plan_id: number; // New field
   plan_name: string;
   type: string;
   amount: number;
@@ -29,6 +40,9 @@ export interface Transaction {
   date: string;
   order_id: string;
   payment_gateway_id?: string;
+  courses?: number[]; // Courses included in this transaction
+  duration_months?: number;
+  valid_until?: string;
 }
 
 export interface RefundRequest {
@@ -51,6 +65,8 @@ export interface SubscriptionStats {
   churn_rate: number;
   active_plans: number;
   monthly_recurring_revenue: number;
+  monthly_revenue_growth: number;
+  monthly_subscriber_growth: number;
 }
 
 class ApiError extends Error {
@@ -96,7 +112,7 @@ export const subscriptionService = {
     return apiRequest<SubscriptionPlan>(`/subscription-plans/${planId}`);
   },
 
-  createSubscriptionPlan: async (plan: Omit<SubscriptionPlan, 'id' | 'created_at' | 'updated_at'>): Promise<SubscriptionPlan> => {
+  createSubscriptionPlan: async (plan: Omit<SubscriptionPlan, 'id' | 'created_at' | 'updated_at' | 'subscribers' | 'revenue'>): Promise<SubscriptionPlan> => {
     return apiRequest<SubscriptionPlan>('/subscription-plans', {
       method: 'POST',
       body: JSON.stringify(plan),
@@ -114,6 +130,11 @@ export const subscriptionService = {
     return apiRequest<void>(`/subscription-plans/${planId}`, {
       method: 'DELETE',
     });
+  },
+
+  // Courses
+  getCourses: async (): Promise<Course[]> => {
+    return apiRequest<Course[]>('/courses');
   },
 
   // Transactions
@@ -141,6 +162,13 @@ export const subscriptionService = {
       method: 'PUT',
       body: JSON.stringify(transactionData),
     });
+  },
+   getTransactionsByPlan: async (planId: number): Promise<Transaction[]> => {
+    return apiRequest<Transaction[]>(`/transactions?subscription_plan_id=${planId}`);
+  },
+
+  getUserSubscriptions: async (userId: string): Promise<Transaction[]> => {
+    return apiRequest<Transaction[]>(`/users/${userId}/subscriptions`);
   },
 
   // Refund Requests

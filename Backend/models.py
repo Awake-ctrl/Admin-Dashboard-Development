@@ -1,5 +1,5 @@
 # models.py
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Table, Date
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Table, Date,JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
@@ -27,8 +27,17 @@ class User(Base):
     email = Column(String(100), unique=True, index=True, nullable=False)
     phone = Column(String(20), nullable=True)
     exam_type = Column(String(50), nullable=True)
-    subscription_status = Column(String(50), nullable=True)
-    subscription_plan = Column(String(50), nullable=True)
+    
+    # Updated subscription fields
+    subscription_status = Column(String(50), default="inactive")  # active, inactive, expired
+    subscription_plan_id = Column(Integer, ForeignKey("subscription_plans.id"), nullable=True)  # New field
+    subscription_plan = Column(String(50), nullable=True)  # Keep for backward compatibility
+    
+    # New subscription tracking fields
+    subscription_start_date = Column(DateTime(timezone=True), nullable=True)
+    subscription_end_date = Column(DateTime(timezone=True), nullable=True)
+    subscribed_courses = Column(JSON, default=[])  # List of course IDs user has access to
+    
     join_date = Column(Date, nullable=True)
     last_active = Column(Date, nullable=True)
     total_study_hours = Column(Integer, default=0)
@@ -41,12 +50,16 @@ class User(Base):
     deletion_reason = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    activities = relationship("UserActivity", back_populates="user")
+    
     # Relationships
+    activities = relationship("UserActivity", back_populates="user")
     account_deletion_requests = relationship("AccountDeletionRequest", back_populates="user")
     transactions = relationship("Transaction", back_populates="user")
     refund_requests = relationship("RefundRequest", back_populates="user")
     user_courses = relationship("UserCourse", back_populates="user")
+    
+    # New relationship for subscription plan
+    subscription_plan_rel = relationship("SubscriptionPlan")
 
 class AccountDeletionRequest(Base):
     __tablename__ = "account_deletion_requests"
@@ -73,61 +86,75 @@ class SubscriptionPlan(Base):
     __tablename__ = "subscription_plans"
     
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), unique=True, nullable=False)
-    max_text = Column(Integer, default=0)
-    max_image = Column(Integer, default=0)
-    max_audio = Column(Integer, default=0)
-    max_expand = Column(Integer, default=0)
-    max_with_history = Column(Integer, default=0)
-    price = Column(Integer, default=0)
-    timedelta = Column(Integer, default=2592000)
+    name = Column(String, unique=True, index=True)
+    slogan = Column(String, nullable=True)
+    original_price = Column(Integer, default=0)  # Original price for discount display
+    offer_price = Column(Integer, default=0)     # Actual selling price
+    courses = Column(JSON, default=[])           # List of course IDs included in this plan
+    type = Column(String, default="single")      # "single" or "bundle"
+    duration_months = Column(Integer, default=1) # Subscription duration in months
+    features = Column(JSON, default=[])          # List of features/benefits
+    is_popular = Column(Boolean, default=False)  # Mark as popular plan
+    is_active = Column(Boolean, default=True)
     subscribers = Column(Integer, default=0)
     revenue = Column(Integer, default=0)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
     # Relationships
     transactions = relationship("Transaction", back_populates="subscription_plan")
+    refund_requests = relationship("RefundRequest", back_populates="subscription_plan")
 
 class Transaction(Base):
     __tablename__ = "transactions"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
-    user_name = Column(String(100), nullable=False)
-    plan_name = Column(String(100), nullable=False)
-    plan_id = Column(Integer, ForeignKey("subscription_plans.id"), nullable=True)
-    type = Column(String(50), nullable=False)
-    amount = Column(Integer, nullable=False)
-    status = Column(String(50), nullable=False)
-    order_id = Column(String(100), unique=True, nullable=False)
-    payment_gateway_id = Column(String(100), nullable=True)
-    date = Column(DateTime(timezone=True), server_default=func.now())
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
+    user_id = Column(String, ForeignKey("users.id"), index=True)
+    user_name = Column(String)
+    
+    # Foreign key to subscription plan
+    subscription_plan_id = Column(Integer, ForeignKey("subscription_plans.id"), nullable=True)
+    plan_name = Column(String)  # Keep for backward compatibility
+    
+    type = Column(String)  # razorpay, google, apple, etc.
+    amount = Column(Integer)
+    status = Column(String)  # captured, failed, pending, refunded
+    date = Column(DateTime, default=datetime.utcnow)
+    order_id = Column(String, unique=True, index=True)
+    payment_gateway_id = Column(String, nullable=True)
+    
+    # New fields for course-based subscriptions
+    courses = Column(JSON, default=[])  # Courses included in this transaction
+    duration_months = Column(Integer, default=1)  # Subscription duration
+    valid_until = Column(DateTime, nullable=True)  # Subscription expiry
+    
     # Relationships
-    user = relationship("User", back_populates="transactions")
     subscription_plan = relationship("SubscriptionPlan", back_populates="transactions")
-
+    user = relationship("User", back_populates="transactions")
+    
+    
 class RefundRequest(Base):
     __tablename__ = "refund_requests"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
-    user_name = Column(String(100), nullable=False)
-    plan_name = Column(String(100), nullable=False)
-    amount = Column(Integer, nullable=False)
-    reason = Column(Text, nullable=False)
-    status = Column(String(50), default="pending")
-    request_date = Column(DateTime(timezone=True), server_default=func.now())
-    processed_date = Column(DateTime(timezone=True), nullable=True)
-    processed_by = Column(String(100), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
+    user_id = Column(String, ForeignKey("users.id"), index=True)
+    user_name = Column(String)
+    
+    # Foreign key to subscription plan
+    subscription_plan_id = Column(Integer, ForeignKey("subscription_plans.id"), nullable=True)
+    plan_name = Column(String)
+    
+    amount = Column(Integer)
+    reason = Column(String)
+    status = Column(String)  # pending, processed, rejected
+    request_date = Column(DateTime, default=datetime.utcnow)
+    processed_date = Column(DateTime, nullable=True)
+    processed_by = Column(String, nullable=True)
+    
     # Relationships
+    subscription_plan = relationship("SubscriptionPlan", back_populates="refund_requests")
     user = relationship("User", back_populates="refund_requests")
+
 
 class Exam(Base):
     __tablename__ = "exams"

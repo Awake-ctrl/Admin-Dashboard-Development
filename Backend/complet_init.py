@@ -479,7 +479,164 @@ def insert_user_data(db):
     db.commit()
     print(f"✓ Inserted {len(users)} users")
     return users
-
+def insert_new_subscription_plans(db, courses):
+    """Insert new format subscription plans"""
+    print("\nCreating new format subscription plans...")
+    
+    # Get course IDs for different plans
+    jee_course = next((c for c in courses if c.exam_type == "jee"), None)
+    neet_course = next((c for c in courses if c.exam_type == "neet"), None)
+    cat_course = next((c for c in courses if c.exam_type == "cat"), None)
+    upsc_course = next((c for c in courses if c.exam_type == "upsc"), None)
+    gate_course = next((c for c in courses if c.exam_type == "gate"), None)
+    banking_course = next((c for c in courses if c.exam_type == "other_govt_exam"), None)
+    
+    all_course_ids = [c.id for c in courses]
+    
+    new_subscription_plans = [
+        # Free Plan
+        models.SubscriptionPlan(
+            name="free_trial",
+            slogan="Start your learning journey for free",
+            original_price=999,
+            offer_price=0,
+            courses=[jee_course.id] if jee_course else [],
+            type="single",
+            duration_months=1,
+            features=[
+                "Basic Text Queries",
+                "Limited Practice Tests",
+                "Community Support"
+            ],
+            is_popular=False,
+            is_active=True,
+            subscribers=1250,
+            revenue=0
+        ),
+        # Single Course Plans
+        models.SubscriptionPlan(
+            name="jee_pro",
+            slogan="Ace JEE with expert guidance and comprehensive materials",
+            original_price=14999,
+            offer_price=9999,
+            courses=[jee_course.id] if jee_course else [],
+            type="single",
+            duration_months=12,
+            features=[
+                "Unlimited Text Queries",
+                "Unlimited Image Queries",
+                "Priority Support",
+                "Download Content",
+                "Certificate of Completion",
+                "Live Doubt Sessions"
+            ],
+            is_popular=True,
+            is_active=True,
+            subscribers=180,
+            revenue=1799820
+        ),
+        models.SubscriptionPlan(
+            name="neet_medical",
+            slogan="Complete NEET preparation with top medical professionals",
+            original_price=16999,
+            offer_price=11999,
+            courses=[neet_course.id] if neet_course else [],
+            type="single",
+            duration_months=12,
+            features=[
+                "Unlimited Text Queries",
+                "Unlimited Image Queries",
+                "Priority Support",
+                "Download Content",
+                "Certificate of Completion",
+                "Personalized Study Plan"
+            ],
+            is_popular=False,
+            is_active=True,
+            subscribers=150,
+            revenue=1799850
+        ),
+        # Bundle Plans
+        models.SubscriptionPlan(
+            name="engineering_bundle",
+            slogan="Complete preparation for all engineering entrance exams",
+            original_price=29999,
+            offer_price=19999,
+            courses=[c.id for c in courses if c.exam_type in ["jee", "gate"]] if courses else [],
+            type="bundle",
+            duration_months=12,
+            features=[
+                "Unlimited All Queries",
+                "24/7 Priority Support",
+                "Download All Content",
+                "Advanced Certificates",
+                "Live Doubt Sessions",
+                "Personalized Study Plan",
+                "Mobile App Access"
+            ],
+            is_popular=True,
+            is_active=True,
+            subscribers=85,
+            revenue=1699915
+        ),
+        models.SubscriptionPlan(
+            name="all_courses_pro",
+            slogan="Access to all courses with premium features",
+            original_price=49999,
+            offer_price=29999,
+            courses=all_course_ids,
+            type="bundle",
+            duration_months=12,
+            features=[
+                "Unlimited All Queries",
+                "24/7 Priority Support",
+                "Download All Content",
+                "Advanced Certificates",
+                "Live Doubt Sessions",
+                "Personalized Study Plan",
+                "Mobile App Access",
+                "Early Access to New Features",
+                "Dedicated Account Manager"
+            ],
+            is_popular=False,
+            is_active=True,
+            subscribers=45,
+            revenue=1349955
+        ),
+        # Short-term Plans
+        models.SubscriptionPlan(
+            name="cat_fast_track",
+            slogan="3-month intensive CAT preparation",
+            original_price=7999,
+            offer_price=4999,
+            courses=[cat_course.id] if cat_course else [],
+            type="single",
+            duration_months=3,
+            features=[
+                "Unlimited Text Queries",
+                "Practice Tests",
+                "Download Content",
+                "Certificate of Completion"
+            ],
+            is_popular=False,
+            is_active=True,
+            subscribers=120,
+            revenue=599880
+        )
+    ]
+    
+    # First, mark old plans as inactive if they exist
+    try:
+        db.query(models.SubscriptionPlan).update({"is_active": False})
+        print("✓ Marked old plans as inactive")
+    except:
+        print("✓ No old plans to deactivate")
+    
+    # Add new plans
+    db.add_all(new_subscription_plans)
+    db.commit()
+    print(f"✓ Inserted {len(new_subscription_plans)} new format subscription plans")
+    return new_subscription_plans
 def create_user_course_subscriptions(db, users, courses):
     """Create subscriptions linking users to courses"""
     print("\nCreating user course subscriptions...")
@@ -546,8 +703,7 @@ def insert_subscription_plans(db):
             max_with_history=3,
             price=0,
             timedelta=2592000,  # 30 days
-            subscribers=1250,
-            revenue=0,
+          
             is_active=True
         ),
         models.SubscriptionPlan(
@@ -559,8 +715,7 @@ def insert_subscription_plans(db):
             max_with_history=30,
             price=299,
             timedelta=2592000,  # 30 days
-            subscribers=450,
-            revenue=134550,
+           
             is_active=True
         ),
         models.SubscriptionPlan(
@@ -572,8 +727,7 @@ def insert_subscription_plans(db):
             max_with_history=150,
             price=599,
             timedelta=2592000,  # 30 days
-            subscribers=180,
-            revenue=107820,
+           
             is_active=True
         )
     ]
@@ -583,196 +737,168 @@ def insert_subscription_plans(db):
     print(f"✓ Inserted {len(subscription_plans)} subscription plans")
     return subscription_plans
 
-def insert_transaction_data(db, users):
-    """Insert transaction data for better analytics"""
-    print("\nCreating transactions...")
+# Add this to your complete_init.py
+
+def insert_transaction_data(db, users, courses,subscription_plans):
+    """Insert transaction data with proper subscription plan relationships"""
+    print("\nCreating transactions with subscription plan relationships...")
+    
+    # Map plan names to IDs
+    plan_name_to_id = {plan.name: plan.id for plan in subscription_plans}
     
     transactions = [
-        # January transactions
+        # JEE Pro transactions
         models.Transaction(
             user_id=users[0].id,
             user_name=users[0].name,
-            plan_name="premium",
+            subscription_plan_id=plan_name_to_id["jee_pro"],
+            plan_name="jee_pro",
             type="razorpay",
-            amount=599,
+            amount=9999,
             status="captured",
             date=datetime(2024, 1, 14, 10, 30, 0),
-            order_id="order_12345",
-            payment_gateway_id="pay_12345"
-        ),
-        models.Transaction(
-            user_id=users[2].id,
-            user_name=users[2].name,
-            plan_name="basic",
-            type="razorpay",
-            amount=299,
-            status="captured",
-            date=datetime(2024, 1, 20, 8, 45, 0),
-            order_id="order_54321",
-            payment_gateway_id="pay_54321"
+            order_id="order_jee_001",
+            payment_gateway_id="pay_jee_001",
+            courses=[next((c.id for c in courses if c.exam_type == "jee"), None)],
+            duration_months=12,
+            valid_until=datetime(2025, 1, 14, 10, 30, 0)
         ),
         
-        # February transactions
-        models.Transaction(
-            user_id=users[1].id,
-            user_name=users[1].name,
-            plan_name="premium",
-            type="google",
-            amount=599,
-            status="captured",
-            date=datetime(2024, 2, 20, 9, 15, 0),
-            order_id="google_67890",
-            payment_gateway_id="google_pay_67890"
-        ),
-        models.Transaction(
-            user_id=users[10].id,
-            user_name=users[10].name,
-            plan_name="premium",
-            type="razorpay",
-            amount=599,
-            status="captured",
-            date=datetime(2024, 2, 5, 14, 20, 0),
-            order_id="order_98765",
-            payment_gateway_id="pay_98765"
-        ),
-        
-        # March transactions
-        models.Transaction(
-            user_id=users[3].id,
-            user_name=users[3].name,
-            plan_name="premium",
-            type="razorpay",
-            amount=599,
-            status="captured",
-            date=datetime(2024, 3, 5, 14, 20, 0),
-            order_id="order_11111",
-            payment_gateway_id="pay_11111"
-        ),
-        models.Transaction(
-            user_id=users[6].id,
-            user_name=users[6].name,
-            plan_name="premium",
-            type="google",
-            amount=599,
-            status="captured",
-            date=datetime(2024, 3, 20, 11, 30, 0),
-            order_id="google_22222",
-            payment_gateway_id="google_pay_22222"
-        ),
-        
-        # April transactions
+        # Engineering Bundle transactions
         models.Transaction(
             user_id=users[4].id,
             user_name=users[4].name,
-            plan_name="premium",
+            subscription_plan_id=plan_name_to_id["engineering_bundle"],
+            plan_name="engineering_bundle",
             type="google",
-            amount=599,
+            amount=19999,
             status="captured",
-            date=datetime(2024, 4, 12, 11, 30, 0),
-            order_id="google_54321",
-            payment_gateway_id="google_pay_54321"
+            date=datetime(2024, 2, 20, 9, 15, 0),
+            order_id="order_eng_001",
+            payment_gateway_id="google_pay_eng_001",
+            courses=[c.id for c in courses if c.exam_type in ["jee", "gate"]],
+            duration_months=12,
+            valid_until=datetime(2025, 2, 20, 9, 15, 0)
         ),
+        
+        # NEET Medical transactions
+        models.Transaction(
+            user_id=users[1].id,
+            user_name=users[1].name,
+            subscription_plan_id=plan_name_to_id["neet_medical"],
+            plan_name="neet_medical",
+            type="razorpay",
+            amount=11999,
+            status="captured",
+            date=datetime(2024, 3, 5, 14, 20, 0),
+            order_id="order_neet_001",
+            payment_gateway_id="pay_neet_001",
+            courses=[next((c.id for c in courses if c.exam_type == "neet"), None)],
+            duration_months=12,
+            valid_until=datetime(2025, 3, 5, 14, 20, 0)
+        ),
+        
+        # All Courses Pro transactions
         models.Transaction(
             user_id=users[12].id,
             user_name=users[12].name,
-            plan_name="premium",
+            subscription_plan_id=plan_name_to_id["all_courses_pro"],
+            plan_name="all_courses_pro",
             type="razorpay",
-            amount=599,
+            amount=29999,
             status="captured",
             date=datetime(2024, 4, 15, 16, 45, 0),
-            order_id="order_33333",
-            payment_gateway_id="pay_33333"
+            order_id="order_all_001",
+            payment_gateway_id="pay_all_001",
+            courses=[c.id for c in courses],
+            duration_months=12,
+            valid_until=datetime(2025, 4, 15, 16, 45, 0)
         ),
         
-        # May transactions
+        # CAT Fast Track transactions
         models.Transaction(
-            user_id=users[8].id,
-            user_name=users[8].name,
-            plan_name="basic",
-            type="razorpay",
-            amount=299,
+            user_id=users[3].id,
+            user_name=users[3].name,
+            subscription_plan_id=plan_name_to_id["cat_fast_track"],
+            plan_name="cat_fast_track",
+            type="google",
+            amount=4999,
             status="captured",
             date=datetime(2024, 5, 10, 13, 20, 0),
-            order_id="order_44444",
-            payment_gateway_id="pay_44444"
-        ),
-        models.Transaction(
-            user_id=users[13].id,
-            user_name=users[13].name,
-            plan_name="basic",
-            type="google",
-            amount=299,
-            status="captured",
-            date=datetime(2024, 5, 8, 10, 15, 0),
-            order_id="google_44444",
-            payment_gateway_id="google_pay_44444"
+            order_id="order_cat_001",
+            payment_gateway_id="google_pay_cat_001",
+            courses=[next((c.id for c in courses if c.exam_type == "cat"), None)],
+            duration_months=3,
+            valid_until=datetime(2024, 8, 10, 13, 20, 0)
         ),
         
-        # June transactions
-        models.Transaction(
-            user_id=users[9].id,
-            user_name=users[9].name,
-            plan_name="premium",
-            type="razorpay",
-            amount=599,
-            status="captured",
-            date=datetime(2024, 6, 22, 9, 30, 0),
-            order_id="order_55555",
-            payment_gateway_id="pay_55555"
-        ),
+        # Failed transaction
         models.Transaction(
             user_id=users[5].id,
             user_name=users[5].name,
-            plan_name="basic",
+            subscription_plan_id=plan_name_to_id["jee_pro"],
+            plan_name="jee_pro",
             type="razorpay",
-            amount=299,
-            status="captured",
+            amount=9999,
+            status="failed",
             date=datetime(2024, 6, 1, 12, 0, 0),
-            order_id="order_66666",
-            payment_gateway_id="pay_66666"
+            order_id="order_failed_001",
+            payment_gateway_id="pay_failed_001"
         ),
         
-        # July transactions
-        models.Transaction(
-            user_id=users[14].id,
-            user_name=users[14].name,
-            plan_name="basic",
-            type="google",
-            amount=299,
-            status="captured",
-            date=datetime(2024, 7, 1, 14, 30, 0),
-            order_id="google_77777",
-            payment_gateway_id="google_pay_77777"
-        ),
-        
-        # August transactions
+        # Refunded transaction
         models.Transaction(
             user_id=users[7].id,
             user_name=users[7].name,
-            plan_name="basic",
+            subscription_plan_id=plan_name_to_id["engineering_bundle"],
+            plan_name="engineering_bundle",
             type="razorpay",
-            amount=299,
-            status="captured",
-            date=datetime(2024, 8, 1, 11, 0, 0),
-            order_id="order_88888",
-            payment_gateway_id="pay_88888"
-        ),
-        models.Transaction(
-            user_id=users[11].id,
-            user_name=users[11].name,
-            plan_name="basic",
-            type="google",
-            amount=299,
-            status="captured",
-            date=datetime(2024, 8, 5, 15, 20, 0),
-            order_id="google_99999",
-            payment_gateway_id="google_pay_99999"
+            amount=19999,
+            status="refunded",
+            date=datetime(2024, 7, 1, 14, 30, 0),
+            order_id="order_refund_001",
+            payment_gateway_id="pay_refund_001",
+            courses=[c.id for c in courses if c.exam_type in ["jee", "gate"]],
+            duration_months=12
         )
     ]
 
     db.add_all(transactions)
     db.commit()
-    print(f"✓ Inserted {len(transactions)} transactions across 8 months")
+    print(f"✓ Inserted {len(transactions)} transactions with subscription plan relationships")
+    
+    # Update user subscriptions based on successful transactions
+    update_user_subscriptions(db, users, transactions)
+
+def update_user_subscriptions(db, users, transactions):
+    """Update user subscription status based on transactions"""
+    print("\nUpdating user subscription status...")
+    
+    # Group successful transactions by user
+    user_successful_tx = {}
+    for tx in transactions:
+        if tx.status == "captured":
+            if tx.user_id not in user_successful_tx:
+                user_successful_tx[tx.user_id] = []
+            user_successful_tx[tx.user_id].append(tx)
+    
+    # Update user subscription data
+    for user_id, user_txs in user_successful_tx.items():
+        # Get the latest transaction
+        latest_tx = max(user_txs, key=lambda x: x.date)
+        user = next((u for u in users if u.id == user_id), None)
+        
+        if user:
+            user.subscription_status = "active"
+            user.subscription_plan_id = latest_tx.subscription_plan_id
+            user.subscription_plan_name = latest_tx.plan_name
+            user.subscription_start_date = latest_tx.date
+            user.subscription_end_date = latest_tx.valid_until
+            user.subscribed_courses = latest_tx.courses
+            
+            print(f"✓ Updated subscription for {user.name}: {latest_tx.plan_name}")
+    
+    db.commit()
 
 def insert_course_content_data(db, courses):
     """Insert course modules and content"""
@@ -1052,10 +1178,7 @@ def main():
     """Main initialization function"""
     print("Starting complete database initialization...")
     print("="*60)
-    
-    # Reset database first
-    # reset_database()
-    # return 0
+    # reset_database()pyr
     db = SessionLocal()
     try:
         # Insert all data
@@ -1064,31 +1187,44 @@ def main():
         courses = insert_course_data(db, exams, subjects)
         users = insert_user_data(db)
         create_user_course_subscriptions(db, users, courses)
-        subscription_plans = insert_subscription_plans(db)
-        insert_transaction_data(db, users)
+        
+        # Use new subscription plans instead of old ones
+        subscription_plans = insert_new_subscription_plans(db, courses)
+        
+        # Update transactions to use new plan format with relationships
+        insert_transaction_data(db, users,courses, subscription_plans)
+        
         insert_course_content_data(db, courses)
         insert_content_data(db, courses, subjects)
         insert_account_deletion_requests(db, users)
         insert_refund_requests(db, users)
         roles_count = insert_roles_data(db)
+        
         # Print final summary
         print("\n" + "="*60)
         print("✅ DATABASE INITIALIZATION COMPLETE!")
         print("="*60)
         
-        # Get final counts
+        # Get final counts with relationships
         total_users = db.query(models.User).count()
         total_exams = db.query(models.Exam).count()
         total_subjects = db.query(models.Subject).count()
         total_courses = db.query(models.Course).count()
         total_subscriptions = db.query(models.UserCourse).count()
-        total_plans = db.query(models.SubscriptionPlan).count()
+        total_plans = db.query(models.SubscriptionPlan).filter(models.SubscriptionPlan.is_active == True).count()
         total_transactions = db.query(models.Transaction).count()
-        total_content = db.query(models.Content).count()
-        total_deletion_requests = db.query(models.AccountDeletionRequest).count()
-        total_refund_requests = db.query(models.RefundRequest).count()
-        total_roles = db.execute(text("SELECT COUNT(*) FROM roles")).scalar()
-        total_role_assignments = db.execute(text("SELECT COUNT(*) FROM user_roles")).scalar()
+        total_active_subscribers = db.query(models.User).filter(models.User.subscription_status == "active").count()
+        
+        # Get plan performance stats
+        plan_stats = db.execute(
+            text("""
+                SELECT sp.name, COUNT(t.id) as transaction_count, SUM(t.amount) as total_revenue
+                FROM subscription_plans sp
+                LEFT JOIN transactions t ON sp.id = t.subscription_plan_id AND t.status = 'captured'
+                WHERE sp.is_active = true
+                GROUP BY sp.id, sp.name
+            """)
+        ).fetchall()
 
         print(f"\n📊 DATABASE SUMMARY:")
         print(f"   👥 Users: {total_users}")
@@ -1096,29 +1232,21 @@ def main():
         print(f"   📚 Subjects: {total_subjects}")
         print(f"   🎓 Courses: {total_courses}")
         print(f"   🔗 Course Subscriptions: {total_subscriptions}")
-        print(f"   💳 Subscription Plans: {total_plans}")
+        print(f"   💳 Active Subscription Plans: {total_plans}")
         print(f"   💰 Transactions: {total_transactions}")
-        print(f"   📄 Content Items: {total_content}")
-        print(f"   🗑️  Deletion Requests: {total_deletion_requests}")
-        print(f"   💸 Refund Requests: {total_refund_requests}")
+        print(f"   ✅ Active Subscribers: {total_active_subscribers}")
         
-        print(f"\n🎯 Analytics Data Created:")
-        print(f"   • 15 users with varied subscription statuses")
-        print(f"   • Transactions spread across 8 months for trend analysis")
-        print(f"   • Realistic course enrollment and progress data")
-        print(f"   • Content with download statistics")
-        print(f"   • Account deletion and refund requests for admin analytics")
-        print(f"   • Proper exam type distribution for user demographics")
+        print(f"\n📈 Plan Performance:")
+        for plan in plan_stats:
+            print(f"   • {plan.name}: {plan.transaction_count} sales, ₹{plan.total_revenue or 0} revenue")
         
-        print(f"\n📈 Available Analytics:")
-        print(f"   • User growth trends (monthly)")
-        print(f"   • Revenue analysis by month")
-        print(f"   • Exam type distribution")
-        print(f"   • Subscription status breakdown")
-        print(f"   • Course enrollment trends")
-        print(f"   • Content download statistics")
-        print(f"   👥 Roles: {total_roles}")
-        print(f"   🔗 Role Assignments: {total_role_assignments}")
+        print(f"\n🎯 New Subscription Features:")
+        print(f"   • Proper foreign key relationships between transactions and plans")
+        print(f"   • Course-based pricing with included courses tracking")
+        print(f"   • Subscription duration and expiry tracking")
+        print(f"   • User subscription status automatically updated")
+        print(f"   • Revenue tracking per subscription plan")
+        
     except Exception as e:
         print(f"❌ Error during initialization: {e}")
         db.rollback()

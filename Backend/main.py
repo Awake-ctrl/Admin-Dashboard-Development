@@ -467,7 +467,7 @@ def delete_subscription_plan(plan_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Subscription plan deleted successfully"}
 # ========== TRANSACTION ENDPOINTS ==========
-@app.get("/api/transactions", response_model=List[schemas.Transaction])
+@app.get("/api/transactions", response_model=List[schemas.TransactionBase])
 def get_transactions(
     status: Optional[str] = Query(None),
     user_id: Optional[str] = Query(None),
@@ -483,7 +483,7 @@ def get_transactions(
     transactions = query.order_by(models.Transaction.date.desc()).all()
     return transactions
 
-@app.get("/api/transactions/{transaction_id}", response_model=schemas.Transaction)
+@app.get("/api/transactions/{transaction_id}", response_model=schemas.TransactionBase)
 def get_transaction(transaction_id: int, db: Session = Depends(get_db)):
     transaction = db.query(models.Transaction).filter(models.Transaction.id == transaction_id).first()
     if transaction is None:
@@ -720,13 +720,13 @@ def get_content_stats_old(db: Session = Depends(get_db)):
 def get_subscription_plans_old(db: Session = Depends(get_db)):
     return get_subscription_plans(db)
 
-@app.get("/transactions/", response_model=List[schemas.Transaction])
-def get_transactions_old(db: Session = Depends(get_db)):
-    return get_transactions(None, None, db)
+# @app.get("/transactions/", response_model=List[schemas.Transaction])
+# def get_transactions_old(db: Session = Depends(get_db)):
+#     return get_transactions(None, None, db)
 
-@app.get("/refund-requests/", response_model=List[schemas.RefundRequest])
-def get_refund_requests_old(db: Session = Depends(get_db)):
-    return get_refund_requests(None, db)
+# @app.get("/refund-requests/", response_model=List[schemas.RefundRequest])
+# def get_refund_requests_old(db: Session = Depends(get_db)):
+#     return get_refund_requests(None, db)
 
 # ========== ANALYTICS ENDPOINTS ==========
 @app.get("/api/analytics/user-stats")
@@ -1114,19 +1114,19 @@ def delete_subscription_plan_legacy(plan_id: int, db: Session = Depends(get_db))
     return {"message": "Subscription plan deleted successfully"}
 
 # Transaction legacy endpoints
-@app.post("/transactions/", response_model=schemas.Transaction)
-def create_transaction_legacy(transaction: schemas.TransactionCreate, db: Session = Depends(get_db)):
-    db_transaction = models.Transaction(**transaction.dict())
-    db.add(db_transaction)
-    db.commit()
-    db.refresh(db_transaction)
+# @app.post("/transactions/", response_model=schemas.TransactionBase)
+# def create_transaction_legacy(transaction: schemas.TransactionCreate, db: Session = Depends(get_db)):
+#     db_transaction = models.Transaction(**transaction.dict())
+#     db.add(db_transaction)
+#     db.commit()
+#     db.refresh(db_transaction)
     
-    # Update revenue stats
-    RevenueService.update_all_plans_revenue(db)
+#     # Update revenue stats
+#     RevenueService.update_all_plans_revenue(db)
     
-    return db_transaction
+#     return db_transaction
 
-@app.put("/transactions/{transaction_id}", response_model=schemas.Transaction)
+@app.put("/transactions/{transaction_id}", response_model=schemas.TransactionBase)
 def update_transaction_legacy(transaction_id: int, transaction: schemas.TransactionUpdate, db: Session = Depends(get_db)):
     db_transaction = db.query(models.Transaction).filter(models.Transaction.id == transaction_id).first()
     if db_transaction is None:
@@ -1147,48 +1147,48 @@ def update_transaction_legacy(transaction_id: int, transaction: schemas.Transact
     return db_transaction
 
 # Refund Request legacy endpoints
-@app.post("/refund-requests/", response_model=schemas.RefundRequest)
-def create_refund_request_legacy(refund_request: schemas.RefundRequestCreate, db: Session = Depends(get_db)):
-    db_refund_request = models.RefundRequest(**refund_request.dict())
-    db.add(db_refund_request)
-    db.commit()
-    db.refresh(db_refund_request)
-    return db_refund_request
+# @app.post("/refund-requests/", response_model=schemas.RefundRequest)
+# def create_refund_request_legacy(refund_request: schemas.RefundRequestCreate, db: Session = Depends(get_db)):
+#     db_refund_request = models.RefundRequest(**refund_request.dict())
+#     db.add(db_refund_request)
+#     db.commit()
+#     db.refresh(db_refund_request)
+#     return db_refund_request
 
-@app.put("/refund-requests/{request_id}", response_model=schemas.RefundRequest)
-def update_refund_request_legacy(request_id: int, refund_request: schemas.RefundRequestUpdate, db: Session = Depends(get_db)):
-    db_refund_request = db.query(models.RefundRequest).filter(models.RefundRequest.id == request_id).first()
-    if db_refund_request is None:
-        raise HTTPException(status_code=404, detail="Refund request not found")
+# @app.put("/refund-requests/{request_id}", response_model=schemas.RefundRequest)
+# def update_refund_request_legacy(request_id: int, refund_request: schemas.RefundRequestUpdate, db: Session = Depends(get_db)):
+#     db_refund_request = db.query(models.RefundRequest).filter(models.RefundRequest.id == request_id).first()
+#     if db_refund_request is None:
+#         raise HTTPException(status_code=404, detail="Refund request not found")
     
-    old_status = db_refund_request.status
+#     old_status = db_refund_request.status
     
-    for field, value in refund_request.dict(exclude_unset=True).items():
-        setattr(db_refund_request, field, value)
+#     for field, value in refund_request.dict(exclude_unset=True).items():
+#         setattr(db_refund_request, field, value)
     
-    if refund_request.status in ["approved", "rejected", "processed"]:
-        db_refund_request.processed_date = datetime.utcnow()
-        db_refund_request.processed_by = "admin"
+#     if refund_request.status in ["approved", "rejected", "processed"]:
+#         db_refund_request.processed_date = datetime.utcnow()
+#         db_refund_request.processed_by = "admin"
     
-    db.commit()
-    db.refresh(db_refund_request)
+#     db.commit()
+#     db.refresh(db_refund_request)
     
-    # If refund is approved, update related transaction and revenue
-    if refund_request.status == "approved" and old_status != "approved":
-        # Find and update the related transaction
-        transaction = db.query(models.Transaction).filter(
-            models.Transaction.user_id == db_refund_request.user_id,
-            models.Transaction.plan_name == db_refund_request.plan_name,
-            models.Transaction.amount == db_refund_request.amount,
-            models.Transaction.status == "captured"
-        ).first()
+#     # If refund is approved, update related transaction and revenue
+#     if refund_request.status == "approved" and old_status != "approved":
+#         # Find and update the related transaction
+#         transaction = db.query(models.Transaction).filter(
+#             models.Transaction.user_id == db_refund_request.user_id,
+#             models.Transaction.plan_name == db_refund_request.plan_name,
+#             models.Transaction.amount == db_refund_request.amount,
+#             models.Transaction.status == "captured"
+#         ).first()
         
-        if transaction:
-            transaction.status = "refunded"
-            db.commit()
-            RevenueService.update_all_plans_revenue(db)
+#         if transaction:
+#             transaction.status = "refunded"
+#             db.commit()
+#             RevenueService.update_all_plans_revenue(db)
     
-    return db_refund_request
+#     return db_refund_request
 
 # Course legacy endpoints
 @app.post("/courses/", response_model=schemas.Course)
@@ -1309,7 +1309,7 @@ def delete_course(course_id: int, db: Session = Depends(get_db)):
     return {"message": "Course deleted successfully"}
 
 # ========== TRANSACTION ENDPOINTS - ADD MISSING METHODS ==========
-@app.post("/api/transactions", response_model=schemas.Transaction)
+@app.post("/api/transactions", response_model=schemas.TransactionBase)
 def create_transaction(transaction: schemas.TransactionCreate, db: Session = Depends(get_db)):
     db_transaction = models.Transaction(**transaction.dict())
     db.add(db_transaction)
@@ -1321,7 +1321,7 @@ def create_transaction(transaction: schemas.TransactionCreate, db: Session = Dep
     
     return db_transaction
 
-@app.put("/api/transactions/{transaction_id}", response_model=schemas.Transaction)
+@app.put("/api/transactions/{transaction_id}", response_model=schemas.TransactionBase)
 def update_transaction(transaction_id: int, transaction: schemas.TransactionUpdate, db: Session = Depends(get_db)):
     db_transaction = db.query(models.Transaction).filter(models.Transaction.id == transaction_id).first()
     if db_transaction is None:

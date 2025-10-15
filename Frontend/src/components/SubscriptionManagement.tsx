@@ -28,20 +28,8 @@ import {
   ChevronDown,
   ChevronUp
 } from "lucide-react";
-import { subscriptionService, SubscriptionPlan, Transaction, RefundRequest, SubscriptionStats } from "./api/subscripttionService";
+import { subscriptionService, SubscriptionPlan, Transaction, RefundRequest, SubscriptionStats, Course } from "./api/subscripttionService";
 import { toast } from "sonner";
-
-// Mock courses data - in real app, this would come from your courses API
-const mockCourses = [
-  { id: 1, title: "JEE Main & Advanced Preparation", examType: "JEE" },
-  { id: 2, title: "NEET Preparation Course", examType: "NEET" },
-  { id: 3, title: "CAT Preparation", examType: "CAT" },
-  { id: 4, title: "UPSC Civil Services", examType: "UPSC" },
-  { id: 5, title: "GATE Engineering", examType: "GATE" },
-  { id: 6, title: "Banking & SSC Exams", examType: "OTHER_GOVT_EXAM" },
-  { id: 7, title: "Class 11-12 Science", examType: "SCHOOL" },
-  { id: 8, title: "Programming Fundamentals", examType: "TECH" }
-];
 
 // Feature options for plans
 const featureOptions = [
@@ -66,6 +54,7 @@ export function SubscriptionManagement() {
   
   // State for data from backend
   const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [refundRequests, setRefundRequests] = useState<RefundRequest[]>([]);
   const [stats, setStats] = useState<SubscriptionStats | null>(null);
@@ -83,13 +72,13 @@ export function SubscriptionManagement() {
     original_price: 0,
     offer_price: 0,
     courses: [] as number[],
-    type: "single", // "single" or "bundle"
+    type: "single" as "single" | "bundle",
     duration_months: 1,
     features: [] as string[],
     is_popular: false,
-    is_active: true,
-    subscribers: 0,
-    revenue: 0
+    is_active: true
+    // subscribers: 0,
+    // revenue: 0
   });
 
   // Dropdown states
@@ -104,6 +93,14 @@ export function SubscriptionManagement() {
   const loadData = async () => {
     setLoading(true);
     try {
+      // Always load courses and stats
+      const [coursesData, statsData] = await Promise.all([
+        subscriptionService.getCourses(),
+        subscriptionService.getSubscriptionStats()
+      ]);
+      setCourses(coursesData);
+      setStats(statsData);
+
       switch (activeTab) {
         case "plans":
           const plansData = await subscriptionService.getSubscriptionPlans();
@@ -122,10 +119,6 @@ export function SubscriptionManagement() {
           setRefundRequests(refundsData);
           break;
       }
-
-      // Always load stats - they update based on transactions
-      const statsData = await subscriptionService.getSubscriptionStats();
-      setStats(statsData);
     } catch (error) {
       console.error("Error loading data:", error);
       toast.error("Failed to load data");
@@ -146,9 +139,9 @@ export function SubscriptionManagement() {
       duration_months: plan.duration_months || 1,
       features: plan.features || [],
       is_popular: plan.is_popular || false,
-      is_active: plan.is_active,
-      subscribers: plan.subscribers,
-      revenue: plan.revenue
+      is_active: plan.is_active
+      // subscribers: plan.subscribers,
+      // revenue: plan.revenue
     });
     setIsDialogOpen(true);
   };
@@ -166,8 +159,8 @@ export function SubscriptionManagement() {
       features: [],
       is_popular: false,
       is_active: true,
-      subscribers: 0,
-      revenue: 0
+      // subscribers: 0,
+      // revenue: 0
     });
     setIsDialogOpen(true);
   };
@@ -227,7 +220,7 @@ export function SubscriptionManagement() {
   const handleSelectAllCourses = () => {
     setFormData(prev => ({
       ...prev,
-      courses: prev.courses.length === mockCourses.length ? [] : mockCourses.map(course => course.id)
+      courses: prev.courses.length === courses.length ? [] : courses.map(course => course.id)
     }));
   };
 
@@ -398,7 +391,7 @@ export function SubscriptionManagement() {
   };
 
   const getCourseTitles = (courseIds: number[]) => {
-    return courseIds.map(id => mockCourses.find(course => course.id === id)?.title).filter(Boolean);
+    return courseIds.map(id => courses.find(course => course.id === id)?.title).filter(Boolean);
   };
 
   return (
@@ -551,25 +544,27 @@ export function SubscriptionManagement() {
                     
                     <CardContent className="space-y-4">
                       {/* Included Courses */}
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <BookOpen className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">Included Courses</span>
+                      {includedCourses.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <BookOpen className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm font-medium">Included Courses</span>
+                          </div>
+                          <div className="space-y-1">
+                            {includedCourses.slice(0, 3).map((course, index) => (
+                              <div key={index} className="flex items-center gap-2 text-xs">
+                                <Check className="w-3 h-3 text-green-500" />
+                                <span className="truncate">{course}</span>
+                              </div>
+                            ))}
+                            {includedCourses.length > 3 && (
+                              <div className="text-xs text-muted-foreground">
+                                +{includedCourses.length - 3} more courses
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div className="space-y-1">
-                          {includedCourses.slice(0, 3).map((course, index) => (
-                            <div key={index} className="flex items-center gap-2 text-xs">
-                              <Check className="w-3 h-3 text-green-500" />
-                              <span className="truncate">{course}</span>
-                            </div>
-                          ))}
-                          {includedCourses.length > 3 && (
-                            <div className="text-xs text-muted-foreground">
-                              +{includedCourses.length - 3} more courses
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                      )}
 
                       {/* Features */}
                       {plan.features && plan.features.length > 0 && (
@@ -596,14 +591,14 @@ export function SubscriptionManagement() {
 
                       {/* Stats */}
                       <div className="pt-4 border-t space-y-2">
-                        <div className="flex justify-between text-sm">
+                        {/* <div className="flex justify-between text-sm">
                           <span>Subscribers:</span>
                           <span className="font-semibold">{plan.subscribers}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span>Revenue:</span>
                           <span className="font-semibold">{formatCurrency(plan.revenue)}</span>
-                        </div>
+                        </div> */}
                         <div className="flex justify-between text-sm">
                           <span>Status:</span>
                           <Badge variant={plan.is_active ? "default" : "secondary"}>
@@ -885,7 +880,7 @@ export function SubscriptionManagement() {
         </TabsContent>
       </Tabs>
 
-      {/* Plan Dialog - Updated with better responsive design */}
+      {/* Plan Dialog - Updated with dynamic courses */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-md sm:max-w-lg md:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader className="flex-shrink-0">
@@ -1018,11 +1013,11 @@ export function SubscriptionManagement() {
                         size="sm"
                         onClick={handleSelectAllCourses}
                       >
-                        {formData.courses.length === mockCourses.length ? "Deselect All" : "Select All"}
+                        {formData.courses.length === courses.length ? "Deselect All" : "Select All"}
                       </Button>
                     </div>
                     <div className="space-y-2">
-                      {mockCourses.map((course) => (
+                      {courses.map((course) => (
                         <div key={course.id} className="flex items-center space-x-2">
                           <Checkbox
                             id={`course-${course.id}`}
@@ -1031,7 +1026,7 @@ export function SubscriptionManagement() {
                           />
                           <Label htmlFor={`course-${course.id}`} className="text-sm font-normal cursor-pointer flex-1">
                             {course.title} 
-                            <Badge variant="outline" className="ml-2 text-xs">{course.examType}</Badge>
+                            <Badge variant="outline" className="ml-2 text-xs">{course.exam_type}</Badge>
                           </Label>
                         </div>
                       ))}

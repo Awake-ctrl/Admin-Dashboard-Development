@@ -79,37 +79,36 @@ class AccountDeletionRequest(AccountDeletionRequestBase):
 # Subscription Plan Schemas
 class SubscriptionPlanBase(BaseModel):
     name: str
-    max_text: int = 0
-    max_image: int = 0
-    max_audio: int = 0
-    max_expand: int = 0
-    max_with_history: int = 0
-    price: int = 0
-    timedelta: int = 2592000
-    subscribers: int = 0
-    revenue: int = 0
+    slogan: Optional[str] = None
+    original_price: int
+    offer_price: int
+    courses: List[int] = []
+    type: str = "single"  # "single" or "bundle"
+    duration_months: int = 1
+    features: List[str] = []
+    is_popular: bool = False
     is_active: bool = True
-
 class SubscriptionPlanCreate(SubscriptionPlanBase):
     pass
 
 class SubscriptionPlanUpdate(BaseModel):
     name: Optional[str] = None
-    max_text: Optional[int] = None
-    max_image: Optional[int] = None
-    max_audio: Optional[int] = None
-    max_expand: Optional[int] = None
-    max_with_history: Optional[int] = None
-    price: Optional[int] = None
-    timedelta: Optional[int] = None
-    subscribers: Optional[int] = None
-    revenue: Optional[int] = None
+    slogan: Optional[str] = None
+    original_price: Optional[int] = None
+    offer_price: Optional[int] = None
+    courses: Optional[List[int]] = None
+    type: Optional[str] = None
+    duration_months: Optional[int] = None
+    features: Optional[List[str]] = None
+    is_popular: Optional[bool] = None
     is_active: Optional[bool] = None
 
 class SubscriptionPlan(SubscriptionPlanBase):
     id: int
+    subscribers: int = 0
+    revenue: int = 0
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime
 
     class Config:
         from_attributes = True
@@ -118,13 +117,17 @@ class SubscriptionPlan(SubscriptionPlanBase):
 class TransactionBase(BaseModel):
     user_id: str
     user_name: str
+    subscription_plan_id: Optional[int] = None
     plan_name: str
-    plan_id: Optional[int] = None
     type: str
     amount: int
     status: str
+    date: datetime
     order_id: str
     payment_gateway_id: Optional[str] = None
+    courses: List[int] = []
+    duration_months: int = 1
+    valid_until: Optional[datetime] = None
 
 class TransactionCreate(TransactionBase):
     pass
@@ -133,13 +136,13 @@ class TransactionUpdate(BaseModel):
     status: Optional[str] = None
     payment_gateway_id: Optional[str] = None
 
-class Transaction(TransactionBase):
-    id: int
-    date: datetime
-    created_at: datetime
+# class Transaction(TransactionBase):
+#     id: int
+#     date: datetime
+#     created_at: datetime
 
-    class Config:
-        from_attributes = True
+#     class Config:
+#         from_attributes = True
 
 # Refund Request Schemas
 class RefundRequestBase(BaseModel):
@@ -163,7 +166,7 @@ class RefundRequest(RefundRequestBase):
     request_date: datetime
     processed_date: Optional[datetime] = None
     processed_by: Optional[str] = None
-    created_at: datetime
+    # created_at: datetime
     updated_at: Optional[datetime] = None
 
     class Config:
