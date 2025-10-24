@@ -694,7 +694,7 @@ export function SubscriptionManagement() {
                       <TableHead>Status</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Order ID</TableHead>
-                      <TableHead>Actions</TableHead>
+                      {/* <TableHead>Actions</TableHead>    */} 
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -712,7 +712,7 @@ export function SubscriptionManagement() {
                         <TableCell>{getStatusBadge(transaction.status)}</TableCell>
                         <TableCell>{formatDate(transaction.date)}</TableCell>
                         <TableCell className="font-mono text-xs">{transaction.order_id}</TableCell>
-                        <TableCell>
+                        {/* <TableCell>
                           <div className="flex gap-1">
                             {transaction.status === "failed" && (
                               <Button 
@@ -758,7 +758,7 @@ export function SubscriptionManagement() {
                               </>
                             )}
                           </div>
-                        </TableCell>
+                        </TableCell> */}
                       </TableRow>
                     ))}
                   </TableBody>
