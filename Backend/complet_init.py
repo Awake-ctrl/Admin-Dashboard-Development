@@ -129,9 +129,12 @@ def insert_course_data(db, exams):
             "instructor": "Dr. Priya Sharma",
             "price": 12999.0,
             "duration": "12 months",
-            "enrolled_students": 350,
-            "completion_rate": 68.5,
-            "rating": 4.7,
+            "enrolled_students": 0,
+            "completion_rate": 0,
+            "rating": 0,
+            # "enrolled_students": 350,
+            # "completion_rate": 68.5,
+            # "rating": 4.7,
             "status": "published",
             "exam_id": next((e.id for e in exams if e.name == "jee"), None)
         },
@@ -142,9 +145,12 @@ def insert_course_data(db, exams):
             "instructor": "Dr. Rajesh Kumar",
             "price": 14999.0,
             "duration": "14 months",
-            "enrolled_students": 280,
-            "completion_rate": 72.3,
-            "rating": 4.8,
+            "enrolled_students": 0,
+            "completion_rate": 0,
+            "rating": 0,
+            # "enrolled_students": 280,
+            # "completion_rate": 72.3,
+            # "rating": 4.8,
             "status": "published",
             "exam_id": next((e.id for e in exams if e.name == "neet"), None)
         },
@@ -155,9 +161,12 @@ def insert_course_data(db, exams):
             "instructor": "Prof. Anita Desai", 
             "price": 8999.0,
             "duration": "8 months",
-            "enrolled_students": 190,
-            "completion_rate": 65.2,
-            "rating": 4.5,
+            "enrolled_students": 0,
+            "completion_rate": 0,
+            "rating": 0,
+            # "enrolled_students": 190,
+            # "completion_rate": 65.2,
+            # "rating": 4.5,
             "status": "published",
             "exam_id": next((e.id for e in exams if e.name == "cat"), None)
         },
@@ -168,9 +177,12 @@ def insert_course_data(db, exams):
             "instructor": "Dr. Vikram Singh",
             "price": 19999.0,
             "duration": "18 months",
-            "enrolled_students": 420,
-            "completion_rate": 58.7,
-            "rating": 4.6,
+            "enrolled_students": 0,
+            "completion_rate": 0,
+            "rating": 0,
+            # "enrolled_students": 420,
+            # "completion_rate": 58.7,
+            # "rating": 4.6,
             "status": "published",
             "exam_id": next((e.id for e in exams if e.name == "upsc"), None)
         },
@@ -181,9 +193,12 @@ def insert_course_data(db, exams):
             "instructor": "Prof. Suresh Gupta",
             "price": 10999.0,
             "duration": "10 months",
-            "enrolled_students": 150,
-            "completion_rate": 71.8,
-            "rating": 4.4,
+            "enrolled_students": 0,
+            "completion_rate": 0,
+            "rating": 0,
+            #  "enrolled_students": 150,
+            # "completion_rate": 71.8,
+            # "rating": 4.4,
             "status": "published",
             "exam_id": next((e.id for e in exams if e.name == "gate"), None)
         },
@@ -194,9 +209,12 @@ def insert_course_data(db, exams):
             "instructor": "Ms. Ritu Agarwal",
             "price": 6999.0,
             "duration": "6 months",
-            "enrolled_students": 310,
-            "completion_rate": 74.2,
-            "rating": 4.3,
+            "enrolled_students": 0,
+            "completion_rate": 0,
+            "rating": 0,
+            #   "enrolled_students": 310,
+            # "completion_rate": 74.2,
+            # "rating": 4.3,
             "status": "published",
             "exam_id": next((e.id for e in exams if e.name == "other_govt_exam"), None)
         }
@@ -679,12 +697,40 @@ def create_user_course_subscriptions(db, users, courses):
             course_id=course.id,
             enrollment_date=date(2024, 8, 1),
             progress=60 + subscription_count * 3,  # Varying progress
-            last_accessed=date(2024, 8, 19),
+            last_accessed=date(2024, 8, 19),# After creating subscriptions, update enrollment counts
+    course_enrollment_count = {}
+    for user, course in subscriptions:
+        if course.id in course_enrollment_count:
+            course_enrollment_count[course.id] += 1
+        else:
+            course_enrollment_count[course.id] = 1
+    
+    # Update course enrollment counts
+    for course_id, count in course_enrollment_count.items():
+        course = next((c for c in courses if c.id == course_id), None)
+        if course:
+            course.enrolled_students = count
+            print(f"✓ Updated {course.title}: {count} enrolled students")
+    
             completion_status='in_progress'
         )
         db.add(user_course)
         subscription_count += 1
         print(f"✓ {user.name} subscribed to {course.title}")
+    # After creating subscriptions, update enrollment counts
+    course_enrollment_count = {}
+    for user, course in subscriptions:
+        if course.id in course_enrollment_count:
+            course_enrollment_count[course.id] += 1
+        else:
+            course_enrollment_count[course.id] = 1
+    
+    # Update course enrollment counts
+    for course_id, count in course_enrollment_count.items():
+        course = next((c for c in courses if c.id == course_id), None)
+        if course:
+            course.enrolled_students = count
+            print(f"✓ Updated {course.title}: {count} enrolled students")
     
     db.commit()
     print(f"✓ Created {subscription_count} course subscriptions")
@@ -864,12 +910,51 @@ def insert_transaction_data(db, users, courses,subscription_plans):
     ]
 
     db.add_all(transactions)
-    db.commit()
-    print(f"✓ Inserted {len(transactions)} transactions with subscription plan relationships")
+    db.flush()  # Flush to get transaction IDs but don't commit yet
     
+    print(f"✓ Inserted {len(transactions)} transactions with subscription plan relationships")
     # Update user subscriptions based on successful transactions
     update_user_subscriptions(db, users, transactions)
-
+     # Update enrolled students count for courses
+    update_course_enrollments(db, transactions, courses)
+    
+    db.commit()
+    
+def update_course_enrollments(db, transactions, courses):
+    """Update enrolled_students count for courses based on successful transactions"""
+    print("\nUpdating course enrollment counts...")
+    
+    # Create a mapping of course_id to course object for quick lookup
+    course_map = {course.id: course for course in courses}
+    
+    enrollment_updates = {}
+    
+    # Count enrollments from successful transactions
+    for tx in transactions:
+        if tx.status == "captured" and tx.courses:
+            for course_id in tx.courses:
+                if course_id in enrollment_updates:
+                    enrollment_updates[course_id] += 1
+                else:
+                    enrollment_updates[course_id] = 1
+    
+    # Update course enrollment counts
+    for course_id, enrollment_count in enrollment_updates.items():
+        course = course_map.get(course_id)
+        if course:
+            course.enrolled_students = enrollment_count
+            print(f"✓ Updated {course.title}: {enrollment_count} enrolled students")
+    
+    # Also update from existing user course subscriptions (for backward compatibility)
+    user_courses = db.query(models.UserCourse).all()
+    for user_course in user_courses:
+        course = course_map.get(user_course.course_id)
+        if course:
+            # Only count if not already counted from transactions
+            current_count = course.enrolled_students or 0
+            course.enrolled_students = current_count + 1
+            print(f"✓ Added user subscription for {course.title}")
+            
 def update_user_subscriptions(db, users, transactions):
     """Update user subscription status based on transactions"""
     print("\nUpdating user subscription status...")
@@ -899,7 +984,31 @@ def update_user_subscriptions(db, users, transactions):
             print(f"✓ Updated subscription for {user.name}: {latest_tx.plan_name}")
     
     db.commit()
+    
+def increment_course_enrollments(db, course_ids):
+    """Increment enrolled_students count for given course IDs"""
+    if not course_ids:
+        return
+    
+    for course_id in course_ids:
+        course = db.query(models.Course).filter(models.Course.id == course_id).first()
+        if course:
+            course.enrolled_students = (course.enrolled_students or 0) + 1
+            db.commit()
+            print(f"✓ Incremented enrollment for {course.title}: {course.enrolled_students} students")
 
+def decrement_course_enrollments(db, course_ids):
+    """Decrement enrolled_students count for given course IDs (for refunds/cancellations)"""
+    if not course_ids:
+        return
+    
+    for course_id in course_ids:
+        course = db.query(models.Course).filter(models.Course.id == course_id).first()
+        if course and course.enrolled_students > 0:
+            course.enrolled_students -= 1
+            db.commit()
+            print(f"✓ Decremented enrollment for {course.title}: {course.enrolled_students} students")
+            
 def insert_course_content_data(db, courses):
     """Insert course modules and content"""
     print("\nCreating course modules and content...")
