@@ -591,14 +591,14 @@ export function SubscriptionManagement() {
 
                       {/* Stats */}
                       <div className="pt-4 border-t space-y-2">
-                        {/* <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-sm">
                           <span>Subscribers:</span>
                           <span className="font-semibold">{plan.subscribers}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span>Revenue:</span>
                           <span className="font-semibold">{formatCurrency(plan.revenue)}</span>
-                        </div> */}
+                        </div>
                         <div className="flex justify-between text-sm">
                           <span>Status:</span>
                           <Badge variant={plan.is_active ? "default" : "secondary"}>

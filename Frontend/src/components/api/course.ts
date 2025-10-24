@@ -1,6 +1,6 @@
-// api/apiService.ts
+// api/course.ts
 import { 
-  Exam, Subject, Topic, Course, Module, Lesson, Content, ContentVersion,
+  Exam, Subject, Topic, Course, Module, Content, ContentVersion,
   CourseFormData, ModuleFormData, ContentFormData, QuizFormData,
   CourseStats, ContentStats, ApiResponse, PaginatedResponse,
   User, UserCourse
@@ -164,15 +164,15 @@ export const moduleApi = {
 
 // Content API
 export const contentApi = {
-  getContents: (contentType?: string, courseId?: number): Promise<Content[]> => {
+  getContents: (moduleId?: number, courseId?: number): Promise<Content[]> => {
     const params = new URLSearchParams();
-    if (contentType) params.append('content_type', contentType);
+    if (moduleId) params.append('module_id', moduleId.toString());
     if (courseId) params.append('course_id', courseId.toString());
     const queryString = params.toString();
     return apiCall<Content[]>(`/contents${queryString ? `?${queryString}` : ''}`);
   },
   getContent: (id: number): Promise<Content> => apiCall<Content>(`/contents/${id}`),
-  createContent: (data: ContentFormData): Promise<Content> => 
+  createContent: (data: ContentFormData | QuizFormData): Promise<Content> => 
     apiCall<Content>('/contents', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -193,11 +193,16 @@ export const contentApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  updateContentVersion: (contentId: number, versionId: number, data: Partial<ContentVersion>): Promise<ContentVersion> => 
+    apiCall<ContentVersion>(`/contents/${contentId}/versions/${versionId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
   incrementDownload: (contentId: number): Promise<{ message: string; downloads: number }> => 
     apiCall<{ message: string; downloads: number }>(`/contents/${contentId}/download`, {
       method: 'POST',
     }),
-  uploadFile: async (file: File): Promise<{ filename: string; content_type: string; message: string }> => {
+  uploadFile: async (file: File): Promise<{ file_url: string; file_size: string; message: string }> => {
     const formData = new FormData();
     formData.append('file', file);
     

@@ -42,8 +42,9 @@ export const transformEnrollmentData = (revenueData: any, courseStats: any): any
 };
 
 export const transformCoursePerformance = (courseStats: any): any[] => {
-  return courseStats?.popular_courses ? courseStats.popular_courses.slice(0, 5).map((course: any) => ({
-    name: course.title.length > 15 ? course.title.substring(0, 15) + '...' : course.title,
+  return courseStats?.popular_courses ? courseStats.popular_courses.slice(0, 10).map((course: any) => ({
+    name: course.exam_type.length > 15 ? course.title.substring(0, 15) + '...' : course.exam_type,
+    // name: course.exam_type.length > 15 ? course.title.substring(0, 15) + '...' : course.title,
     students: course.enrolled_students,
     completion: course.completion_rate,
     rating: course.rating
@@ -52,7 +53,7 @@ export const transformCoursePerformance = (courseStats: any): any[] => {
 
 export const transformDeviceUsage = (userDemographics: any): any[] => {
   const COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
-  return userDemographics?.demographics ? userDemographics.demographics.slice(0, 3).map((demo: any, index: number) => ({
+  return userDemographics?.demographics ? userDemographics.demographics.map((demo: any, index: number) => ({
     name: formatExamName(demo.exam_type),
     value: demo.percentage,
     color: COLORS[index % COLORS.length]

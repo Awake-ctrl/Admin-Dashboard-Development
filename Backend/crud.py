@@ -300,8 +300,28 @@ def get_contents(db: Session, skip: int = 0, limit: int = 100, content_type: Opt
 
 def get_content(db: Session, content_id: int):
     return db.query(models.Content).filter(models.Content.id == content_id).first()
-def create_content(db: Session, content: schemas.ContentCreate):
-    db_content = models.Content(**content.dict())
+def create_content(db: Session, content: dict):
+    # Ensure all required fields are present
+    content_data = {
+        'title': content.get('title'),
+        'description': content.get('description'),
+        'content_type': content.get('content_type'),
+        'file_url': content.get('file_url', ''),  # Use file_url not file_path
+        'file_size': content.get('file_size', ''),
+        'duration': content.get('duration'),
+        'author': content.get('author'),
+        'module_id': content.get('module_id'),
+        'course_id': content.get('course_id'),
+        'questions': content.get('questions'),
+        'status': content.get('status', 'draft'),
+        'version': content.get('version', '1.0'),
+        'downloads': content.get('downloads', 0)
+    }
+    
+    # Remove any None values that might cause issues
+    content_data = {k: v for k, v in content_data.items() if v is not None}
+    
+    db_content = models.Content(**content_data)
     db.add(db_content)
     db.commit()
     db.refresh(db_content)
@@ -333,14 +353,28 @@ def increment_download_count(db: Session, content_id: int):
     return content
 
 # Content Version CRUD
-def create_content_version(db: Session, content_version: schemas.ContentVersionCreate):
-    db_version = models.ContentVersion(**content_version.dict())
+def create_content_version(db: Session, content_id: int, version: schemas.ContentVersionCreate):
+    """Create a new content version"""
+    # Convert to dict and add content_id
+    version_data = version.dict()
+    version_data["content_id"] = content_id
+    
+    # Set defaults for required fields
+    if not version_data.get("file_path"):
+        version_data["file_path"] = ""
+    if not version_data.get("file_size"):
+        version_data["file_size"] = ""
+    if not version_data.get("changelog"):
+        version_data["changelog"] = "New version created"
+    
+    db_version = models.ContentVersion(**version_data)
     db.add(db_version)
     db.commit()
     db.refresh(db_version)
     return db_version
 
 def get_content_versions(db: Session, content_id: int):
+    """Get all versions for a specific content"""
     return db.query(models.ContentVersion).filter(
         models.ContentVersion.content_id == content_id
     ).order_by(models.ContentVersion.created_at.desc()).all()

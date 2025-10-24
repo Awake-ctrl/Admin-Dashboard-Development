@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Button } from "./ui/button";
@@ -29,7 +29,8 @@ import {
   Clock,
   Check,
   GitCommit,
-  Archive
+  Archive,
+  Loader2
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -45,270 +46,40 @@ import {
   DialogTrigger,
 } from "./ui/dialog";
 import { Textarea } from "./ui/textarea";
-import { Switch } from "./ui/switch";
 import { Progress } from "./ui/progress";
 import { Separator } from "./ui/separator";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
-// Mock version history data
-const mockVersionHistory = {
-  1: [ // content id
-    {
-      versionId: 3,
-      versionNumber: "3.0",
-      status: "published",
-      author: "Dr. Priya Sharma",
-      timestamp: "2025-01-10 14:30",
-      changes: "Updated video quality to 4K, added Hindi subtitles",
-      size: "450 MB",
-      duration: "45 min",
-      isCurrent: true
-    },
-    {
-      versionId: 2,
-      versionNumber: "2.0",
-      status: "archived",
-      author: "Dr. Priya Sharma",
-      timestamp: "2024-12-15 10:20",
-      changes: "Improved audio quality, fixed timestamp errors",
-      size: "425 MB",
-      duration: "45 min",
-      isCurrent: false
-    },
-    {
-      versionId: 1,
-      versionNumber: "1.0",
-      status: "archived",
-      author: "Content Team",
-      timestamp: "2024-11-01 09:00",
-      changes: "Initial upload",
-      size: "400 MB",
-      duration: "45 min",
-      isCurrent: false
-    }
-  ],
-  2: [
-    {
-      versionId: 2,
-      versionNumber: "2.0",
-      status: "published",
-      author: "Dr. Priya Sharma",
-      timestamp: "2025-01-08 11:15",
-      changes: "Added 10 more practice problems, corrected solutions",
-      size: "2.8 MB",
-      isCurrent: true
-    },
-    {
-      versionId: 1,
-      versionNumber: "1.0",
-      status: "archived",
-      author: "Content Team",
-      timestamp: "2024-11-05 14:30",
-      changes: "Initial upload",
-      size: "2.4 MB",
-      isCurrent: false
-    }
-  ],
-  3: [ // Quiz version history
-    {
-      versionId: 2,
-      versionNumber: "2.0",
-      status: "published",
-      author: "Dr. Priya Sharma",
-      timestamp: "2025-01-05 16:45",
-      changes: "Added 5 new advanced questions, updated question 3 options, fixed typo in question 7",
-      questions: 25,
-      isCurrent: true
-    },
-    {
-      versionId: 1,
-      versionNumber: "1.0",
-      status: "archived",
-      author: "Content Team",
-      timestamp: "2024-11-08 10:00",
-      changes: "Initial quiz created",
-      questions: 20,
-      isCurrent: false
-    }
-  ]
-};
+// Import API services
+import { 
+  courseApi, 
+  moduleApi, 
+  contentApi, 
+  examApi,
+  Course,
+  Module,
+  Content,
+  ContentVersion,
+  CourseFormData,
+  ModuleFormData,
+  ContentFormData,
+  QuizFormData
+} from "./api/course";
 
-// Mock data
-const courses = [
-  {
-    id: 1,
-    title: "JEE Main & Advanced Preparation",
-    description: "Complete preparation course for Joint Entrance Examination",
-    examType: "JEE",
-    enrolledStudents: 2847,
-    instructor: "Dr. Priya Sharma",
-    duration: "12 months",
-    status: "active",
-    modules: [
-      { 
-        id: 1, 
-        title: "Physics Fundamentals", 
-        description: "Core physics concepts and problem solving",
-        lessons: 25, 
-        duration: "8 hours",
-        order: 1,
-        contents: [
-          { 
-            id: 1, 
-            title: "Newton's Laws of Motion", 
-            type: "video", 
-            duration: "45 min", 
-            status: "published",
-            currentVersion: "3.0",
-            totalVersions: 3,
-            lastModified: "2025-01-10 14:30"
-          },
-          { 
-            id: 2, 
-            title: "Mechanics Practice Problems", 
-            type: "document", 
-            size: "2.4 MB", 
-            status: "published",
-            currentVersion: "2.0",
-            totalVersions: 2,
-            lastModified: "2025-01-08 11:15"
-          },
-          { 
-            id: 3, 
-            title: "Physics Quiz 1", 
-            type: "quiz", 
-            questions: 25, 
-            status: "published",
-            currentVersion: "2.0",
-            totalVersions: 2,
-            lastModified: "2025-01-05 16:45"
-          }
-        ]
-      },
-      { 
-        id: 2, 
-        title: "Chemistry Basics", 
-        description: "Fundamental chemistry for JEE",
-        lessons: 20, 
-        duration: "6 hours",
-        order: 2,
-        contents: [
-          { id: 4, title: "Organic Chemistry Introduction", type: "video", duration: "60 min", status: "published" },
-          { id: 5, title: "Chemical Equations Guide", type: "document", size: "1.8 MB", status: "draft" }
-        ]
-      },
-      { 
-        id: 3, 
-        title: "Mathematics Core", 
-        description: "Advanced mathematics topics",
-        lessons: 30, 
-        duration: "10 hours",
-        order: 3,
-        contents: []
-      }
-    ]
-  },
-  {
-    id: 2,
-    title: "NEET Preparation Course",
-    description: "National Eligibility cum Entrance Test for medical colleges",
-    examType: "NEET",
-    enrolledStudents: 1923,
-    instructor: "Dr. Rajesh Kumar",
-    duration: "10 months",
-    status: "active",
-    modules: [
-      { 
-        id: 4, 
-        title: "Biology Fundamentals", 
-        description: "Cell structure and human anatomy",
-        lessons: 35, 
-        duration: "12 hours",
-        order: 1,
-        contents: [
-          { id: 6, title: "Cell Biology Lecture", type: "video", duration: "55 min", status: "published" },
-          { id: 7, title: "Human Anatomy Quiz", type: "quiz", questions: 30, status: "published" }
-        ]
-      },
-      { 
-        id: 5, 
-        title: "Physics for NEET", 
-        description: "Physics concepts for medical entrance",
-        lessons: 20, 
-        duration: "7 hours",
-        order: 2,
-        contents: []
-      }
-    ]
-  },
-  {
-    id: 3,
-    title: "CAT Preparation",
-    description: "Common Admission Test for MBA programs",
-    examType: "CAT",
-    enrolledStudents: 1456,
-    instructor: "Prof. Anita Desai",
-    duration: "8 months",
-    status: "active",
-    modules: [
-      { 
-        id: 7, 
-        title: "Quantitative Aptitude", 
-        description: "Mathematical problem solving",
-        lessons: 22, 
-        duration: "9 hours",
-        order: 1,
-        contents: []
-      }
-    ]
-  },
-  {
-    id: 4,
-    title: "UPSC Civil Services",
-    description: "Union Public Service Commission examination preparation",
-    examType: "UPSC",
-    enrolledStudents: 987,
-    instructor: "Dr. Vikram Singh",
-    duration: "18 months",
-    status: "active",
-    modules: [
-      { 
-        id: 10, 
-        title: "History & Culture", 
-        description: "Ancient to modern Indian history",
-        lessons: 40, 
-        duration: "15 hours",
-        order: 1,
-        contents: []
-      }
-    ]
-  },
-  {
-    id: 5,
-    title: "GATE Engineering",
-    description: "Graduate Aptitude Test in Engineering",
-    examType: "GATE",
-    enrolledStudents: 1234,
-    instructor: "Prof. Suresh Gupta",
-    duration: "14 months",
-    status: "active",
-    modules: []
-  },
-  {
-    id: 6,
-    title: "Banking & SSC Exams",
-    description: "Preparation for various government banking and SSC examinations",
-    examType: "OTHER_GOVT_EXAM",
-    enrolledStudents: 1876,
-    instructor: "Ms. Ritu Agarwal",
-    duration: "10 months",
-    status: "active",
-    modules: []
-  }
-];
+// Types for our component
+interface CourseWithModules extends Course {
+  modules?: ModuleWithContents[];
+}
 
-// Extract unique exam types from existing courses
-const existingExamTypes = [...new Set(courses.map(course => course.examType))];
+interface ModuleWithContents extends Module {
+  contents?: ContentWithVersions[];
+}
+
+interface ContentWithVersions extends Content {
+  versions?: ContentVersion[];
+  currentVersion?: string;
+  totalVersions?: number;
+}
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -336,8 +107,13 @@ const getContentIcon = (type: string) => {
 
 export function CourseContentManagement() {
   const [view, setView] = useState<'courses' | 'modules' | 'content'>('courses');
-  const [selectedCourse, setSelectedCourse] = useState<any>(null);
-  const [selectedModule, setSelectedModule] = useState<any>(null);
+  const [selectedCourse, setSelectedCourse] = useState<CourseWithModules | null>(null);
+  const [selectedModule, setSelectedModule] = useState<ModuleWithContents | null>(null);
+  const [courses, setCourses] = useState<CourseWithModules[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [examTypes, setExamTypes] = useState<string[]>([]);
+  
+  // Dialog states
   const [isCreateCourseOpen, setIsCreateCourseOpen] = useState(false);
   const [isCreateModuleOpen, setIsCreateModuleOpen] = useState(false);
   const [isUploadContentOpen, setIsUploadContentOpen] = useState(false);
@@ -347,25 +123,138 @@ export function CourseContentManagement() {
   
   // Version control states
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
-  const [selectedContent, setSelectedContent] = useState<any>(null);
+  const [selectedContent, setSelectedContent] = useState<ContentWithVersions | null>(null);
   const [isVersionCompareOpen, setIsVersionCompareOpen] = useState(false);
   const [compareVersions, setCompareVersions] = useState<{v1: any, v2: any}>({v1: null, v2: null});
   const [isUploadNewVersionOpen, setIsUploadNewVersionOpen] = useState(false);
-  const [editingContent, setEditingContent] = useState<any>(null);
+  const [editingContent, setEditingContent] = useState<ContentWithVersions | null>(null);
   const [isCreateQuizVersionOpen, setIsCreateQuizVersionOpen] = useState(false);
-  const [editingQuiz, setEditingQuiz] = useState<any>(null);
+  const [editingQuiz, setEditingQuiz] = useState<ContentWithVersions | null>(null);
 
-  // Exam type management
-  const [examTypes, setExamTypes] = useState(existingExamTypes);
-  const [isCreatingNewExamType, setIsCreatingNewExamType] = useState(false);
-  const [newExamType, setNewExamType] = useState("");
+  // Form states
+  const [contentFormData, setContentFormData] = useState<ContentFormData>({
+    title: "",
+    content_type: "document",
+    description: "",
+    file_url: "",
+    duration: "",
+    file_size: "",
+    status: "draft",
+    module_id: 0,
+    course_id: 0
+  });
 
-  const handleCourseClick = (course: any) => {
+  const [quizFormData, setQuizFormData] = useState<any>({
+    title: "",
+    content_type: "quiz",
+    description: "",
+    questions: [],
+    duration: "30 min",
+    status: "draft",
+    module_id: 0,
+    course_id: 0
+  });
+
+  const [newVersionFormData, setNewVersionFormData] = useState({
+    changelog: "",
+    file_url: "",
+    file_size: "",
+    status: "draft"
+  });
+
+  // Load courses and exam types on component mount
+  useEffect(() => {
+    loadCourses();
+    loadExamTypes();
+  }, []);
+
+  const loadCourses = async () => {
+    setLoading(true);
+    try {
+      const coursesData = await courseApi.getCourses();
+      // Fetch modules for each course
+      const coursesWithModules = await Promise.all(
+        coursesData.map(async (course) => {
+          try {
+            const modules = await moduleApi.getModules(course.id);
+            // Fetch contents for each module
+            const modulesWithContents = await Promise.all(
+              modules.map(async (module) => {
+                try {
+                  const contents = await contentApi.getContents(module.id);
+                  const contentsWithVersions = await Promise.all(
+                    contents.map(async (content) => {
+                      try {
+                        const versions = await contentApi.getContentVersions(content.id);
+                        const currentPublishedVersion = versions.find(v => v.status === 'published');
+                        return {
+                          ...content,
+                          versions,
+                          currentVersion: currentPublishedVersion?.version_number || versions[0]?.version_number,
+                          totalVersions: versions.length
+                        };
+                      } catch (error) {
+                        console.error(`Error loading versions for content ${content.id}:`, error);
+                        return {
+                          ...content,
+                          versions: [],
+                          currentVersion: undefined,
+                          totalVersions: 0
+                        };
+                      }
+                    })
+                  );
+                  return {
+                    ...module,
+                    contents: contentsWithVersions
+                  };
+                } catch (error) {
+                  console.error(`Error loading contents for module ${module.id}:`, error);
+                  return {
+                    ...module,
+                    contents: []
+                  };
+                }
+              })
+            );
+            return {
+              ...course,
+              modules: modulesWithContents
+            };
+          } catch (error) {
+            console.error(`Error loading modules for course ${course.id}:`, error);
+            return {
+              ...course,
+              modules: []
+            };
+          }
+        })
+      );
+      setCourses(coursesWithModules);
+    } catch (error) {
+      console.error('Error loading courses:', error);
+      toast.error('Failed to load courses');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadExamTypes = async () => {
+    try {
+      const exams = await examApi.getExams();
+      const types = exams.map(exam => exam.display_name);
+      setExamTypes(types);
+    } catch (error) {
+      console.error('Error loading exam types:', error);
+    }
+  };
+
+  const handleCourseClick = (course: CourseWithModules) => {
     setSelectedCourse(course);
     setView('modules');
   };
 
-  const handleModuleClick = (module: any) => {
+  const handleModuleClick = (module: ModuleWithContents) => {
     setSelectedModule(module);
     setView('content');
   };
@@ -380,20 +269,262 @@ export function CourseContentManagement() {
     }
   };
 
-  // Version History Component
-  const VersionHistory = ({ contentId, contentTitle }) => {
-    const versions = mockVersionHistory[contentId] || [];
+  // Course CRUD Operations
+  const handleCreateCourse = async (formData: CourseFormData) => {
+    try {
+      await courseApi.createCourse(formData);
+      toast.success('Course created successfully');
+      setIsCreateCourseOpen(false);
+      loadCourses();
+    } catch (error) {
+      console.error('Error creating course:', error);
+      toast.error('Failed to create course');
+    }
+  };
+
+  const handleUpdateCourse = async (courseId: number, formData: Partial<CourseFormData>) => {
+    try {
+      await courseApi.updateCourse(courseId, formData);
+      toast.success('Course updated successfully');
+      loadCourses();
+    } catch (error) {
+      console.error('Error updating course:', error);
+      toast.error('Failed to update course');
+    }
+  };
+
+  const handleDeleteCourse = async (courseId: number) => {
+    try {
+      await courseApi.deleteCourse(courseId);
+      toast.success('Course deleted successfully');
+      loadCourses();
+    } catch (error) {
+      console.error('Error deleting course:', error);
+      toast.error('Failed to delete course');
+    }
+  };
+
+  // Module CRUD Operations
+  const handleCreateModule = async (formData: ModuleFormData) => {
+    if (!selectedCourse) return;
     
-    const handleRestore = (version: any) => {
-      console.log("Restoring version:", version);
-      toast.success(`Successfully restored version ${version.versionNumber} of "${contentTitle}"`);
+    try {
+      const moduleData = {
+        ...formData,
+        course_id: selectedCourse.id
+      };
+      await moduleApi.createModule(moduleData);
+      toast.success('Module created successfully');
+      setIsCreateModuleOpen(false);
+      loadCourses();
+    } catch (error) {
+      console.error('Error creating module:', error);
+      toast.error('Failed to create module');
+    }
+  };
+
+  const handleUpdateModule = async (moduleId: number, formData: Partial<ModuleFormData>) => {
+    try {
+      await moduleApi.updateModule(moduleId, formData);
+      toast.success('Module updated successfully');
+      loadCourses();
+    } catch (error) {
+      console.error('Error updating module:', error);
+      toast.error('Failed to update module');
+    }
+  };
+
+  const handleDeleteModule = async (moduleId: number) => {
+    try {
+      await moduleApi.deleteModule(moduleId);
+      toast.success('Module deleted successfully');
+      loadCourses();
+    } catch (error) {
+      console.error('Error deleting module:', error);
+      toast.error('Failed to delete module');
+    }
+  };
+
+  // Content CRUD Operations
+  const handleCreateContent = async () => {
+    if (!selectedModule || !selectedCourse) return;
+    
+    try {
+      const contentData = {
+        ...contentFormData,
+        module_id: selectedModule.id,
+        course_id: selectedCourse.id
+      };
+      await contentApi.createContent(contentData);
+      toast.success('Content created successfully');
+      setIsUploadContentOpen(false);
+      setContentFormData({
+        title: "",
+        content_type: "document",
+        description: "",
+        file_url: "",
+        duration: "",
+        file_size: "",
+        status: "draft",
+        module_id: 0,
+        course_id: 0
+      });
+      loadCourses();
+    } catch (error) {
+      console.error('Error creating content:', error);
+      toast.error('Failed to create content');
+    }
+  };
+
+  const handleCreateQuiz = async () => {
+    if (!selectedModule || !selectedCourse) return;
+    
+    try {
+      const quizData = {
+        ...quizFormData,
+        module_id: selectedModule.id,
+        course_id: selectedCourse.id
+      };
+      await contentApi.createContent(quizData);
+      toast.success('Quiz created successfully');
+      setIsCreateQuizOpen(false);
+      setQuizFormData({
+        title: "",
+        content_type: "quiz",
+        description: "",
+        questions: [],
+        duration: "30 min",
+        status: "draft",
+        module_id: 0,
+        course_id: 0
+      });
+      loadCourses();
+    } catch (error) {
+      console.error('Error creating quiz:', error);
+      toast.error('Failed to create quiz');
+    }
+  };
+
+  const handleCreateContentVersion = async () => {
+    if (!editingContent) return;
+    
+    try {
+      // Get current versions to determine next version number
+      const currentVersions = await contentApi.getContentVersions(editingContent.id);
+      const nextVersion = getNextVersion(currentVersions);
+      
+      const versionData = {
+        ...newVersionFormData,
+        version_number: nextVersion,
+        content_id: editingContent.id
+      };
+      
+      await contentApi.createContentVersion(editingContent.id, versionData);
+      toast.success(`New version ${nextVersion} created successfully`);
+      setIsUploadNewVersionOpen(false);
+      setNewVersionFormData({
+        changelog: "",
+        file_url: "",
+        file_size: "",
+        status: "draft"
+      });
+      loadCourses();
+    } catch (error) {
+      console.error('Error creating content version:', error);
+      toast.error('Failed to create new version');
+    }
+  };
+
+  const getNextVersion = (currentVersions: ContentVersion[]): string => {
+    if (!currentVersions.length) return "1.0";
+    
+    // Get the highest version number
+    const versionNumbers = currentVersions.map(v => {
+      const [major, minor] = v.version_number.split('.').map(Number);
+      return { major, minor };
+    });
+    
+    const latest = versionNumbers.reduce((prev, current) => {
+      if (current.major > prev.major) return current;
+      if (current.major === prev.major && current.minor > prev.minor) return current;
+      return prev;
+    });
+    
+    return `${latest.major}.${latest.minor + 1}`;
+  };
+
+  const handleRestoreVersion = async (version: ContentVersion) => {
+    if (!selectedContent) return;
+    
+    try {
+      // Create a new version based on the old version's data
+      const nextVersion = getNextVersion([version]);
+      const restoreData = {
+        version_number: nextVersion,
+        content_id: selectedContent.id,
+        file_url: version.file_url,
+        file_size: version.file_size,
+        changelog: `Restored from version ${version.version_number}: ${version.changelog}`,
+        status: 'published'
+      };
+      
+      await contentApi.createContentVersion(selectedContent.id, restoreData);
+      toast.success(`Successfully restored version ${version.version_number} as ${nextVersion}`);
       setIsVersionHistoryOpen(false);
+      loadCourses();
+    } catch (error) {
+      console.error('Error restoring version:', error);
+      toast.error('Failed to restore version');
+    }
+  };
+
+  // Simulate file upload
+  const simulateFileUpload = () => {
+    setIsUploading(true);
+    setUploadProgress(0);
+    
+    const interval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setIsUploading(false);
+          return 100;
+        }
+        return prev + 10;
+      });
+    }, 200);
+  };
+
+  // Version History Component
+  const VersionHistory = ({ contentId, contentTitle }: { contentId: number; contentTitle: string }) => {
+    const [versions, setVersions] = useState<ContentVersion[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+      loadVersions();
+    }, [contentId]);
+
+    const loadVersions = async () => {
+      try {
+        const versionsData = await contentApi.getContentVersions(contentId);
+        setVersions(versionsData.sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        ));
+      } catch (error) {
+        console.error('Error loading versions:', error);
+        toast.error('Failed to load version history');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const handleCompare = (v1: any, v2: any) => {
-      setCompareVersions({ v1, v2 });
-      setIsVersionCompareOpen(true);
-    };
+    if (loading) {
+      return (
+        <div className="flex justify-center items-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin" />
+        </div>
+      );
+    }
 
     return (
       <div className="space-y-4">
@@ -405,14 +536,14 @@ export function CourseContentManagement() {
         ) : (
           <div className="space-y-3">
             {versions.map((version, index) => (
-              <Card key={version.versionId} className={version.isCurrent ? "border-primary" : ""}>
+              <Card key={version.id} className={version.status === 'published' ? "border-primary" : ""}>
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <GitCommit className="w-4 h-4 text-muted-foreground" />
-                        <span className="font-medium">Version {version.versionNumber}</span>
-                        {version.isCurrent && (
+                        <span className="font-medium">Version {version.version_number}</span>
+                        {version.status === 'published' && (
                           <Badge className="bg-green-100 text-green-800">
                             <Check className="w-3 h-3 mr-1" />
                             Current
@@ -423,38 +554,29 @@ export function CourseContentManagement() {
                         </Badge>
                       </div>
                       
-                      <p className="text-sm text-foreground mb-2">{version.changes}</p>
+                      <p className="text-sm text-foreground mb-2">{version.changelog || 'No changelog provided'}</p>
                       
                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Users className="w-3 h-3" />
-                          <span>{version.author}</span>
+                          <span>{version.author || 'System'}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          <span>{version.timestamp}</span>
+                          <span>{new Date(version.created_at).toLocaleString()}</span>
                         </div>
-                        {version.size && (
-                          <span>{version.size}</span>
-                        )}
-                        {version.duration && (
-                          <span>{version.duration}</span>
-                        )}
-                        {version.questions && (
-                          <div className="flex items-center gap-1">
-                            <GraduationCap className="w-3 h-3" />
-                            <span>{version.questions} questions</span>
-                          </div>
+                        {version.file_size && (
+                          <span>{version.file_size}</span>
                         )}
                       </div>
                     </div>
                     
                     <div className="flex gap-2 ml-4">
-                      {!version.isCurrent && (
+                      {version.status !== 'published' && (
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => handleRestore(version)}
+                          onClick={() => handleRestoreVersion(version)}
                         >
                           <RotateCcw className="w-4 h-4 mr-2" />
                           Restore
@@ -464,7 +586,10 @@ export function CourseContentManagement() {
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => handleCompare(version, versions[index + 1])}
+                          onClick={() => {
+                            setCompareVersions({ v1: version, v2: versions[index + 1] });
+                            setIsVersionCompareOpen(true);
+                          }}
                         >
                           <GitBranch className="w-4 h-4 mr-2" />
                           Compare
@@ -485,9 +610,7 @@ export function CourseContentManagement() {
   };
 
   // Version Comparison Component
-  const VersionCompare = ({ v1, v2, contentTitle }) => {
-    if (!v1 || !v2) return null;
-    
+  const VersionCompare = ({ v1, v2, contentTitle }: { v1: ContentVersion; v2: ContentVersion; contentTitle: string }) => {
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
@@ -495,40 +618,28 @@ export function CourseContentManagement() {
           <div className="border rounded-lg p-4 bg-muted/30">
             <div className="flex items-center gap-2 mb-3">
               <GitCommit className="w-4 h-4 text-blue-600" />
-              <h3>Version {v1.versionNumber}</h3>
-              {v1.isCurrent && (
+              <h3>Version {v1.version_number}</h3>
+              {v1.status === 'published' && (
                 <Badge className="bg-green-100 text-green-800 text-xs">Current</Badge>
               )}
             </div>
             <div className="space-y-2 text-sm">
               <div>
                 <Label className="text-xs text-muted-foreground">Changes</Label>
-                <p className="text-foreground">{v1.changes}</p>
+                <p className="text-foreground">{v1.changelog || 'No changelog'}</p>
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Author</Label>
-                <p className="text-foreground">{v1.author}</p>
+                <p className="text-foreground">{v1.author || 'System'}</p>
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Timestamp</Label>
-                <p className="text-foreground">{v1.timestamp}</p>
+                <p className="text-foreground">{new Date(v1.created_at).toLocaleString()}</p>
               </div>
-              {v1.size && (
+              {v1.file_size && (
                 <div>
                   <Label className="text-xs text-muted-foreground">Size</Label>
-                  <p className="text-foreground">{v1.size}</p>
-                </div>
-              )}
-              {v1.duration && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Duration</Label>
-                  <p className="text-foreground">{v1.duration}</p>
-                </div>
-              )}
-              {v1.questions && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Questions</Label>
-                  <p className="text-foreground">{v1.questions} questions</p>
+                  <p className="text-foreground">{v1.file_size}</p>
                 </div>
               )}
               <Badge className={getStatusColor(v1.status)}>{v1.status}</Badge>
@@ -539,40 +650,28 @@ export function CourseContentManagement() {
           <div className="border rounded-lg p-4 bg-muted/30">
             <div className="flex items-center gap-2 mb-3">
               <GitCommit className="w-4 h-4 text-orange-600" />
-              <h3>Version {v2.versionNumber}</h3>
-              {v2.isCurrent && (
+              <h3>Version {v2.version_number}</h3>
+              {v2.status === 'published' && (
                 <Badge className="bg-green-100 text-green-800 text-xs">Current</Badge>
               )}
             </div>
             <div className="space-y-2 text-sm">
               <div>
                 <Label className="text-xs text-muted-foreground">Changes</Label>
-                <p className="text-foreground">{v2.changes}</p>
+                <p className="text-foreground">{v2.changelog || 'No changelog'}</p>
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Author</Label>
-                <p className="text-foreground">{v2.author}</p>
+                <p className="text-foreground">{v2.author || 'System'}</p>
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Timestamp</Label>
-                <p className="text-foreground">{v2.timestamp}</p>
+                <p className="text-foreground">{new Date(v2.created_at).toLocaleString()}</p>
               </div>
-              {v2.size && (
+              {v2.file_size && (
                 <div>
                   <Label className="text-xs text-muted-foreground">Size</Label>
-                  <p className="text-foreground">{v2.size}</p>
-                </div>
-              )}
-              {v2.duration && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Duration</Label>
-                  <p className="text-foreground">{v2.duration}</p>
-                </div>
-              )}
-              {v2.questions && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Questions</Label>
-                  <p className="text-foreground">{v2.questions} questions</p>
+                  <p className="text-foreground">{v2.file_size}</p>
                 </div>
               )}
               <Badge className={getStatusColor(v2.status)}>{v2.status}</Badge>
@@ -584,48 +683,441 @@ export function CourseContentManagement() {
           <Button variant="outline" onClick={() => setIsVersionCompareOpen(false)}>
             Close
           </Button>
-          <Button onClick={() => {
-            toast.success(`Successfully restored to version ${v1.versionNumber}`);
-            setIsVersionCompareOpen(false);
-            setIsVersionHistoryOpen(false);
-          }}>
+          <Button onClick={() => handleRestoreVersion(v1)}>
             <RotateCcw className="w-4 h-4 mr-2" />
-            Restore to v{v1.versionNumber}
+            Restore to v{v1.version_number}
           </Button>
         </div>
       </div>
     );
   };
 
-  const CourseForm = ({ course = null, onSave }) => {
-    const [formData, setFormData] = useState({
+  // Upload Content Form Component
+  const UploadContentForm = () => {
+    return (
+      <div className="space-y-4">
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start gap-2">
+            <GitCommit className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div>
+              <p className="text-sm text-blue-900">Creating New Content</p>
+              <p className="text-xs text-blue-700 mt-1">
+                This will be created as version 1.0. You can upload new versions later.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor="content-title">Content Title</Label>
+          <Input
+            id="content-title"
+            value={contentFormData.title}
+            onChange={(e) => setContentFormData(prev => ({ ...prev, title: e.target.value }))}
+            placeholder="Enter content title"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="content-description">Description</Label>
+          <Textarea
+            id="content-description"
+            value={contentFormData.description}
+            onChange={(e) => setContentFormData(prev => ({ ...prev, description: e.target.value }))}
+            placeholder="Enter content description..."
+            rows={3}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="content-type">Content Type</Label>
+          <Select 
+            value={contentFormData.content_type} 
+            onValueChange={(value: any) => setContentFormData(prev => ({ ...prev, content_type: value }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="document">Document/PDF</SelectItem>
+              <SelectItem value="video">Video</SelectItem>
+              <SelectItem value="image">Image</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label htmlFor="file-upload">Upload File</Label>
+          <Input
+            id="file-upload"
+            type="file"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                setContentFormData(prev => ({ 
+                  ...prev, 
+                  file_url: URL.createObjectURL(file),
+                  file_size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+                }));
+                simulateFileUpload();
+              }
+            }}
+            accept=".pdf,.doc,.docx,.mp4,.mov,.jpg,.jpeg,.png"
+          />
+          {isUploading && (
+            <div className="mt-2">
+              <Progress value={uploadProgress} className="h-2" />
+              <p className="text-xs text-muted-foreground mt-1">Uploading... {uploadProgress}%</p>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="duration">Duration</Label>
+            <Input
+              id="duration"
+              value={contentFormData.duration}
+              onChange={(e) => setContentFormData(prev => ({ ...prev, duration: e.target.value }))}
+              placeholder="e.g., 45 min"
+            />
+          </div>
+          <div>
+            <Label htmlFor="status">Status</Label>
+            <Select 
+              value={contentFormData.status} 
+              onValueChange={(value: any) => setContentFormData(prev => ({ ...prev, status: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-4">
+          <Button variant="outline" onClick={() => setIsUploadContentOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleCreateContent}>
+            <Upload className="w-4 h-4 mr-2" />
+            Create Content (v1.0)
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  // Upload New Version Form Component
+  // Upload New Version Form Component - FIXED VERSION
+const UploadNewVersionForm = () => {
+  if (!editingContent) return null;
+
+  // Renamed this function to avoid naming conflict
+  const calculateNextVersion = () => {
+    if (!editingContent.versions || editingContent.versions.length === 0) return "1.0";
+    
+    // Use the same logic as getNextVersion but without recursion
+    const versionNumbers = editingContent.versions.map(v => {
+      const [major, minor] = v.version_number.split('.').map(Number);
+      return { major, minor };
+    });
+    
+    const latest = versionNumbers.reduce((prev, current) => {
+      if (current.major > prev.major) return current;
+      if (current.major === prev.major && current.minor > prev.minor) return current;
+      return prev;
+    });
+    
+    return `${latest.major}.${latest.minor + 1}`;
+  };
+
+  const nextVersion = calculateNextVersion(); // Use the renamed function
+
+  return (
+    <div className="space-y-4">
+      {/* Current Version Info */}
+      <div className="p-4 bg-muted/50 rounded-lg border">
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <h4 className="text-foreground mb-1">{editingContent.title}</h4>
+            <p className="text-sm text-muted-foreground">{editingContent.content_type} • {editingContent.duration || editingContent.file_size}</p>
+          </div>
+          <Badge variant="outline" className="bg-blue-50 border-blue-300 text-blue-800">
+            <GitCommit className="w-3 h-3 mr-1" />
+            Current: v{editingContent.currentVersion}
+          </Badge>
+        </div>
+        {editingContent.updated_at && (
+          <p className="text-xs text-muted-foreground">
+            Last modified: {new Date(editingContent.updated_at).toLocaleDateString()}
+          </p>
+        )}
+      </div>
+
+      {/* New Version Info */}
+      <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+        <div className="flex items-start gap-2">
+          <GitBranch className="w-5 h-5 text-green-600 mt-0.5" />
+          <div>
+            <p className="text-sm text-green-900">Creating New Version</p>
+            <p className="text-xs text-green-700 mt-1">
+              This will be saved as version {nextVersion}. Previous versions will be archived.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="version-notes">Version Notes / Changelog</Label>
+        <Textarea
+          id="version-notes"
+          value={newVersionFormData.changelog}
+          onChange={(e) => setNewVersionFormData(prev => ({ ...prev, changelog: e.target.value }))}
+          placeholder="Describe what changed in this version (e.g., Fixed audio issues, added subtitles, updated content...)"
+          rows={3}
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          This will help track changes between versions
+        </p>
+      </div>
+
+      <div>
+        <Label htmlFor="new-version-file">Upload New File</Label>
+        <Input
+          id="new-version-file"
+          type="file"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              setNewVersionFormData(prev => ({ 
+                ...prev, 
+                file_url: URL.createObjectURL(file),
+                file_size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+              }));
+              simulateFileUpload();
+            }
+          }}
+          accept=".pdf,.doc,.docx,.mp4,.mov,.jpg,.jpeg,.png"
+        />
+        {isUploading && (
+          <div className="mt-2">
+            <Progress value={uploadProgress} className="h-2" />
+            <p className="text-xs text-muted-foreground mt-1">Uploading... {uploadProgress}%</p>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <Label htmlFor="version-status">Version Status</Label>
+        <Select 
+          value={newVersionFormData.status} 
+          onValueChange={(value: any) => setNewVersionFormData(prev => ({ ...prev, status: value }))}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="draft">Draft (Not visible to students)</SelectItem>
+            <SelectItem value="published">Published (Live for students)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4 border-t">
+        <Button variant="outline" onClick={() => setIsUploadNewVersionOpen(false)}>
+          Cancel
+        </Button>
+        <Button onClick={handleCreateContentVersion}>
+          <Upload className="w-4 h-4 mr-2" />
+          Upload Version {nextVersion}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+  // Quiz Form Component
+  const QuizForm = () => {
+    const [questions, setQuestions] = useState([{ question: "", options: ["", "", "", ""], correctAnswer: 0 }]);
+
+    const addQuestion = () => {
+      setQuestions([...questions, { question: "", options: ["", "", "", ""], correctAnswer: 0 }]);
+    };
+
+    const removeQuestion = (index: number) => {
+      setQuestions(questions.filter((_, i) => i !== index));
+    };
+
+    const updateQuestion = (index: number, field: string, value: any) => {
+      const newQuestions = [...questions];
+      if (field === 'question') {
+        newQuestions[index].question = value;
+      } else if (field.startsWith('option')) {
+        const optIndex = parseInt(field.replace('option', ''));
+        newQuestions[index].options[optIndex] = value;
+      } else if (field === 'correctAnswer') {
+        newQuestions[index].correctAnswer = parseInt(value);
+      }
+      setQuestions(newQuestions);
+    };
+
+    const handleSaveQuiz = () => {
+      setQuizFormData(prev => ({ ...prev, questions }));
+      handleCreateQuiz();
+    };
+
+    return (
+      <div className="space-y-4">
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start gap-2">
+            <GitCommit className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div>
+              <p className="text-sm text-blue-900">Creating New Quiz</p>
+              <p className="text-xs text-blue-700 mt-1">
+                This will be created as version 1.0. You can create new versions later.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor="quiz-title">Quiz Title</Label>
+          <Input
+            id="quiz-title"
+            value={quizFormData.title}
+            onChange={(e) => setQuizFormData(prev => ({ ...prev, title: e.target.value }))}
+            placeholder="Enter quiz title"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="quiz-description">Description</Label>
+          <Textarea
+            id="quiz-description"
+            value={quizFormData.description}
+            onChange={(e) => setQuizFormData(prev => ({ ...prev, description: e.target.value }))}
+            placeholder="Enter quiz description..."
+            rows={3}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="quiz-duration">Duration</Label>
+            <Input
+              id="quiz-duration"
+              value={quizFormData.duration}
+              onChange={(e) => setQuizFormData(prev => ({ ...prev, duration: e.target.value }))}
+              placeholder="e.g., 30 min"
+            />
+          </div>
+          <div>
+            <Label htmlFor="quiz-status">Status</Label>
+            <Select 
+              value={quizFormData.status} 
+              onValueChange={(value: any) => setQuizFormData(prev => ({ ...prev, status: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <Label>Questions</Label>
+            <Button variant="outline" size="sm" onClick={addQuestion}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Question
+            </Button>
+          </div>
+          
+          <div className="space-y-4 max-h-64 overflow-y-auto pr-2">
+            {questions.map((q, index) => (
+              <Card key={index}>
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm">Question {index + 1}</Label>
+                      {questions.length > 1 && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => removeQuestion(index)}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+                    <Input
+                      placeholder={`Enter question ${index + 1}`}
+                      value={q.question}
+                      onChange={(e) => updateQuestion(index, 'question', e.target.value)}
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      {q.options.map((option, optIndex) => (
+                        <Input
+                          key={optIndex}
+                          placeholder={`Option ${optIndex + 1}`}
+                          value={option}
+                          onChange={(e) => updateQuestion(index, `option${optIndex}`, e.target.value)}
+                        />
+                      ))}
+                    </div>
+                    <Select
+                      value={q.correctAnswer.toString()}
+                      onValueChange={(value) => updateQuestion(index, 'correctAnswer', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Correct answer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">Option 1</SelectItem>
+                        <SelectItem value="1">Option 2</SelectItem>
+                        <SelectItem value="2">Option 3</SelectItem>
+                        <SelectItem value="3">Option 4</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-4">
+          <Button variant="outline" onClick={() => setIsCreateQuizOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSaveQuiz}>
+            <GraduationCap className="w-4 h-4 mr-2" />
+            Create Quiz (v1.0)
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  // Course Form Component (without price field)
+  const CourseForm = ({ course = null, onSave }: { course?: Course | null; onSave: (data: CourseFormData) => void }) => {
+    const [formData, setFormData] = useState<CourseFormData>({
       title: course?.title || "",
       description: course?.description || "",
-      examType: course?.examType || "",
+      exam_type: course?.exam_type || "",
       instructor: course?.instructor || "",
       duration: course?.duration || "",
       status: course?.status || "draft"
     });
-
-    const handleExamTypeChange = (value: string) => {
-      if (value === "create_new") {
-        setIsCreatingNewExamType(true);
-        setFormData(prev => ({ ...prev, examType: "" }));
-      } else {
-        setIsCreatingNewExamType(false);
-        setFormData(prev => ({ ...prev, examType: value }));
-      }
-    };
-
-    const handleSaveNewExamType = () => {
-      if (newExamType.trim() && !examTypes.includes(newExamType.trim())) {
-        const updatedExamTypes = [...examTypes, newExamType.trim()];
-        setExamTypes(updatedExamTypes);
-        setFormData(prev => ({ ...prev, examType: newExamType.trim() }));
-        setNewExamType("");
-        setIsCreatingNewExamType(false);
-      }
-    };
 
     return (
       <div className="space-y-4">
@@ -641,42 +1133,16 @@ export function CourseContentManagement() {
           </div>
           <div>
             <Label htmlFor="examType">Exam Type</Label>
-            {isCreatingNewExamType ? (
-              <div className="space-y-2">
-                <Input
-                  value={newExamType}
-                  onChange={(e) => setNewExamType(e.target.value)}
-                  placeholder="Enter new exam type"
-                />
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={handleSaveNewExamType}>
-                    Save
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => {
-                      setIsCreatingNewExamType(false);
-                      setNewExamType("");
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <Select value={formData.examType} onValueChange={handleExamTypeChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select exam type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {examTypes.map((exam) => (
-                    <SelectItem key={exam} value={exam}>{exam}</SelectItem>
-                  ))}
-                  <SelectItem value="create_new">+ Create New Exam Type</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
+            <Select value={formData.exam_type} onValueChange={(value) => setFormData(prev => ({ ...prev, exam_type: value }))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select exam type" />
+              </SelectTrigger>
+              <SelectContent>
+                {examTypes.map((exam) => (
+                  <SelectItem key={exam} value={exam}>{exam}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -720,7 +1186,7 @@ export function CourseContentManagement() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="published">Published</SelectItem>
               <SelectItem value="archived">Archived</SelectItem>
             </SelectContent>
           </Select>
@@ -730,10 +1196,7 @@ export function CourseContentManagement() {
           <Button variant="outline" onClick={() => setIsCreateCourseOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={() => {
-            onSave(formData);
-            setIsCreateCourseOpen(false);
-          }}>
+          <Button onClick={() => onSave(formData)}>
             {course ? 'Update Course' : 'Create Course'}
           </Button>
         </div>
@@ -741,11 +1204,12 @@ export function CourseContentManagement() {
     );
   };
 
-  const ModuleForm = ({ module = null, onSave }) => {
-    const [formData, setFormData] = useState({
+  // Module Form Component
+  const ModuleForm = ({ module = null, onSave }: { module?: Module | null; onSave: (data: ModuleFormData) => void }) => {
+    const [formData, setFormData] = useState<ModuleFormData>({
       title: module?.title || "",
       description: module?.description || "",
-      order: module?.order || 1,
+      order_index: module?.order_index || 1,
       duration: module?.duration || ""
     });
 
@@ -778,8 +1242,8 @@ export function CourseContentManagement() {
             <Input
               id="order"
               type="number"
-              value={formData.order}
-              onChange={(e) => setFormData(prev => ({ ...prev, order: parseInt(e.target.value) }))}
+              value={formData.order_index}
+              onChange={(e) => setFormData(prev => ({ ...prev, order_index: parseInt(e.target.value) }))}
               placeholder="1"
             />
           </div>
@@ -798,577 +1262,8 @@ export function CourseContentManagement() {
           <Button variant="outline" onClick={() => setIsCreateModuleOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={() => {
-            onSave(formData);
-            setIsCreateModuleOpen(false);
-          }}>
+          <Button onClick={() => onSave(formData)}>
             {module ? 'Update Module' : 'Create Module'}
-          </Button>
-        </div>
-      </div>
-    );
-  };
-
-  const UploadContentForm = ({ onSave }) => {
-    const [formData, setFormData] = useState({
-      title: "",
-      type: "document",
-      file: null
-    });
-
-    const handleFileUpload = (event) => {
-      const file = event.target.files[0];
-      if (file) {
-        setFormData(prev => ({ ...prev, file }));
-        setIsUploading(true);
-        let progress = 0;
-        const interval = setInterval(() => {
-          progress += 10;
-          setUploadProgress(progress);
-          if (progress >= 100) {
-            clearInterval(interval);
-            setIsUploading(false);
-          }
-        }, 200);
-      }
-    };
-
-    return (
-      <div className="space-y-4">
-        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-start gap-2">
-            <GitCommit className="w-5 h-5 text-blue-600 mt-0.5" />
-            <div>
-              <p className="text-sm text-blue-900">Creating New Content</p>
-              <p className="text-xs text-blue-700 mt-1">
-                This will be created as version 1.0. You can upload new versions later.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="content-title">Content Title</Label>
-          <Input
-            id="content-title"
-            value={formData.title}
-            onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-            placeholder="Enter content title"
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="content-type">Content Type</Label>
-          <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="document">Document/PDF</SelectItem>
-              <SelectItem value="video">Video</SelectItem>
-              <SelectItem value="image">Image</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div>
-          <Label htmlFor="file-upload">Upload File</Label>
-          <Input
-            id="file-upload"
-            type="file"
-            onChange={handleFileUpload}
-            accept=".pdf,.doc,.docx,.mp4,.mov,.jpg,.jpeg,.png"
-          />
-          {isUploading && (
-            <div className="mt-2">
-              <Progress value={uploadProgress} className="h-2" />
-              <p className="text-xs text-muted-foreground mt-1">Uploading... {uploadProgress}%</p>
-            </div>
-          )}
-        </div>
-
-        <div className="flex justify-end gap-2 pt-4">
-          <Button variant="outline" onClick={() => setIsUploadContentOpen(false)}>
-            Cancel
-          </Button>
-          <Button onClick={() => {
-            onSave({...formData, version: "1.0"});
-            toast.success(`Content created with version 1.0`);
-            setIsUploadContentOpen(false);
-          }}>
-            <Upload className="w-4 h-4 mr-2" />
-            Create Content (v1.0)
-          </Button>
-        </div>
-      </div>
-    );
-  };
-
-  // Upload New Version Form Component
-  const UploadNewVersionForm = ({ content, onSave }) => {
-    const [formData, setFormData] = useState({
-      versionNotes: "",
-      file: null,
-      status: "draft"
-    });
-
-    const handleFileUpload = (event) => {
-      const file = event.target.files[0];
-      if (file) {
-        setFormData(prev => ({ ...prev, file }));
-        setIsUploading(true);
-        let progress = 0;
-        const interval = setInterval(() => {
-          progress += 10;
-          setUploadProgress(progress);
-          if (progress >= 100) {
-            clearInterval(interval);
-            setIsUploading(false);
-          }
-        }, 200);
-      }
-    };
-
-    const getNextVersion = () => {
-      if (!content.currentVersion) return "1.0";
-      const [major, minor] = content.currentVersion.split(".").map(Number);
-      return `${major}.${minor + 1}`;
-    };
-
-    const nextVersion = getNextVersion();
-
-    return (
-      <div className="space-y-4">
-        {/* Current Version Info */}
-        <div className="p-4 bg-muted/50 rounded-lg border">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <h4 className="text-foreground mb-1">{content.title}</h4>
-              <p className="text-sm text-muted-foreground">{content.type} • {content.duration || content.size}</p>
-            </div>
-            <Badge variant="outline" className="bg-blue-50 border-blue-300 text-blue-800">
-              <GitCommit className="w-3 h-3 mr-1" />
-              Current: v{content.currentVersion}
-            </Badge>
-          </div>
-          {content.lastModified && (
-            <p className="text-xs text-muted-foreground">
-              Last modified: {content.lastModified}
-            </p>
-          )}
-        </div>
-
-        {/* New Version Info */}
-        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-          <div className="flex items-start gap-2">
-            <GitBranch className="w-5 h-5 text-green-600 mt-0.5" />
-            <div>
-              <p className="text-sm text-green-900">Creating New Version</p>
-              <p className="text-xs text-green-700 mt-1">
-                This will be saved as version {nextVersion}. Previous versions will be archived.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="version-notes">Version Notes / Changelog</Label>
-          <Textarea
-            id="version-notes"
-            value={formData.versionNotes}
-            onChange={(e) => setFormData(prev => ({ ...prev, versionNotes: e.target.value }))}
-            placeholder="Describe what changed in this version (e.g., Fixed audio issues, added subtitles, updated content...)"
-            rows={3}
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            This will help track changes between versions
-          </p>
-        </div>
-
-        <div>
-          <Label htmlFor="new-version-file">Upload New File</Label>
-          <Input
-            id="new-version-file"
-            type="file"
-            onChange={handleFileUpload}
-            accept=".pdf,.doc,.docx,.mp4,.mov,.jpg,.jpeg,.png"
-          />
-          {isUploading && (
-            <div className="mt-2">
-              <Progress value={uploadProgress} className="h-2" />
-              <p className="text-xs text-muted-foreground mt-1">Uploading... {uploadProgress}%</p>
-            </div>
-          )}
-        </div>
-
-        <div>
-          <Label htmlFor="version-status">Version Status</Label>
-          <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="draft">Draft (Not visible to students)</SelectItem>
-              <SelectItem value="published">Published (Live for students)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex justify-end gap-2 pt-4 border-t">
-          <Button variant="outline" onClick={() => setIsUploadNewVersionOpen(false)}>
-            Cancel
-          </Button>
-          <Button onClick={() => {
-            onSave({...formData, newVersion: nextVersion, contentId: content.id});
-            toast.success(`New version ${nextVersion} uploaded successfully`);
-            setIsUploadNewVersionOpen(false);
-          }}>
-            <Upload className="w-4 h-4 mr-2" />
-            Upload Version {nextVersion}
-          </Button>
-        </div>
-      </div>
-    );
-  };
-
-  // Create New Quiz Version Form
-  const CreateQuizVersionForm = ({ quiz, onSave }) => {
-    const getNextVersion = () => {
-      if (!quiz.currentVersion) return "1.0";
-      const [major, minor] = quiz.currentVersion.split(".").map(Number);
-      return `${major}.${minor + 1}`;
-    };
-
-    const nextVersion = getNextVersion();
-
-    const [formData, setFormData] = useState({
-      versionNotes: "",
-      timeLimit: 30,
-      passingScore: 70,
-      questions: [
-        { question: "", options: ["", "", "", ""], correctAnswer: 0 }
-      ],
-      status: "draft"
-    });
-
-    const addQuestion = () => {
-      setFormData(prev => ({
-        ...prev,
-        questions: [...prev.questions, { question: "", options: ["", "", "", ""], correctAnswer: 0 }]
-      }));
-    };
-
-    const removeQuestion = (index: number) => {
-      setFormData(prev => ({
-        ...prev,
-        questions: prev.questions.filter((_, i) => i !== index)
-      }));
-    };
-
-    return (
-      <div className="space-y-4">
-        {/* Current Version Info */}
-        <div className="p-4 bg-muted/50 rounded-lg border">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <h4 className="text-foreground mb-1">{quiz.title}</h4>
-              <p className="text-sm text-muted-foreground">{quiz.questions} questions</p>
-            </div>
-            <Badge variant="outline" className="bg-blue-50 border-blue-300 text-blue-800">
-              <GitCommit className="w-3 h-3 mr-1" />
-              Current: v{quiz.currentVersion}
-            </Badge>
-          </div>
-          {quiz.lastModified && (
-            <p className="text-xs text-muted-foreground">
-              Last modified: {quiz.lastModified}
-            </p>
-          )}
-        </div>
-
-        {/* New Version Info */}
-        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-          <div className="flex items-start gap-2">
-            <GitBranch className="w-5 h-5 text-green-600 mt-0.5" />
-            <div>
-              <p className="text-sm text-green-900">Creating New Quiz Version</p>
-              <p className="text-xs text-green-700 mt-1">
-                This will be saved as version {nextVersion}. Previous versions will be archived.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="quiz-version-notes">Version Notes / Changelog</Label>
-          <Textarea
-            id="quiz-version-notes"
-            value={formData.versionNotes}
-            onChange={(e) => setFormData(prev => ({ ...prev, versionNotes: e.target.value }))}
-            placeholder="Describe what changed (e.g., Added 5 new questions, updated question 3 options, fixed typo...)"
-            rows={3}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="quiz-time-limit">Time Limit (minutes)</Label>
-            <Input
-              id="quiz-time-limit"
-              type="number"
-              value={formData.timeLimit}
-              onChange={(e) => setFormData(prev => ({ ...prev, timeLimit: parseInt(e.target.value) }))}
-            />
-          </div>
-          <div>
-            <Label htmlFor="quiz-passing-score">Passing Score (%)</Label>
-            <Input
-              id="quiz-passing-score"
-              type="number"
-              value={formData.passingScore}
-              onChange={(e) => setFormData(prev => ({ ...prev, passingScore: parseInt(e.target.value) }))}
-            />
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <Label>Questions</Label>
-            <Button variant="outline" size="sm" onClick={addQuestion}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Question
-            </Button>
-          </div>
-          
-          <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-            {formData.questions.map((q, index) => (
-              <Card key={index}>
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm">Question {index + 1}</Label>
-                      {formData.questions.length > 1 && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => removeQuestion(index)}
-                        >
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
-                      )}
-                    </div>
-                    <Input
-                      placeholder={`Enter question ${index + 1}`}
-                      value={q.question}
-                      onChange={(e) => {
-                        const newQuestions = [...formData.questions];
-                        newQuestions[index].question = e.target.value;
-                        setFormData(prev => ({ ...prev, questions: newQuestions }));
-                      }}
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      {q.options.map((option, optIndex) => (
-                        <Input
-                          key={optIndex}
-                          placeholder={`Option ${optIndex + 1}`}
-                          value={option}
-                          onChange={(e) => {
-                            const newQuestions = [...formData.questions];
-                            newQuestions[index].options[optIndex] = e.target.value;
-                            setFormData(prev => ({ ...prev, questions: newQuestions }));
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <Select
-                      value={q.correctAnswer.toString()}
-                      onValueChange={(value) => {
-                        const newQuestions = [...formData.questions];
-                        newQuestions[index].correctAnswer = parseInt(value);
-                        setFormData(prev => ({ ...prev, questions: newQuestions }));
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Correct answer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="0">Option 1</SelectItem>
-                        <SelectItem value="1">Option 2</SelectItem>
-                        <SelectItem value="2">Option 3</SelectItem>
-                        <SelectItem value="3">Option 4</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="quiz-version-status">Version Status</Label>
-          <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="draft">Draft (Not visible to students)</SelectItem>
-              <SelectItem value="published">Published (Live for students)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex justify-end gap-2 pt-4 border-t">
-          <Button variant="outline" onClick={() => setIsCreateQuizVersionOpen(false)}>
-            Cancel
-          </Button>
-          <Button onClick={() => {
-            onSave({...formData, newVersion: nextVersion, quizId: quiz.id, questionCount: formData.questions.length});
-            toast.success(`Quiz version ${nextVersion} created successfully`);
-            setIsCreateQuizVersionOpen(false);
-          }}>
-            <GraduationCap className="w-4 h-4 mr-2" />
-            Create Version {nextVersion}
-          </Button>
-        </div>
-      </div>
-    );
-  };
-
-  const QuizForm = ({ onSave }) => {
-    const [formData, setFormData] = useState({
-      title: "",
-      timeLimit: 30,
-      passingScore: 70,
-      questions: [
-        { question: "", options: ["", "", "", ""], correctAnswer: 0 }
-      ]
-    });
-
-    const addQuestion = () => {
-      setFormData(prev => ({
-        ...prev,
-        questions: [...prev.questions, { question: "", options: ["", "", "", ""], correctAnswer: 0 }]
-      }));
-    };
-
-    return (
-      <div className="space-y-4">
-        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-start gap-2">
-            <GitCommit className="w-5 h-5 text-blue-600 mt-0.5" />
-            <div>
-              <p className="text-sm text-blue-900">Creating New Quiz</p>
-              <p className="text-xs text-blue-700 mt-1">
-                This will be created as version 1.0. You can create new versions later.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="quiz-title">Quiz Title</Label>
-          <Input
-            id="quiz-title"
-            value={formData.title}
-            onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-            placeholder="Enter quiz title"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="time-limit">Time Limit (minutes)</Label>
-            <Input
-              id="time-limit"
-              type="number"
-              value={formData.timeLimit}
-              onChange={(e) => setFormData(prev => ({ ...prev, timeLimit: parseInt(e.target.value) }))}
-            />
-          </div>
-          <div>
-            <Label htmlFor="passing-score">Passing Score (%)</Label>
-            <Input
-              id="passing-score"
-              type="number"
-              value={formData.passingScore}
-              onChange={(e) => setFormData(prev => ({ ...prev, passingScore: parseInt(e.target.value) }))}
-            />
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <Label>Questions</Label>
-            <Button variant="outline" size="sm" onClick={addQuestion}>
-              Add Question
-            </Button>
-          </div>
-          
-          <div className="space-y-4 max-h-64 overflow-y-auto">
-            {formData.questions.map((q, index) => (
-              <Card key={index}>
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    <Input
-                      placeholder={`Question ${index + 1}`}
-                      value={q.question}
-                      onChange={(e) => {
-                        const newQuestions = [...formData.questions];
-                        newQuestions[index].question = e.target.value;
-                        setFormData(prev => ({ ...prev, questions: newQuestions }));
-                      }}
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      {q.options.map((option, optIndex) => (
-                        <Input
-                          key={optIndex}
-                          placeholder={`Option ${optIndex + 1}`}
-                          value={option}
-                          onChange={(e) => {
-                            const newQuestions = [...formData.questions];
-                            newQuestions[index].options[optIndex] = e.target.value;
-                            setFormData(prev => ({ ...prev, questions: newQuestions }));
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <Select
-                      value={q.correctAnswer.toString()}
-                      onValueChange={(value) => {
-                        const newQuestions = [...formData.questions];
-                        newQuestions[index].correctAnswer = parseInt(value);
-                        setFormData(prev => ({ ...prev, questions: newQuestions }));
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Correct answer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="0">Option 1</SelectItem>
-                        <SelectItem value="1">Option 2</SelectItem>
-                        <SelectItem value="2">Option 3</SelectItem>
-                        <SelectItem value="3">Option 4</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-2 pt-4">
-          <Button variant="outline" onClick={() => setIsCreateQuizOpen(false)}>
-            Cancel
-          </Button>
-          <Button onClick={() => {
-            onSave({...formData, version: "1.0"});
-            toast.success(`Quiz created with version 1.0`);
-            setIsCreateQuizOpen(false);
-          }}>
-            <GraduationCap className="w-4 h-4 mr-2" />
-            Create Quiz (v1.0)
           </Button>
         </div>
       </div>
@@ -1387,7 +1282,7 @@ export function CourseContentManagement() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl">{courses.length}</div>
-              <p className="text-xs text-green-600">+{courses.filter(c => c.status === 'active').length} active</p>
+              <p className="text-xs text-green-600">+{courses.filter(c => c.status === 'published').length} active</p>
             </CardContent>
           </Card>
           
@@ -1396,7 +1291,7 @@ export function CourseContentManagement() {
               <CardTitle className="text-sm text-muted-foreground">Total Students</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl">{courses.reduce((sum, course) => sum + course.enrolledStudents, 0).toLocaleString()}</div>
+              <div className="text-2xl">{courses.reduce((sum, course) => sum + (course.enrolled_students || 0), 0).toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">Across all courses</p>
             </CardContent>
           </Card>
@@ -1406,7 +1301,7 @@ export function CourseContentManagement() {
               <CardTitle className="text-sm text-muted-foreground">Total Modules</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl">{courses.reduce((sum, course) => sum + course.modules.length, 0)}</div>
+              <div className="text-2xl">{courses.reduce((sum, course) => sum + (course.modules?.length || 0), 0)}</div>
               <p className="text-xs text-muted-foreground">Learning modules</p>
             </CardContent>
           </Card>
@@ -1438,14 +1333,18 @@ export function CourseContentManagement() {
                   <DialogHeader>
                     <DialogTitle>Create New Course</DialogTitle>
                   </DialogHeader>
-                  <CourseForm onSave={(data) => console.log("Creating course:", data)} />
+                  <CourseForm onSave={handleCreateCourse} />
                 </DialogContent>
               </Dialog>
             </div>
           </CardHeader>
           
           <CardContent>
-            {courses.length === 0 ? (
+            {loading ? (
+              <div className="flex justify-center items-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin" />
+              </div>
+            ) : courses.length === 0 ? (
               <div className="text-center py-12">
                 <BookOpen className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
                 <h3 className="text-lg mb-2">No courses yet</h3>
@@ -1485,7 +1384,7 @@ export function CourseContentManagement() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{course.examType}</Badge>
+                        <Badge variant="outline">{course.exam_type}</Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {course.instructor}
@@ -1493,13 +1392,13 @@ export function CourseContentManagement() {
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Users className="w-4 h-4 text-muted-foreground" />
-                          <span>{course.enrolledStudents.toLocaleString()}</span>
+                          <span>{(course.enrolled_students || 0).toLocaleString()}</span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <FolderOpen className="w-4 h-4 text-muted-foreground" />
-                          <span>{course.modules.length}</span>
+                          <span>{course.modules?.length || 0}</span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -1527,7 +1426,10 @@ export function CourseContentManagement() {
                               <Eye className="mr-2 h-4 w-4" />
                               Preview
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">
+                            <DropdownMenuItem 
+                              className="text-destructive"
+                              onClick={() => handleDeleteCourse(course.id)}
+                            >
                               <Trash2 className="mr-2 h-4 w-4" />
                               Delete
                             </DropdownMenuItem>
@@ -1567,9 +1469,9 @@ export function CourseContentManagement() {
                 <CardTitle>{selectedCourse.title}</CardTitle>
                 <p className="text-muted-foreground text-sm mt-1">{selectedCourse.description}</p>
                 <div className="flex items-center gap-4 mt-2">
-                  <Badge variant="outline">{selectedCourse.examType}</Badge>
+                  <Badge variant="outline">{selectedCourse.exam_type}</Badge>
                   <span className="text-sm text-muted-foreground">Instructor: {selectedCourse.instructor}</span>
-                  <span className="text-sm text-muted-foreground">{selectedCourse.enrolledStudents.toLocaleString()} students</span>
+                  <span className="text-sm text-muted-foreground">{(selectedCourse.enrolled_students || 0).toLocaleString()} students</span>
                 </div>
               </div>
               <Dialog open={isCreateModuleOpen} onOpenChange={setIsCreateModuleOpen}>
@@ -1583,7 +1485,7 @@ export function CourseContentManagement() {
                   <DialogHeader>
                     <DialogTitle>Create New Module</DialogTitle>
                   </DialogHeader>
-                  <ModuleForm onSave={(data) => console.log("Creating module:", data)} />
+                  <ModuleForm onSave={handleCreateModule} />
                 </DialogContent>
               </Dialog>
             </div>
@@ -1596,7 +1498,7 @@ export function CourseContentManagement() {
             <CardTitle>Modules</CardTitle>
           </CardHeader>
           <CardContent>
-            {selectedCourse.modules.length === 0 ? (
+            {!selectedCourse.modules || selectedCourse.modules.length === 0 ? (
               <div className="text-center py-12">
                 <FolderOpen className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
                 <h3 className="text-lg mb-2">No modules yet</h3>
@@ -1648,7 +1550,10 @@ export function CourseContentManagement() {
                             <Edit className="mr-2 h-4 w-4" />
                             Edit Module
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
+                          <DropdownMenuItem 
+                            className="text-destructive"
+                            onClick={() => handleDeleteModule(module.id)}
+                          >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete
                           </DropdownMenuItem>
@@ -1689,7 +1594,7 @@ export function CourseContentManagement() {
               <p className="text-muted-foreground text-sm mt-1">{selectedModule.description}</p>
               <div className="flex items-center gap-4 mt-2">
                 <span className="text-sm text-muted-foreground">Duration: {selectedModule.duration}</span>
-                <span className="text-sm text-muted-foreground">Order: {selectedModule.order}</span>
+                <span className="text-sm text-muted-foreground">Order: {selectedModule.order_index}</span>
                 <span className="text-sm text-muted-foreground">{selectedModule.contents?.length || 0} content items</span>
               </div>
             </div>
@@ -1713,7 +1618,7 @@ export function CourseContentManagement() {
                     <DialogHeader>
                       <DialogTitle>Create New Quiz</DialogTitle>
                     </DialogHeader>
-                    <QuizForm onSave={(data) => console.log("Creating quiz:", data)} />
+                    <QuizForm />
                   </DialogContent>
                 </Dialog>
                 
@@ -1728,7 +1633,7 @@ export function CourseContentManagement() {
                     <DialogHeader>
                       <DialogTitle>Upload New Content</DialogTitle>
                     </DialogHeader>
-                    <UploadContentForm onSave={(data) => console.log("Uploading:", data)} />
+                    <UploadContentForm />
                   </DialogContent>
                 </Dialog>
               </div>
@@ -1765,7 +1670,7 @@ export function CourseContentManagement() {
                 </TableHeader>
                 <TableBody>
                   {selectedModule.contents.map((content) => {
-                    const Icon = getContentIcon(content.type);
+                    const Icon = getContentIcon(content.content_type);
                     return (
                       <TableRow key={content.id}>
                         <TableCell>
@@ -1773,21 +1678,21 @@ export function CourseContentManagement() {
                             <Icon className="w-5 h-5 text-muted-foreground" />
                             <div>
                               <p>{content.title}</p>
-                              {content.lastModified && (
+                              {content.updated_at && (
                                 <p className="text-xs text-muted-foreground">
-                                  Modified: {content.lastModified}
+                                  Modified: {new Date(content.updated_at).toLocaleDateString()}
                                 </p>
                               )}
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="capitalize">{content.type}</Badge>
+                          <Badge variant="outline" className="capitalize">{content.content_type}</Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {content.duration && <span>{content.duration}</span>}
-                          {content.size && <span>{content.size}</span>}
-                          {content.questions && <span>{content.questions} questions</span>}
+                          {content.file_size && <span>{content.file_size}</span>}
+                          {content.content_type === 'quiz' && <span>{content.questions?.length || 0} questions</span>}
                         </TableCell>
                         <TableCell>
                           {content.currentVersion ? (
@@ -1796,7 +1701,7 @@ export function CourseContentManagement() {
                                 <GitCommit className="w-3 h-3 mr-1" />
                                 v{content.currentVersion}
                               </Badge>
-                              {content.totalVersions > 1 && (
+                              {content.totalVersions && content.totalVersions > 1 && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -1815,21 +1720,12 @@ export function CourseContentManagement() {
                                 size="sm"
                                 className="h-6 px-2 text-xs"
                                 onClick={() => {
-                                  if (content.type === 'quiz') {
-                                    setEditingQuiz(content);
-                                    setIsCreateQuizVersionOpen(true);
-                                  } else {
-                                    setEditingContent(content);
-                                    setIsUploadNewVersionOpen(true);
-                                  }
+                                  setEditingContent(content);
+                                  setIsUploadNewVersionOpen(true);
                                 }}
-                                title={content.type === 'quiz' ? "Create new quiz version" : "Upload new version"}
+                                title="Upload new version"
                               >
-                                {content.type === 'quiz' ? (
-                                  <GraduationCap className="w-3 h-3" />
-                                ) : (
-                                  <Upload className="w-3 h-3" />
-                                )}
+                                <Upload className="w-3 h-3" />
                               </Button>
                             </div>
                           ) : (
@@ -1859,23 +1755,13 @@ export function CourseContentManagement() {
                               </DropdownMenuItem>
                               {content.currentVersion && (
                                 <>
-                                  {content.type === 'quiz' ? (
-                                    <DropdownMenuItem onClick={() => {
-                                      setEditingQuiz(content);
-                                      setIsCreateQuizVersionOpen(true);
-                                    }}>
-                                      <GraduationCap className="mr-2 h-4 w-4" />
-                                      Create New Version
-                                    </DropdownMenuItem>
-                                  ) : (
-                                    <DropdownMenuItem onClick={() => {
-                                      setEditingContent(content);
-                                      setIsUploadNewVersionOpen(true);
-                                    }}>
-                                      <Upload className="mr-2 h-4 w-4" />
-                                      Upload New Version
-                                    </DropdownMenuItem>
-                                  )}
+                                  <DropdownMenuItem onClick={() => {
+                                    setEditingContent(content);
+                                    setIsUploadNewVersionOpen(true);
+                                  }}>
+                                    <Upload className="mr-2 h-4 w-4" />
+                                    Upload New Version
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => {
                                     setSelectedContent(content);
                                     setIsVersionHistoryOpen(true);
@@ -1947,11 +1833,13 @@ export function CourseContentManagement() {
               </p>
             </DialogHeader>
             <div className="overflow-y-auto max-h-[calc(80vh-120px)]">
-              <VersionCompare 
-                v1={compareVersions.v1} 
-                v2={compareVersions.v2}
-                contentTitle={selectedContent?.title}
-              />
+              {compareVersions.v1 && compareVersions.v2 && (
+                <VersionCompare 
+                  v1={compareVersions.v1} 
+                  v2={compareVersions.v2}
+                  contentTitle={selectedContent?.title || ''}
+                />
+              )}
             </div>
           </DialogContent>
         </Dialog>
@@ -1968,35 +1856,7 @@ export function CourseContentManagement() {
                 Create a new version of this content while preserving the history
               </p>
             </DialogHeader>
-            {editingContent && (
-              <UploadNewVersionForm 
-                content={editingContent}
-                onSave={(data) => console.log("Uploading new version:", data)}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* Create Quiz Version Dialog */}
-        <Dialog open={isCreateQuizVersionOpen} onOpenChange={setIsCreateQuizVersionOpen}>
-          <DialogContent className="max-w-4xl max-h-[85vh]">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <GraduationCap className="w-5 h-5" />
-                Create New Quiz Version
-              </DialogTitle>
-              <p className="text-sm text-muted-foreground">
-                Create a new version of this quiz with updated questions
-              </p>
-            </DialogHeader>
-            <div className="overflow-y-auto max-h-[calc(85vh-120px)]">
-              {editingQuiz && (
-                <CreateQuizVersionForm 
-                  quiz={editingQuiz}
-                  onSave={(data) => console.log("Creating quiz version:", data)}
-                />
-              )}
-            </div>
+            <UploadNewVersionForm />
           </DialogContent>
         </Dialog>
       </div>

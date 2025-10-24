@@ -158,6 +158,7 @@ async def create_role(role_data: RoleCreate, db: Session = Depends(get_db)):
 @router.put("/{role_id}", response_model=RoleResponse)
 async def update_role(role_id: str, role_data: RoleUpdate, db: Session = Depends(get_db)):
     """Update an existing role"""
+    # print("i am in the put function")
     role = db.query(Role).filter(Role.id == role_id).first()
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
@@ -167,6 +168,8 @@ async def update_role(role_id: str, role_data: RoleUpdate, db: Session = Depends
     
     # Update fields
     update_data = role_data.dict(exclude_unset=True)
+    # print(update_data,role_data)
+    # print(role_id)
     for field, value in update_data.items():
         if field == 'permissions' and value is not None:
             # Convert permissions to JSON string for storage
@@ -395,7 +398,7 @@ async def get_role_assignments(
                 "id": assignment.user.id,
                 "name": assignment.user.name,
                 "email": assignment.user.email,
-                "avatar": assignment.user.avatar
+                # "avatar": assignment.user.avatar
             },
             role=assignment.role.name,
             action=assignment.action,

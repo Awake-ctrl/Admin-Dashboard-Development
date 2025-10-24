@@ -12,12 +12,12 @@ from datetime import datetime
 from enum import Enum
 
 # Association table for course subjects
-course_subjects = Table(
-    'course_subjects',
-    Base.metadata,
-    Column('course_id', Integer, ForeignKey('courses.id')),
-    Column('subject_id', Integer, ForeignKey('subjects.id'))
-)
+# course_subjects = Table(
+#     'course_subjects',
+#     Base.metadata,
+#     Column('course_id', Integer, ForeignKey('courses.id')),
+#     Column('subject_id', Integer, ForeignKey('subjects.id'))
+# )
 
 class User(Base):
     __tablename__ = "users"
@@ -52,11 +52,11 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
-    activities = relationship("UserActivity", back_populates="user")
-    account_deletion_requests = relationship("AccountDeletionRequest", back_populates="user")
-    transactions = relationship("Transaction", back_populates="user")
-    refund_requests = relationship("RefundRequest", back_populates="user")
-    user_courses = relationship("UserCourse", back_populates="user")
+    activities = relationship("UserActivity", back_populates="user", cascade="all, delete-orphan")
+    account_deletion_requests = relationship("AccountDeletionRequest", back_populates="user", cascade="all, delete-orphan")
+    transactions = relationship("Transaction", back_populates="user", cascade="all, delete-orphan")
+    refund_requests = relationship("RefundRequest", back_populates="user", cascade="all, delete-orphan")
+    user_courses = relationship("UserCourse", back_populates="user", cascade="all, delete-orphan")
     
     # New relationship for subscription plan
     subscription_plan_rel = relationship("SubscriptionPlan")
@@ -65,7 +65,7 @@ class AccountDeletionRequest(Base):
     __tablename__ = "account_deletion_requests"
     
     id = Column(String, primary_key=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id",ondelete="CASCADE"), nullable=False)
     user_name = Column(String(100), nullable=False)
     email = Column(String(100), nullable=False)
     request_date = Column(DateTime(timezone=True), server_default=func.now())
@@ -109,7 +109,7 @@ class Transaction(Base):
     __tablename__ = "transactions"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"), index=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), index=True)
     user_name = Column(String)
     
     # Foreign key to subscription plan
@@ -137,7 +137,7 @@ class RefundRequest(Base):
     __tablename__ = "refund_requests"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"), index=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), index=True)
     user_name = Column(String)
     
     # Foreign key to subscription plan
@@ -167,61 +167,30 @@ class Exam(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    subjects = relationship("Subject", back_populates="exam")
+    # subjects = relationship("Subject", back_populates="exam")
     courses = relationship("Course", back_populates="exam")
 
-class Subject(Base):
-    __tablename__ = "subjects"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), index=True)
-    description = Column(Text)
-    exam_id = Column(Integer, ForeignKey("exams.id"))
-    topics_count = Column(Integer, default=0)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    # Relationships
-    exam = relationship("Exam", back_populates="subjects")
-    topics = relationship("Topic", back_populates="subject")
-    courses = relationship("Course", secondary=course_subjects, back_populates="subjects")
-
-class Topic(Base):
-    __tablename__ = "topics"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(200), index=True)
-    description = Column(Text)
-    subject_id = Column(Integer, ForeignKey("subjects.id"))
-    user_count = Column(Integer, default=0)
-    order_index = Column(Integer, default=0)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    # Relationships
-    subject = relationship("Subject", back_populates="topics")
-    contents = relationship("Content", back_populates="topic")
 
 class Course(Base):
     __tablename__ = "courses"
     
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String(200), index=True)
-    credits = Column(Integer, default=0)
+    title = Column(String(200))
     description = Column(Text)
-    exam_type = Column(String(50))
+    exam_type = Column(String(100))
     instructor = Column(String(100))
     price = Column(Float, default=0.0)
-    duration = Column(String(50))
+    duration = Column(String(100))
     enrolled_students = Column(Integer, default=0)
     completion_rate = Column(Float, default=0.0)
     rating = Column(Float, default=0.0)
     status = Column(String(20), default="draft")
-    last_updated = Column(DateTime(timezone=True), server_default=func.now())
-    exam_id = Column(Integer, ForeignKey("exams.id"))
+    exam_id = Column(Integer, ForeignKey("exams.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
     exam = relationship("Exam", back_populates="courses")
-    subjects = relationship("Subject", secondary=course_subjects, back_populates="courses")
     modules = relationship("Module", back_populates="course")
     contents = relationship("Content", back_populates="course")
     user_courses = relationship("UserCourse", back_populates="course")
@@ -230,34 +199,34 @@ class Module(Base):
     __tablename__ = "modules"
     
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String(200), index=True)
+    title = Column(String(200))
     description = Column(Text)
     course_id = Column(Integer, ForeignKey("courses.id"))
-    order_index = Column(Integer, default=0)
-    duration = Column(String(50))
-    lessons_count = Column(Integer, default=0)
+    order_index = Column(Integer, default=1)
+    duration = Column(String(50), nullable=True)  # "8 hours"
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
     course = relationship("Course", back_populates="modules")
-    lessons = relationship("Lesson", back_populates="module")
+    contents = relationship("Content", back_populates="module")
 
-class Lesson(Base):
-    __tablename__ = "lessons"
+# class Lesson(Base):
+#     __tablename__ = "lessons"
     
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String(200), index=True)
-    description = Column(Text)
-    module_id = Column(Integer, ForeignKey("modules.id"))
-    order_index = Column(Integer, default=0)
-    duration = Column(String(50))
-    content_type = Column(String(50))
-    content_url = Column(String(500))
-    is_published = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+#     id = Column(Integer, primary_key=True, index=True)
+#     title = Column(String(200), index=True)
+#     description = Column(Text)
+#     module_id = Column(Integer, ForeignKey("modules.id"))
+#     order_index = Column(Integer, default=0)
+#     duration = Column(String(50))
+#     content_type = Column(String(50))
+#     content_url = Column(String(500))
+#     is_published = Column(Boolean, default=False)
+#     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    # Relationships
-    module = relationship("Module", back_populates="lessons")
+#     # Relationships
+#     module = relationship("Module", back_populates="lessons")
 
 class Content(Base):
     __tablename__ = "contents"
@@ -265,31 +234,36 @@ class Content(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(200), index=True)
     description = Column(Text)
-    content_type = Column(String(50))
-    file_path = Column(String(500))
-    file_size = Column(String(50))
+    content_type = Column(String(50))  # video, document, quiz, image
+    file_path = Column(String(500), nullable=True)
+    file_size = Column(String(50), nullable=True)
+    duration = Column(String(50), nullable=True)  # for videos: "45 min"
+    author = Column(String, nullable=True)  
     downloads = Column(Integer, default=0)
-    status = Column(String(20), default="draft")
+    
+    status = Column(String(20), default="draft")  # draft, published, archived
     version = Column(String(20), default="1.0")
-    author = Column(String(100))
-    topic_id = Column(Integer, ForeignKey("topics.id"), nullable=True)
-    course_id = Column(Integer, ForeignKey("courses.id"), nullable=True)
+    course_id = Column(Integer, ForeignKey("courses.id"))
+    module_id = Column(Integer, ForeignKey("modules.id"))
+    questions = Column(JSON, nullable=True)  # For quiz content
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    topic = relationship("Topic", back_populates="contents")
     course = relationship("Course", back_populates="contents")
+    module = relationship("Module", back_populates="contents")
     versions = relationship("ContentVersion", back_populates="content")
-
 class ContentVersion(Base):
     __tablename__ = "content_versions"
     
     id = Column(Integer, primary_key=True, index=True)
     content_id = Column(Integer, ForeignKey("contents.id"))
-    version = Column(String(20))
-    changes = Column(Text)
-    file_path = Column(String(500))
-    file_size = Column(String(50))
+    version_number = Column(String(20))
+    changelog = Column(Text)
+    file_path = Column(String(500), nullable=True)
+    file_size = Column(String(50), nullable=True)
+    duration = Column(String(50), nullable=True)
+    status = Column(String(20), default="draft")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
@@ -309,7 +283,7 @@ class UserCourse(Base):
     __tablename__ = "user_courses"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
     enrollment_date = Column(Date, nullable=False)
     progress = Column(Integer, default=0)
@@ -327,7 +301,7 @@ class UserActivity(Base):
     __tablename__ = "user_activities"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     activity_date = Column(Date, nullable=False)
     activity_type = Column(String(50))  # 'study', 'test', 'login', etc.
     duration_minutes = Column(Integer, default=0)
@@ -343,15 +317,15 @@ class UserActivity(Base):
 role_permissions = Table(
     'role_permissions',
     Base.metadata,
-    Column('role_id', String, ForeignKey('roles.id')),
-    Column('permission_id', String, ForeignKey('permissions.id'))
+    Column('role_id', String, ForeignKey('roles.id',ondelete="CASCADE")),
+    Column('permission_id', String, ForeignKey('permissions.id',ondelete="CASCADE"))
 )
 
 # Association table for user roles
 user_roles = Table(
     'user_roles',
     Base.metadata,
-    Column('user_id', String, ForeignKey('users.id')),
+    Column('user_id', String, ForeignKey('users.id',ondelete="CASCADE")),
     Column('role_id', String, ForeignKey('roles.id')),
     Column('assigned_at', DateTime, default=func.now()),
     Column('assigned_by', String)
@@ -401,8 +375,8 @@ class RoleAssignmentHistory(Base):
     __tablename__ = "role_assignment_history"
     
     id = Column(String, primary_key=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
-    role_id = Column(String, ForeignKey("roles.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    role_id = Column(String, ForeignKey("roles.id", ondelete="CASCADE"), nullable=False)
     action = Column(String, nullable=False)  # assigned, updated, removed
     assigned_by = Column(String, nullable=False)
     timestamp = Column(DateTime, default=func.now())
@@ -449,6 +423,9 @@ class RoleUpdate(BaseModel):
     level: Optional[int] = Field(None, ge=1, le=10)
     permissions: Optional[List[str]] = None
     is_active: Optional[bool] = None
+    # class Config:
+    #     # This ensures that when we call dict(), it respects our exclusion rules
+    #     extra = 'forbid'
 
 class RoleResponse(RoleBase):
     id: str

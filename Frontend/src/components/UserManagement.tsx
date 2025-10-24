@@ -397,13 +397,15 @@ const loadData = async () => {
     try {
       const request = deletionRequests.find(r => r.id === requestId);
       if (request) {
-        // First update the request status
-        await userService.updateDeletionRequest(requestId, {
-          status: "completed"
-        });
+       
+       
         
         // Then delete the user (this would be the actual deletion logic)
         await userService.deleteUser(request.user_id);
+         //update the request status
+        // await userService.updateDeletionRequest(requestId, {
+        //   status: "completed"
+        // });
         
         toast.success("User account deleted successfully");
         loadData();
@@ -530,8 +532,8 @@ const loadData = async () => {
                   </div>
                 </div>
 
-               <div className="space-y-2">
-  <h4 className="font-semibold">Activity Levels</h4>
+                {/* <div className="space-y-2"> */}
+  {/* <h4 className="font-semibold">Activity Levels</h4>
   <div className="space-y-2">
     <div className="flex justify-between">
       <span>Daily Active</span>
@@ -561,8 +563,8 @@ const loadData = async () => {
         ({userStats?.total_users ? Math.round(((userStats.total_users - userStats.active_users) / userStats.total_users) * 100) : 0}%)
       </span>
     </div>
-  </div>
-</div>
+  </div> */}
+{/* </div> */}
               </div>
             </CardContent>
           </Card>
@@ -765,13 +767,13 @@ const loadData = async () => {
                         <TableCell>{getStatusBadge(user.account_status)}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            <Button 
+                            {/* <Button 
                               variant="outline" 
                               size="sm"
                               onClick={() => handleViewUser(user)}
                             >
                               View
-                            </Button>
+                            </Button> */}
                             
                             {user.account_status === "active" ? (
                               <AlertDialog>
@@ -1095,9 +1097,9 @@ const loadData = async () => {
                                     </div>
                                   )}
                                 </div>
-                                <DialogFooter>
+                                {/* <DialogFooter>
                                   <Button variant="outline">Close</Button>
-                                </DialogFooter>
+                                </DialogFooter> */}
                               </DialogContent>
                             </Dialog>
                           </div>

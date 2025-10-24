@@ -118,7 +118,7 @@ deleteDeletionRequest: async (requestId: string): Promise<void> => {
 },
   // Delete user
   deleteUser: async (userId: string): Promise<void> => {
-    return apiRequest(`/users/${userId}`, {
+    return apiRequest(`/api/users/${userId}`, {
       method: 'DELETE',
     });
   },
@@ -130,7 +130,7 @@ deleteDeletionRequest: async (requestId: string): Promise<void> => {
   },
 
   createDeletionRequest: async (request: Omit<AccountDeletionRequest, 'id'>): Promise<AccountDeletionRequest> => {
-    return apiRequest('/account-deletion-requests/', {
+    return apiRequest('/api/account-deletion-requests/', {
       method: 'POST',
       body: JSON.stringify(request),
     });

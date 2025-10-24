@@ -348,10 +348,10 @@ export function AnalyticsDashboard() {
                 <span className="text-muted-foreground">Total Courses:</span>
                 <span className="font-medium">{courseStats?.total_courses || 0}</span>
               </div>
-              <div className="flex justify-between">
+              {/* <div className="flex justify-between">
                 <span className="text-muted-foreground">Total Enrollments:</span>
                 <span className="font-medium">{courseStats?.total_students?.toLocaleString() || 0}</span>
-              </div>
+              </div> */}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Active Subscriptions:</span>
                 <span className="font-medium">{subscriptionStats?.active_subscriptions?.toLocaleString() || 0}</span>

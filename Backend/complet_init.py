@@ -117,7 +117,7 @@ def insert_subject_data(db, exams):
     db.commit()
     return created_subjects
 
-def insert_course_data(db, exams, subjects):
+def insert_course_data(db, exams):
     """Insert course data"""
     print("\nCreating courses...")
     
@@ -963,7 +963,7 @@ def insert_content_data(db, courses, subjects):
             downloads=189,
             status="published",
             version="1.0",
-            author="Dr. Rajesh Kumar",
+            # author="Dr. Rajesh Kumar",
             course_id=courses[1].id
         ),
         models.Content(
@@ -975,7 +975,7 @@ def insert_content_data(db, courses, subjects):
             downloads=156,
             status="published",
             version="1.0",
-            author="Prof. Anita Desai",
+            # author="Prof. Anita Desai",
             course_id=courses[2].id
         ),
         models.Content(
@@ -987,7 +987,7 @@ def insert_content_data(db, courses, subjects):
             downloads=312,
             status="published",
             version="1.0",
-            author="Dr. Vikram Singh",
+            # author="Dr. Vikram Singh",
             course_id=courses[3].id
         ),
         models.Content(
@@ -999,7 +999,7 @@ def insert_content_data(db, courses, subjects):
             downloads=134,
             status="published",
             version="1.0",
-            author="Prof. Suresh Gupta",
+            # author="Prof. Suresh Gupta",
             course_id=courses[4].id
         ),
         models.Content(
@@ -1011,7 +1011,7 @@ def insert_content_data(db, courses, subjects):
             downloads=278,
             status="published",
             version="1.0",
-            author="Ms. Ritu Agarwal",
+            # author="Ms. Ritu Agarwal",
             course_id=courses[5].id
         )
     ]
@@ -1129,6 +1129,7 @@ def insert_roles_data(db):
                     {
                         "id": role_id,
                         "name": name,
+                        "user_count":0,
                         "description": description,
                         "level": level,
                         "is_system": is_system,
@@ -1173,18 +1174,255 @@ def insert_roles_data(db):
     
     print(f"✓ Created {len(roles_data)} roles and {assignment_count} role assignments")
     return len(roles_data)
-
+def insert_course_content_with_versions(db, courses):
+    """Insert comprehensive course content with version history"""
+    print("\nCreating course content with version history...")
+    
+    # Create modules for each course
+    modules_data = {
+        courses[0].id: [  # JEE Course
+            {"title": "Physics Fundamentals", "description": "Core physics concepts and problem solving", "order_index": 1, "duration": "8 hours"},
+            {"title": "Chemistry Basics", "description": "Foundation of Chemistry for JEE", "order_index": 2, "duration": "6 hours"},
+            {"title": "Mathematics Core", "description": "Essential Mathematics topics", "order_index": 3, "duration": "10 hours"}
+        ],
+        courses[1].id: [  # NEET Course
+            {"title": "Biology Fundamentals", "description": "Cell structure and human anatomy", "order_index": 1, "duration": "12 hours"},
+            {"title": "Physics for NEET", "description": "Physics concepts for medical entrance", "order_index": 2, "duration": "7 hours"},
+            {"title": "Chemistry for NEET", "description": "Chemistry tailored for NEET", "order_index": 3, "duration": "8 hours"}
+        ],
+        courses[2].id: [  # CAT Course
+            {"title": "Quantitative Aptitude", "description": "Mathematical problem solving", "order_index": 1, "duration": "15 hours"},
+            {"title": "Verbal Ability", "description": "English language skills", "order_index": 2, "duration": "12 hours"},
+            {"title": "Logical Reasoning", "description": "Analytical thinking", "order_index": 3, "duration": "10 hours"}
+        ],
+        courses[3].id: [  # UPSC Course
+            {"title": "History & Culture", "description": "Ancient to modern Indian history", "order_index": 1, "duration": "15 hours"},
+            {"title": "Geography", "description": "Physical and human geography", "order_index": 2, "duration": "12 hours"},
+            {"title": "Polity & Governance", "description": "Indian constitution and governance", "order_index": 3, "duration": "10 hours"}
+        ]
+    }
+    
+    created_modules = []
+    for course_id, module_list in modules_data.items():
+        for module_data in module_list:
+            module = models.Module(
+                title=module_data["title"],
+                description=module_data["description"],
+                course_id=course_id,
+                order_index=module_data["order_index"],
+                duration=module_data["duration"]
+            )
+            db.add(module)
+            created_modules.append(module)
+            print(f"✓ Created module: {module.title}")
+    
+    db.commit()
+    
+    # Create content with version history
+    content_data = [
+        # JEE Course Content - Physics Module
+        {
+            "title": "Newton's Laws of Motion",
+            "description": "Complete video lecture on Newton's Laws",
+            "content_type": "video",
+            "file_path": "/content/jee/physics/newton_laws.mp4",
+            "file_size": "450 MB",
+            "duration": "45 min",
+            "status": "published",
+            "course_id": courses[0].id,
+            "module_id": created_modules[0].id,
+            "versions": [
+                {
+                    "version_number": "3.0",
+                    "changelog": "Updated video quality to 4K, added Hindi subtitles",
+                    "file_size": "450 MB",
+                    "duration": "45 min",
+                    "status": "published"
+                },
+                {
+                    "version_number": "2.0", 
+                    "changelog": "Improved audio quality, fixed timestamp errors",
+                    "file_size": "425 MB",
+                    "duration": "45 min",
+                    "status": "archived"
+                },
+                {
+                    "version_number": "1.0",
+                    "changelog": "Initial upload",
+                    "file_size": "400 MB", 
+                    "duration": "45 min",
+                    "status": "archived"
+                }
+            ]
+        },
+        {
+            "title": "Mechanics Practice Problems",
+            "description": "PDF with practice problems and solutions",
+            "content_type": "document", 
+            "file_path": "/content/jee/physics/mechanics_problems.pdf",
+            "file_size": "2.8 MB",
+            "status": "published",
+            "course_id": courses[0].id,
+            "module_id": created_modules[0].id,
+            "versions": [
+                {
+                    "version_number": "2.0",
+                    "changelog": "Added 10 more practice problems, corrected solutions",
+                    "file_size": "2.8 MB",
+                    "status": "published"
+                },
+                {
+                    "version_number": "1.0",
+                    "changelog": "Initial upload", 
+                    "file_size": "2.4 MB",
+                    "status": "archived"
+                }
+            ]
+        },
+        {
+            "title": "Physics Quiz 1",
+            "description": "Comprehensive physics assessment",
+            "content_type": "quiz",
+            "status": "published",
+            "course_id": courses[0].id,
+            "module_id": created_modules[0].id,
+            "versions": [
+                {
+                    "version_number": "2.0",
+                    "changelog": "Added 5 new advanced questions, updated question 3 options",
+                    "status": "published"
+                },
+                {
+                    "version_number": "1.0",
+                    "changelog": "Initial quiz created",
+                    "status": "archived"
+                }
+            ]
+        },
+        
+        # JEE Course Content - Chemistry Module
+        {
+            "title": "Organic Chemistry Introduction",
+            "description": "Basic concepts of organic chemistry",
+            "content_type": "video",
+            "file_path": "/content/jee/chemistry/organic_intro.mp4",
+            "file_size": "380 MB",
+            "duration": "60 min",
+            "status": "published",
+            "course_id": courses[0].id,
+            "module_id": created_modules[1].id,
+            "versions": [
+                {
+                    "version_number": "1.0",
+                    "changelog": "Initial upload",
+                    "file_size": "380 MB",
+                    "duration": "60 min",
+                    "status": "published"
+                }
+            ]
+        },
+        
+        # NEET Course Content - Biology Module
+        {
+            "title": "Cell Biology Lecture",
+            "description": "Detailed video on cell structure and function",
+            "content_type": "video",
+            "file_path": "/content/neet/biology/cell_biology.mp4",
+            "file_size": "520 MB", 
+            "duration": "55 min",
+            "status": "published",
+            "course_id": courses[1].id,
+            "module_id": created_modules[3].id,
+            "versions": [
+                {
+                    "version_number": "1.0",
+                    "changelog": "Initial upload",
+                    "file_size": "520 MB",
+                    "duration": "55 min", 
+                    "status": "published"
+                }
+            ]
+        },
+        {
+            "title": "Human Anatomy Quiz",
+            "description": "Comprehensive anatomy assessment",
+            "content_type": "quiz",
+            "status": "published",
+            "course_id": courses[1].id,
+            "module_id": created_modules[3].id,
+            "versions": [
+                {
+                    "version_number": "1.0",
+                    "changelog": "Initial quiz created",
+                    "status": "published"
+                }
+            ]
+        },
+        
+        # CAT Course Content - Quantitative Module  
+        {
+            "title": "Quantitative Aptitude Guide",
+            "description": "Complete guide to quantitative problems",
+            "content_type": "document",
+            "file_path": "/content/cat/quantitative_guide.pdf",
+            "file_size": "3.2 MB",
+            "status": "published", 
+            "course_id": courses[2].id,
+            "module_id": created_modules[6].id,
+            "versions": [
+                {
+                    "version_number": "1.0",
+                    "changelog": "Initial upload",
+                    "file_size": "3.2 MB",
+                    "status": "published"
+                }
+            ]
+        }
+    ]
+    
+    for content_info in content_data:
+        content = models.Content(
+            title=content_info["title"],
+            description=content_info["description"],
+            content_type=content_info["content_type"],
+            file_path=content_info.get("file_path"),
+            file_size=content_info.get("file_size"),
+            duration=content_info.get("duration"),
+            status=content_info["status"],
+            course_id=content_info["course_id"],
+            module_id=content_info["module_id"]
+        )
+        db.add(content)
+        db.flush()  # Get the content ID
+        
+        print(f"✓ Created content: {content.title}")
+        
+        # Create versions
+        for version_info in content_info.get("versions", []):
+            version = models.ContentVersion(
+                content_id=content.id,
+                version_number=version_info["version_number"],
+                changelog=version_info["changelog"],
+                file_size=version_info.get("file_size"),
+                duration=version_info.get("duration"),
+                status=version_info["status"]
+            )
+            db.add(version)
+            print(f"  → Version {version.version_number} ({version.status})")
+    
+    db.commit()
+    print(f"✓ Created {len(content_data)} content items with version history")
 def main():
     """Main initialization function"""
     print("Starting complete database initialization...")
     print("="*60)
-    # reset_database()pyr
+    
     db = SessionLocal()
     try:
         # Insert all data
         exams = insert_exam_data(db)
-        subjects = insert_subject_data(db, exams)
-        courses = insert_course_data(db, exams, subjects)
+        # subjects = insert_subject_data(db, exams)
+        courses = insert_course_data(db, exams)
         users = insert_user_data(db)
         create_user_course_subscriptions(db, users, courses)
         
@@ -1192,10 +1430,11 @@ def main():
         subscription_plans = insert_new_subscription_plans(db, courses)
         
         # Update transactions to use new plan format with relationships
-        insert_transaction_data(db, users,courses, subscription_plans)
+        insert_transaction_data(db, users, courses, subscription_plans)
         
-        insert_course_content_data(db, courses)
-        insert_content_data(db, courses, subjects)
+        # Add comprehensive course content with version history
+        insert_course_content_with_versions(db, courses)
+        
         insert_account_deletion_requests(db, users)
         insert_refund_requests(db, users)
         roles_count = insert_roles_data(db)
@@ -1205,47 +1444,28 @@ def main():
         print("✅ DATABASE INITIALIZATION COMPLETE!")
         print("="*60)
         
-        # Get final counts with relationships
+        # Get final counts
         total_users = db.query(models.User).count()
         total_exams = db.query(models.Exam).count()
-        total_subjects = db.query(models.Subject).count()
         total_courses = db.query(models.Course).count()
-        total_subscriptions = db.query(models.UserCourse).count()
-        total_plans = db.query(models.SubscriptionPlan).filter(models.SubscriptionPlan.is_active == True).count()
-        total_transactions = db.query(models.Transaction).count()
-        total_active_subscribers = db.query(models.User).filter(models.User.subscription_status == "active").count()
+        total_modules = db.query(models.Module).count()
+        total_content = db.query(models.Content).count()
+        total_versions = db.query(models.ContentVersion).count()
         
-        # Get plan performance stats
-        plan_stats = db.execute(
-            text("""
-                SELECT sp.name, COUNT(t.id) as transaction_count, SUM(t.amount) as total_revenue
-                FROM subscription_plans sp
-                LEFT JOIN transactions t ON sp.id = t.subscription_plan_id AND t.status = 'captured'
-                WHERE sp.is_active = true
-                GROUP BY sp.id, sp.name
-            """)
-        ).fetchall()
-
         print(f"\n📊 DATABASE SUMMARY:")
         print(f"   👥 Users: {total_users}")
         print(f"   📝 Exams: {total_exams}") 
-        print(f"   📚 Subjects: {total_subjects}")
         print(f"   🎓 Courses: {total_courses}")
-        print(f"   🔗 Course Subscriptions: {total_subscriptions}")
-        print(f"   💳 Active Subscription Plans: {total_plans}")
-        print(f"   💰 Transactions: {total_transactions}")
-        print(f"   ✅ Active Subscribers: {total_active_subscribers}")
+        print(f"   📚 Modules: {total_modules}")
+        print(f"   📄 Content Items: {total_content}")
+        print(f"   🔄 Content Versions: {total_versions}")
         
-        print(f"\n📈 Plan Performance:")
-        for plan in plan_stats:
-            print(f"   • {plan.name}: {plan.transaction_count} sales, ₹{plan.total_revenue or 0} revenue")
-        
-        print(f"\n🎯 New Subscription Features:")
-        print(f"   • Proper foreign key relationships between transactions and plans")
-        print(f"   • Course-based pricing with included courses tracking")
-        print(f"   • Subscription duration and expiry tracking")
-        print(f"   • User subscription status automatically updated")
-        print(f"   • Revenue tracking per subscription plan")
+        print(f"\n🎯 Course Content Features:")
+        print(f"   • Complete module structure for courses")
+        print(f"   • Multiple content types (video, document, quiz)")
+        print(f"   • Full version history tracking")
+        print(f"   • Content status management")
+        print(f"   • Author attribution")
         
     except Exception as e:
         print(f"❌ Error during initialization: {e}")
@@ -1254,6 +1474,5 @@ def main():
         traceback.print_exc()
     finally:
         db.close()
-
 if __name__ == "__main__":
     main()

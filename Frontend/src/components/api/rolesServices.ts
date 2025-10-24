@@ -1,25 +1,19 @@
-// services/rolesService.ts
-const API_BASE_URL = 'http://localhost:8000';
+// api/rolesServices.ts
+import { api } from './api';
 
-// Interfaces
 export interface Role {
   id: string;
   name: string;
   description: string;
   level: number;
-  userCount: number;
+  permissions: string[];
   isActive: boolean;
   isSystem: boolean;
-  permissions: string[];
+  userCount: number;
+  createdBy?: string;
+  updatedBy?: string;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface CreateRoleData {
-  name: string;
-  description: string;
-  level: number;
-  permissions: string[];
 }
 
 export interface RoleAssignment {
@@ -31,110 +25,143 @@ export interface RoleAssignment {
     avatar?: string;
   };
   role: string;
-  action: "assigned" | "updated" | "removed";
+  action: string;
   date: string;
   assignedBy: string;
 }
 
-// API Service
+export interface CreateRoleData {
+  name: string;
+  description: string;
+  level: number;
+  permissions: string[];
+  created_by: string;
+}
+
+export interface UpdateRoleData {
+  name?: string;
+  description?: string;
+  level?: number;
+  permissions?: string[];
+  isActive?: boolean;
+  updated_by?: string;
+}
+
+export interface RoleAssignmentData {
+  user_id: string;
+  role_id: string;
+  assigned_by: string;
+}
+
+export interface BulkRoleAssignmentData {
+  user_ids: string[];
+  role_id: string;
+  assigned_by: string;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+}
+
+export const permissionCategories = {
+  user_management: [
+    { id: 'user_view', name: 'View Users', description: 'Can view user profiles and information' },
+    { id: 'user_edit', name: 'Edit Users', description: 'Can modify user information' },
+    { id: 'user_delete', name: 'Delete Users', description: 'Can remove users from the system' },
+    { id: 'role_view', name: 'View Roles', description: 'Can view role definitions' },
+    { id: 'role_edit', name: 'Edit Roles', description: 'Can modify role permissions' },
+  ],
+  content_management: [
+    { id: 'content_view', name: 'View Content', description: 'Can access and view content' },
+    { id: 'content_create', name: 'Create Content', description: 'Can create new content' },
+    { id: 'content_edit', name: 'Edit Content', description: 'Can modify existing content' },
+    { id: 'content_delete', name: 'Delete Content', description: 'Can remove content' },
+  ],
+  course_management: [
+    { id: 'course_view', name: 'View Courses', description: 'Can view course catalog' },
+    { id: 'course_create', name: 'Create Courses', description: 'Can create new courses' },
+    { id: 'course_edit', name: 'Edit Courses', description: 'Can modify course details' },
+    { id: 'course_delete', name: 'Delete Courses', description: 'Can remove courses' },
+  ],
+  analytics: [
+    { id: 'analytics_view', name: 'View Analytics', description: 'Can access analytics dashboard' },
+    { id: 'reports_generate', name: 'Generate Reports', description: 'Can create and export reports' },
+  ],
+  system: [
+    { id: 'system_settings', name: 'System Settings', description: 'Can modify system configuration' },
+    { id: 'backup_manage', name: 'Manage Backups', description: 'Can manage system backups' },
+  ]
+};
+
 class RolesService {
-  private baseUrl = `${API_BASE_URL}/api/roles`;
-
   async getRoles(): Promise<Role[]> {
-    const response = await fetch(`${this.baseUrl}/`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch roles: ${response.statusText}`);
-    }
-    return response.json();
+    return await api.get<Role[]>('/api/roles/');
   }
 
-  async getRole(id: string): Promise<Role> {
-    const response = await fetch(`${this.baseUrl}/${id}`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch role: ${response.statusText}`);
-    }
-    return response.json();
+  async getRole(roleId: string): Promise<Role> {
+    return await api.get<Role>(`/api/roles/${roleId}`);
   }
 
-  async createRole(roleData: CreateRoleData): Promise<Role> {
-    const response = await fetch(this.baseUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(roleData),
-    });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Failed to create role: ${response.statusText}`);
-    }
-    return response.json();
+  async createRole(data: CreateRoleData): Promise<Role> {
+    return await api.post<Role>('/api/roles/', data);
   }
 
-  async updateRole(id: string, roleData: Partial<Role>): Promise<Role> {
-    const response = await fetch(`${this.baseUrl}/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(roleData),
-    });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Failed to update role: ${response.statusText}`);
-    }
-    return response.json();
+  async updateRole(roleId: string, data: UpdateRoleData): Promise<Role> {
+    return await api.put<Role>(`/api/roles/${roleId}`, data);
   }
 
-  async deleteRole(id: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/${id}`, {
-      method: "DELETE",
-    });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Failed to delete role: ${response.statusText}`);
-    }
+  async deleteRole(roleId: string): Promise<void> {
+    await api.delete(`/api/roles/${roleId}`);
   }
 
   async getRoleAssignments(): Promise<RoleAssignment[]> {
-    const response = await fetch(`${this.baseUrl}/assignments/history`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch role assignments: ${response.statusText}`);
+    return await api.get<RoleAssignment[]>('/api/roles/assignments/history');
+  }
+
+  async assignRole(assignment: RoleAssignmentData): Promise<any> {
+    return await api.post('/api/roles/assign', assignment);
+  }
+
+  async bulkAssignRole(bulkAssignment: BulkRoleAssignmentData): Promise<any> {
+    return await api.post('/api/roles/bulk-assign', bulkAssignment);
+  }
+
+  async removeRole(assignment: RoleAssignmentData): Promise<any> {
+    return await api.post('/api/roles/remove', assignment);
+  }
+async getUserRoles(userId: string): Promise<Role[]> {
+  return await api.get<Role[]>(`/api/roles/users/${userId}/roles`);
+}
+  async getUsers(): Promise<User[]> {
+    try {
+      return await api.get<User[]>('/api/users');
+    } catch (error) {
+      console.error('Failed to fetch users, using mock data:', error);
+      // Fallback mock data
+      return [
+        { id: "user_001", name: "John Doe", email: "john@example.com" },
+        { id: "user_002", name: "Jane Smith", email: "jane@example.com" },
+        { id: "user_003", name: "Bob Johnson", email: "bob@example.com" },
+        { id: "user_004", name: "Alice Brown", email: "alice@example.com" },
+        { id: "user_005", name: "Charlie Wilson", email: "charlie@example.com" },
+      ];
     }
-    return response.json();
+  }
+
+  async getUserRoles(userId: string): Promise<Role[]> {
+    return await api.get<Role[]>(`/api/roles/users/${userId}/roles`);
+  }
+
+  async getPermissionCategories(): Promise<any> {
+    return await api.get('/api/roles/permissions/categories');
+  }
+
+  async getAllPermissions(): Promise<any> {
+    return await api.get('/api/roles/permissions/list');
   }
 }
 
 export const rolesService = new RolesService();
-
-// Permission categories
-export const permissionCategories = {
-  "User Management": [
-    { id: "user_create", name: "Create Users", description: "Add new users" },
-    { id: "user_edit", name: "Edit Users", description: "Modify user profiles" },
-    { id: "user_view", name: "View Users", description: "View user profiles" },
-    { id: "user_delete", name: "Delete Users", description: "Remove users" }
-  ],
-  "Content Management": [
-    { id: "content_create", name: "Create Content", description: "Create new content" },
-    { id: "content_edit", name: "Edit Content", description: "Modify existing content" },
-    { id: "content_delete", name: "Delete Content", description: "Remove content" },
-    { id: "content_publish", name: "Publish Content", description: "Publish content" }
-  ],
-  "Course Management": [
-    { id: "course_create", name: "Create Courses", description: "Create new courses" },
-    { id: "course_edit", name: "Edit Courses", description: "Modify courses" },
-    { id: "course_delete", name: "Delete Courses", description: "Remove courses" },
-    { id: "course_enroll", name: "Enroll Students", description: "Manage course enrollments" }
-  ],
-  "Analytics": [
-    { id: "analytics_view", name: "View Analytics", description: "Access analytics dashboard" },
-    { id: "reports_generate", name: "Generate Reports", description: "Create analytical reports" },
-    { id: "data_export", name: "Export Data", description: "Export system data" }
-  ],
-  "System": [
-    { id: "system_settings", name: "Manage Settings", description: "Modify system settings" },
-    { id: "role_management", name: "Manage Roles", description: "Create and modify roles" },
-    { id: "backup_management", name: "Manage Backups", description: "Handle system backups" }
-  ]
-};

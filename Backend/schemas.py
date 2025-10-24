@@ -1,6 +1,6 @@
 # schemas.py
 from pydantic import BaseModel, EmailStr
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any,Union
 from datetime import datetime, date
 
 # User Schemas
@@ -53,8 +53,8 @@ class AccountDeletionRequestBase(BaseModel):
     user_name: str
     email: EmailStr
     reason: str
-    data_to_delete: Optional[str] = None
-    data_to_retain: Optional[str] = None
+    data_to_delete: Optional[Union[str, List[str]]] = None  # Accept both string and array
+    data_to_retain: Optional[Union[str, List[str]]] = None  # Accept both string and array
     status: str = "pending_review"
     estimated_deletion_date: Optional[datetime] = None
 
@@ -70,11 +70,12 @@ class AccountDeletionRequestUpdate(BaseModel):
 class AccountDeletionRequest(AccountDeletionRequestBase):
     id: str
     request_date: datetime
-    created_at: datetime
+    created_at: Optional[datetime]=None
     updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
 
 # Subscription Plan Schemas
 class SubscriptionPlanBase(BaseModel):
@@ -238,10 +239,12 @@ class Topic(TopicBase):
     class Config:
         from_attributes = True
 
-# Course Schemas
+# ----------------------------------------
+# Base Schema (shared attributes)
+# ----------------------------------------
 class CourseBase(BaseModel):
     title: str
-    credits: int = 0
+    credits: int = 0  # Added to match model
     description: Optional[str] = None
     exam_type: str
     instructor: str
@@ -252,24 +255,19 @@ class CourseBase(BaseModel):
     rating: float = 0.0
     status: str = "draft"
     exam_id: Optional[int] = None
+# ----------------------------------------
+# Create Schema
+# ----------------------------------------
+class CourseCreate(CourseBase):
+    pass
+    # subject_ids: Optional[List[int]] = None
 
-class CourseCreate(BaseModel):
-    title: str
-    credits: int = 0
-    description: Optional[str] = None
-    exam_type: str
-    instructor: str
-    price: float = 0.0
-    duration: str
-    enrolled_students: int = 0
-    completion_rate: float = 0.0
-    rating: float = 0.0
-    status: str = "draft"
-    exam_id: Optional[int] = None
-    subject_ids: Optional[List[int]] = None  # Add this field
-
+# ----------------------------------------
+# Update Schema
+# ----------------------------------------
 class CourseUpdate(BaseModel):
     title: Optional[str] = None
+    credits: Optional[int] = None  # Added
     description: Optional[str] = None
     instructor: Optional[str] = None
     price: Optional[float] = None
@@ -278,14 +276,18 @@ class CourseUpdate(BaseModel):
     enrolled_students: Optional[int] = None
     completion_rate: Optional[float] = None
     rating: Optional[float] = None
-    subject_ids: Optional[List[int]] = None  # Add this field
+    subject_ids: Optional[List[int]] = None
 
+# ----------------------------------------
+# Response Schema
+# ----------------------------------------
 class Course(CourseBase):
     id: int
-    last_updated: datetime
+    created_at: datetime
+    updated_at: Optional[datetime] = None  # Can be None if not updated yet
 
     class Config:
-        from_attributes = True
+        from_attributes = True  # Tells Pydantic to accept ORM models
 
 class CourseWithDetails(Course):
     exam: Optional[Exam] = None
@@ -295,29 +297,26 @@ class CourseWithDetails(Course):
     class Config:
         from_attributes = True
 
-
-# Module Schemas
 class ModuleBase(BaseModel):
     title: str
     description: Optional[str] = None
-    course_id: int
-    order_index: int = 0
-    duration: str
-    lessons_count: int = 0
+    order_index: Optional[int] = 1
+    duration: Optional[str] = None
 
 class ModuleCreate(ModuleBase):
-    pass
+    course_id: int
+
 class ModuleUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    course_id: Optional[int] = None
     order_index: Optional[int] = None
     duration: Optional[str] = None
-    lessons_count: Optional[int] = None
 
 class Module(ModuleBase):
     id: int
+    course_id: int
     created_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -348,28 +347,38 @@ class ContentBase(BaseModel):
     title: str
     description: Optional[str] = None
     content_type: str
-    file_path: str
-    file_size: str
+    file_path: Optional[str] = None  # Changed from file_path to file_url
+    file_size: Optional[str] = None
+    duration: Optional[str] = None  # Added
     downloads: int = 0
     status: str = "draft"
     version: str = "1.0"
-    author: str
-    topic_id: Optional[int] = None
-    course_id: Optional[int] = None
+    author: Optional[str] = None  # Added
+    module_id: Optional[int] = None  # Added
+    course_id: Optional[int] = None  # Added
+    questions: Optional[List[Dict[str, Any]]] = None  # Added for quizzes
 
 class ContentCreate(ContentBase):
     pass
-
+class ContentResponse(ContentBase):
+    class Config:
+        from_attributes = True
 class ContentUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
+    content_type: Optional[str] = None
+    file_path: Optional[str] = None
+    file_size: Optional[str] = None
+    duration: Optional[str] = None
     status: Optional[str] = None
     version: Optional[str] = None
     downloads: Optional[int] = None
-
+    author: Optional[str] = None
+    questions: Optional[List[Dict[str, Any]]] = None
 class Content(ContentBase):
     id: int
     created_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -377,13 +386,24 @@ class Content(ContentBase):
 # Content Version Schemas
 class ContentVersionBase(BaseModel):
     content_id: int
-    version: str
-    changes: str
-    file_path: str
-    file_size: str
+    version_number: str  # Changed from version to version_number
+    changelog: Optional[str] = None  # Changed from changes to changelog
+    file_path: Optional[str] = None
+    file_size: Optional[str] = None
+    duration: Optional[str] = None  # Added
+    status: str = "draft"  # Added
+    author: Optional[str] = None  # Added
 
 class ContentVersionCreate(ContentVersionBase):
     pass
+class ContentVersionUpdate(BaseModel):
+    version_number: Optional[str] = None
+    changelog: Optional[str] = None
+    file_path: Optional[str] = None
+    file_size: Optional[str] = None
+    duration: Optional[str] = None
+    status: Optional[str] = None
+
 
 class ContentVersion(ContentVersionBase):
     id: int

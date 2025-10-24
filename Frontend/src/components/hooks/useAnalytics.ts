@@ -6,7 +6,7 @@ import {
   transformDeviceUsage, 
   transformEngagementData,
   formatCurrency 
-} from '../api/analyticsApi';
+} from '../api/analyticsapi';
 
 export const useAnalytics = () => {
   const [data, setData] = useState({

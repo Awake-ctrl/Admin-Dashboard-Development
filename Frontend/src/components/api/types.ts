@@ -37,7 +37,6 @@ export interface Course {
   description: string;
   exam_type: string;
   instructor: string;
-  price: number;
   duration: string;
   enrolled_students: number;
   completion_rate: number;
@@ -82,16 +81,19 @@ export interface Content {
   title: string;
   description: string;
   content_type: string;
-  file_path: string;
+  file_url: string;
   file_size: string;
+  duration?: string;
   downloads: number;
   status: string;
   version: string;
   author: string;
-  topic_id?: number;
+  module_id?: number;
   course_id?: number;
+  questions?: any[];
   created_at: string;
-  topic?: Topic;
+  updated_at: string;
+  module?: Module;
   course?: Course;
   versions?: ContentVersion[];
 }
@@ -99,10 +101,12 @@ export interface Content {
 export interface ContentVersion {
   id: number;
   content_id: number;
-  version: string;
-  changes: string;
-  file_path: string;
+  version_number: string;
+  changelog: string;
+  file_url: string;
   file_size: string;
+  author: string;
+  status: string;
   created_at: string;
   content?: Content;
 }
@@ -150,7 +154,6 @@ export interface CourseFormData {
   description: string;
   exam_type: string;
   instructor: string;
-  price: number;
   duration: string;
   exam_id?: number;
   status?: string;
@@ -168,12 +171,14 @@ export interface ContentFormData {
   title: string;
   description: string;
   content_type: string;
-  file_path: string;
+  file_url: string;
   file_size: string;
+  duration?: string;
   author: string;
-  topic_id?: number;
+  module_id?: number;
   course_id?: number;
   status?: string;
+  questions?: any[];
 }
 
 export interface QuizFormData {
@@ -182,6 +187,11 @@ export interface QuizFormData {
   questions: QuizQuestion[];
   time_limit: number;
   passing_score: number;
+  content_type: string;
+  module_id?: number;
+  course_id?: number;
+  status?: string;
+  duration?: string;
 }
 
 export interface QuizQuestion {

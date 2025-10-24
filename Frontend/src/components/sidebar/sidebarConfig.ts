@@ -34,21 +34,21 @@ export const mainMenuItems = [
     label: "Users",
     icon: Users,
     description: "User accounts & management",
-    badge: "12.8K"
+    // badge: "12.8K"
   },
   {
     id: "roles",
     label: "Roles",
     icon: UserCog,
     description: "Role-based access control",
-    badge: "6"
+    // badge: "6"
   },
   {
     id: "subscriptions",
     label: "Subscriptions",
     icon: CreditCard,
     description: "Subscription & billing",
-    badge: "₹2.4M"
+    // badge: "₹2.4M"
   },
   {
     id: "courses",

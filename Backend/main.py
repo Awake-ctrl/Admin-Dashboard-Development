@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional,Union
 import os
 from datetime import datetime, date,timedelta
 import uuid
@@ -14,11 +14,12 @@ import crud
 
 from services.revenue_service import RevenueService
 from routers import roles
+import logging
 # Create tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Edu Dashboard API", version="1.0.0")
-
+logger = logging.getLogger(__name__)
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -391,8 +392,9 @@ def get_content(content_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Content not found")
     return db_content
 
-@app.get("/api/contents/{content_id}/versions", response_model=List[schemas.ContentVersion])
+@app.get("api/contents/{content_id}/versions", response_model=List[schemas.ContentVersion])
 def get_content_versions(content_id: int, db: Session = Depends(get_db)):
+    """Get all versions for a content item"""
     versions = crud.get_content_versions(db, content_id=content_id)
     return versions
 
@@ -402,7 +404,40 @@ def increment_download(content_id: int, db: Session = Depends(get_db)):
     if db_content is None:
         raise HTTPException(status_code=404, detail="Content not found")
     return {"message": "Download count incremented", "downloads": db_content.downloads}
+@app.post("/contents/", response_model=schemas.Content)
+def create_content(content: schemas.ContentCreate, db: Session = Depends(get_db)):
+    # Remove topic_id if it exists in the incoming data
+    content_data = content.dict()
+    content_data.pop('topic_id', None)  # Remove topic_id if present
+    
+    # Ensure required fields are set
+    if not content_data.get('file_url'):
+        content_data['file_url'] = ""
+    if not content_data.get('file_size'):
+        content_data['file_size'] = ""
+    
+    db_content = crud.create_content(db=db, content=content_data)
+    return db_content
 
+@app.post("api/contents/{content_id}/versions", response_model=schemas.ContentVersion)
+def create_content_version(
+    content_id: int, 
+    version: schemas.ContentVersionCreate, 
+    db: Session = Depends(get_db)
+):
+    """Create a new version for a content item"""
+    try:
+        # Check if content exists
+        db_content = crud.get_content(db, content_id=content_id)
+        if not db_content:
+            raise HTTPException(status_code=404, detail="Content not found")
+        
+        # Create the new version
+        db_version = crud.create_content_version(db, content_id=content_id, version=version)
+        return db_version
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating content version: {str(e)}")
 # ========== USER COURSE ENDPOINTS ==========
 @app.get("/api/user-courses", response_model=List[schemas.UserCourse])
 def get_user_courses(
@@ -532,7 +567,7 @@ def get_course_stats(db: Session = Depends(get_db)):
     
     # Get popular courses
     popular_courses = db.query(models.Course).order_by(models.Course.enrolled_students.desc()).limit(5).all()
-    
+    # total_students=5
     return {
         "total_courses": total_courses,
         "total_students": total_students,
@@ -540,7 +575,18 @@ def get_course_stats(db: Session = Depends(get_db)):
         "average_completion_rate": round(avg_completion_rate, 2),
         "popular_courses": popular_courses
     }
-@app.get("/api/stats/contents")
+#  Add this debug endpoint to see what's happening
+@app.get("/debug/contents")
+def debug_contents(db: Session = Depends(get_db)):
+    try:
+        # Test basic content query
+        contents = db.query(models.Content).all()
+        return {"total_contents": len(contents), "contents": contents}
+    except Exception as e:
+        return {"error": str(e), "type": type(e).__name__}
+
+# Your current stats/contents endpoint - check this
+@app.get("/api/stats/contents", response_model=schemas.ContentStats)
 def get_content_stats(db: Session = Depends(get_db)):
     try:
         # Count total content
@@ -559,8 +605,8 @@ def get_content_stats(db: Session = Depends(get_db)):
         # Format content by type data
         content_by_type = [{"type": item[0], "count": item[1]} for item in content_by_type_query]
         
-        # Calculate storage used (simplified - you might want to implement actual calculation)
-        storage_used = "2.1 GB"
+        # Calculate actual storage used by summing all file_size values
+        storage_used = calculate_total_storage(db)
         
         return {
             "total_content": total_content,
@@ -568,11 +614,38 @@ def get_content_stats(db: Session = Depends(get_db)):
             "storage_used": storage_used,
             "content_by_type": content_by_type
         }
+        
     except Exception as e:
-        # Log the error for debugging
-        print(f"Error in get_content_stats: {e}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching content stats: {str(e)}")
+
+def calculate_total_storage(db: Session) -> str:
+    """
+    Simplified storage calculation assuming file_size is in MB
+    """
+    # Get all file_size values that are in MB format
+    file_sizes = db.query(models.Content.file_size).filter(
+        models.Content.file_size.isnot(None),
+        models.Content.file_size.like('%MB%')
+    ).all()
     
+    total_mb = 0
+    
+    for file_size_tuple in file_sizes:
+        file_size = file_size_tuple[0]
+        if file_size:
+            try:
+                # Extract the number before "MB"
+                mb_value = float(file_size.replace('MB', '').strip())
+                total_mb += mb_value
+            except (ValueError, AttributeError):
+                continue
+    
+    # Convert to appropriate unit
+    if total_mb >= 1024:
+        return f"{total_mb / 1024:.1f} GB"
+    else:
+        return f"{total_mb:.1f} MB"
+        
 @app.get("/api/stats/users")
 def get_user_stats(db: Session = Depends(get_db)):
     total_users = db.query(models.User).count()
@@ -712,9 +785,9 @@ def read_courses_old(skip: int = 0, limit: int = 100, db: Session = Depends(get_
 def get_course_stats_old(db: Session = Depends(get_db)):
     return get_course_stats(db)
 
-@app.get("/stats/contents/")
-def get_content_stats_old(db: Session = Depends(get_db)):
-    return get_content_stats(db)
+# @app.get("api/stats/contents/")
+# def get_content_stats_old(db: Session = Depends(get_db)):
+#     return get_content_stats(db)
 
 @app.get("/subscription-plans/", response_model=List[schemas.SubscriptionPlan])
 def get_subscription_plans_old(db: Session = Depends(get_db)):
@@ -816,7 +889,7 @@ def get_user_demographics(db: Session = Depends(get_db)):
     # Get users by exam type
     exam_types = db.query(models.User.exam_type).distinct().all()
     total_users = db.query(models.User).count()
-    
+    print(exam_types)
     demographics = []
     for exam_type in exam_types:
         if exam_type[0]:  # Check if exam_type is not None
@@ -827,7 +900,7 @@ def get_user_demographics(db: Session = Depends(get_db)):
                 "count": count,
                 "percentage": round(percentage, 1)
             })
-    
+    # print(demographics)
     return {"demographics": demographics}
 
 @app.get("/api/analytics/subscription-stats")
@@ -1000,9 +1073,10 @@ def get_deletion_requests_legacy(
 
 @app.post("/account-deletion-requests/", response_model=schemas.AccountDeletionRequest)
 def create_deletion_request_legacy(
-    request: schemas.AccountDeletionRequestCreate, 
+    request: schemas.AccountDeletionRequest, 
     db: Session = Depends(get_db)
 ):
+    # print(f"Received data: {request.dict()}")  # Debug print
     # Generate request ID
     request_id = f"del_{str(uuid.uuid4())[:8]}"
     
@@ -1010,6 +1084,7 @@ def create_deletion_request_legacy(
         id=request_id,
         **request.dict()
     )
+    print(f"Received data: {request}")  # Debug print
     db.add(db_request)
     db.commit()
     db.refresh(db_request)
@@ -1065,16 +1140,70 @@ def update_user_legacy(user_id: str, user: schemas.UserUpdate, db: Session = Dep
     db.refresh(db_user)
     return db_user
 
-@app.delete("/users/{user_id}")
-def delete_user_legacy(user_id: str, db: Session = Depends(get_db)):
+@app.delete("/users/{user_id}", status_code=status.HTTP_200_OK)
+def delete_user(user_id: str, db: Session = Depends(get_db)):
+    """
+    Delete a user and all related data using cascade deletion.
+    """
+    logger.info(f"Attempting to delete user: {user_id}")
+    
+    # Check if user exists
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
     
-    db.delete(user)
-    db.commit()
-    return {"message": "User deleted successfully"}
-
+    try:
+        # Enable foreign keys for SQLite
+        db.execute(text("PRAGMA foreign_keys = ON"))
+        
+        # Verify foreign keys are enabled
+        result = db.execute(text("PRAGMA foreign_keys")).fetchone()
+        if result and result[0] == 0:
+            logger.warning("Foreign keys are not enabled in SQLite")
+        
+        # Store user info for response
+        user_info = {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email
+        }
+        
+        logger.info(f"Deleting user: {user_id} and all related data")
+        
+        # Delete user - this should cascade to all related tables
+        db.delete(user)
+        db.commit()
+        
+        # Verify user was deleted
+        deleted_user = db.query(models.User).filter(models.User.id == user_id).first()
+        if deleted_user:
+            raise Exception("User was not deleted successfully")
+        
+        logger.info(f"Successfully deleted user: {user_id}")
+        
+        return {
+            "message": "User and all related data deleted successfully",
+            "deleted_user": user_info
+        }
+        
+    except Exception as e:
+        db.rollback()
+        error_msg = f"Error deleting user {user_id}: {str(e)}"
+        logger.error(error_msg)
+        
+        # Provide more specific error messages
+        if "foreign key constraint" in str(e).lower():
+            error_detail = "Cannot delete user due to existing references in other tables. The database cascade may not be properly configured."
+        else:
+            error_detail = f"Database error: {str(e)}"
+        
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_detail
+        )
 # Subscription Plan legacy endpoints
 @app.post("/subscription-plans/", response_model=schemas.SubscriptionPlan)
 def create_subscription_plan_legacy(plan: schemas.SubscriptionPlanCreate, db: Session = Depends(get_db)):
@@ -1243,7 +1372,28 @@ def update_content_legacy(content_id: int, content: schemas.ContentCreate, db: S
     if db_content is None:
         raise HTTPException(status_code=404, detail="Content not found")
     return db_content
-
+# Add this to your main.py file
+@app.post("api/contents/{content_id}/versions", response_model=schemas.ContentVersion)
+def create_content_version(
+    content_id: int, 
+    version: schemas.ContentVersionCreate, 
+    db: Session = Depends(get_db)
+):
+    """
+    Create a new version for existing content
+    """
+    try:
+        # Check if content exists
+        db_content = crud.get_content(db, content_id=content_id)
+        if not db_content:
+            raise HTTPException(status_code=404, detail="Content not found")
+        
+        # Create the new version
+        db_version = crud.create_content_version(db, content_id=content_id, version=version)
+        return db_version
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating content version: {str(e)}")
 # File upload legacy endpoint
 @app.post("/upload/")
 async def upload_file_legacy(file: UploadFile = File(...)):
@@ -1388,8 +1538,22 @@ def update_refund_request(request_id: int, refund_request: schemas.RefundRequest
 # ========== ACCOUNT DELETION REQUEST ENDPOINTS - ADD MISSING METHODS ==========
 @app.post("/api/account-deletion-requests", response_model=schemas.AccountDeletionRequest)
 def create_account_deletion_request(request: schemas.AccountDeletionRequestCreate, db: Session = Depends(get_db)):
+    # Convert arrays to strings if needed
+    request_data = request.dict()
+    
+    if isinstance(request_data.get('data_to_delete'), list):
+        request_data['data_to_delete'] = ', '.join(request_data['data_to_delete'])
+    
+    if isinstance(request_data.get('data_to_retain'), list):
+        request_data['data_to_retain'] = ', '.join(request_data['data_to_retain'])
+    
+    # Generate ID and set request_date
     request_id = f"del_{str(uuid.uuid4())[:8]}"
-    db_request = models.AccountDeletionRequest(id=request_id, **request.dict())
+    db_request = models.AccountDeletionRequest(
+        id=request_id,
+        request_date=datetime.utcnow(),  # Auto-generate this
+        **request_data
+    )
     db.add(db_request)
     db.commit()
     db.refresh(db_request)
@@ -1568,7 +1732,6 @@ def get_subject_from_exam_type(exam_type: str):
         'other_govt_exam': 'General Knowledge'
     }
     return subject_map.get(exam_type, 'General')
-
 
 
 if __name__ == "__main__":
