@@ -72,27 +72,50 @@ async def get_user_from_token(token: str = Depends(oauth2_scheme), db: Session =
 # ======================
 # 🧠 Auth Endpoints
 # ======================
+# @router.post("/login", response_model=Token)
+# async def login(login_data: UserLogin, db: Session = Depends(get_db)):
+#     user = db.query(User).filter(User.email == login_data.email).first()
+
+#     if not user or not verify_password(login_data.password, user.password_hash):
+#         raise HTTPException(status_code=401, detail="Incorrect email or password")
+#     if not user.is_active:
+#         raise HTTPException(status_code=400, detail="Account is deactivated")
+
+#     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+#     access_token = create_access_token(
+#         data={"sub": user.email, "user_id": user.id},
+#         expires_delta=access_token_expires,
+#     )
+
+#     return {
+#         "access_token": access_token,
+#         "token_type": "bearer",
+#         "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+#     }
 @router.post("/login", response_model=Token)
 async def login(login_data: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == login_data.email).first()
 
-    if not user or not verify_password(login_data.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Incorrect email or password")
-    if not user.is_active:
-        raise HTTPException(status_code=400, detail="Account is deactivated")
+    # Check only if user exists
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    # Skip password verification entirely
+    # if not user.is_active:
+    #     raise HTTPException(status_code=400, detail="Account is deactivated")
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.email, "user_id": user.id},
         expires_delta=access_token_expires,
     )
+   
 
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     }
-
 
 @router.post("/signup", response_model=UserResponse)
 async def signup(signup_data: UserSignup, db: Session = Depends(get_db)):
@@ -171,17 +194,18 @@ async def reset_password(reset_data: PasswordResetConfirm, db: Session = Depends
 async def get_me(current_user: User = Depends(get_user_from_token)):
     """Get current user"""
     role_name = current_user.role.name if current_user.role else None
+ 
     return UserResponse(
         id=current_user.id,
         name=current_user.name,
         email=current_user.email,
         phone=current_user.phone,
-        organization=current_user.organization,
-        role=role_name,
-        is_active=current_user.is_active,
-        email_verified=current_user.email_verified,
-        created_at=current_user.created_at,
-        updated_at=current_user.updated_at,
+        # organization=current_user.organization,
+        # role=role_name,
+        # is_active=current_user.is_active,
+        # email_verified=current_user.email_verified,
+        # created_at=current_user.created_at,
+        # updated_at=current_user.updated_at,
     )
 
 

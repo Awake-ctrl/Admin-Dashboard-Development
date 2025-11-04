@@ -597,12 +597,12 @@ class UserResponse(BaseModel):
     name: str
     email: str
     phone: Optional[str]
-    organization: Optional[str]
-    role: Optional[str]
-    is_active: bool
-    email_verified: bool
-    created_at: datetime
-    updated_at: datetime
+    # organization: Optional[str]
+    # role: Optional[str]
+    # is_active: bool
+    # email_verified: bool
+    # created_at: datetime
+    # updated_at: datetime
 
     class Config:
         from_attributes = True

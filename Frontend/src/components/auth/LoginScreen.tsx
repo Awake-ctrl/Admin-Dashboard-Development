@@ -7,6 +7,7 @@ import { Checkbox } from "../ui/checkbox";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Separator } from "../ui/separator";
 import { BookOpen, Eye, EyeOff, AlertCircle, CheckCircle, Mail, Lock } from "lucide-react";
+// import { useNavigate } from "react-router-dom";
 
 interface LoginScreenProps {
   onLogin: (userData: any) => void;
@@ -20,6 +21,8 @@ export function LoginScreen({ onLogin, onSwitchToSignup, onSwitchToForgotPasswor
     password: "",
     rememberMe: false
   });
+  // const navigate = useNavigate();
+
   const API_URL = "http://localhost:8000";
 
   const [showPassword, setShowPassword] = useState(false);
@@ -119,22 +122,28 @@ export function LoginScreen({ onLogin, onSwitchToSignup, onSwitchToForgotPasswor
   };
 
   if (loginSuccess) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-6 text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-8 h-8 text-green-600" />
-            </div>
-            <h2 className="text-xl mb-2">Welcome Back!</h2>
-            <p className="text-muted-foreground mb-4">
-              Login successful. Redirecting to dashboard...
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // Redirect to dashboard after 1 second
+  // setTimeout(() => {
+  //   navigate("/dashboard"); // <-- replace with your dashboard route
+  // }, 1000);
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <Card className="w-full max-w-md">
+        <CardContent className="p-6 text-center">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-8 h-8 text-green-600" />
+          </div>
+          <h2 className="text-xl mb-2">Welcome Back!</h2>
+          <p className="text-muted-foreground mb-4">
+            Login successful. Redirecting to dashboard...
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
