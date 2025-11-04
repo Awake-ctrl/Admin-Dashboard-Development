@@ -6,7 +6,7 @@ import {
   User, UserCourse
 } from './types';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
 class ApiError extends Error {
   constructor(public status: number, message: string) {

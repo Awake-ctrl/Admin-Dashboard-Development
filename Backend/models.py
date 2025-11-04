@@ -461,3 +461,4 @@ class BulkRoleAssignment(BaseModel):
     user_ids: List[str]
     role_id: str
     assigned_by: str
+    

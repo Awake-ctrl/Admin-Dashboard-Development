@@ -1,7 +1,8 @@
 # schemas.py
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr,validator
 from typing import List, Optional, Dict, Any,Union
 from datetime import datetime, date
+from enum import Enum
 
 # User Schemas
 class UserBase(BaseModel):
@@ -244,7 +245,7 @@ class Topic(TopicBase):
 # ----------------------------------------
 class CourseBase(BaseModel):
     title: str
-    credits: int = 0  # Added to match model
+    # credits: int = 0  # Added to match model
     description: Optional[str] = None
     exam_type: str
     instructor: str
@@ -562,6 +563,68 @@ class UserCourseSubscription(UserCourseSubscriptionBase):
     
     class Config:
         from_attributes = True
-    
+# Add these to your existing schemas.py
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+class UserSignup(BaseModel):
+    first_name: str
+    last_name: str
+    email: EmailStr
+    phone: Optional[str] = None
+    organization: Optional[str] = None
+    password: str
+    confirm_password: str
+    agree_terms: bool
+    subscribe_newsletter: bool = False
+
+    @validator('confirm_password')
+    def passwords_match(cls, v, values, **kwargs):
+        if 'password' in values and v != values['password']:
+            raise ValueError('Passwords do not match')
+        return v
+
+    @validator('agree_terms')
+    def terms_must_be_accepted(cls, v):
+        if not v:
+            raise ValueError('You must accept the terms and conditions')
+        return v
+
+class UserResponse(BaseModel):
+    id: str
+    name: str
+    email: str
+    phone: Optional[str]
+    # organization: Optional[str]
+    # role: Optional[str]
+    # is_active: bool
+    # email_verified: bool
+    # created_at: datetime
+    # updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+    expires_in: int
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    email: EmailStr
+    new_password: str
+    confirm_password: str
+
+    @validator('confirm_password')
+    def passwords_match(cls, v, values, **kwargs):
+        if 'new_password' in values and v != values['new_password']:
+            raise ValueError('Passwords do not match')
+        return v
 # Update forward references
 CourseWithDetails.update_forward_refs()

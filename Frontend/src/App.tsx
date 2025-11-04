@@ -1,16 +1,113 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AdminSidebar } from "./components/AdminSidebar";
 import { demoScreens, mainRoutes, sectionTitles } from "./config/routeConfig";
 import { Toaster } from "./components/ui/sonner";
+import { LoginScreen } from "./components/auth/LoginScreen";
+import { SignupScreen } from "./components/auth/SignupScreen";
+import { ForgotPasswordScreen } from "./components/auth/ForgotPasswordScreen";
 
 export default function App() {
   const [activeSection, setActiveSection] = useState("analytics");
   const [demoMode, setDemoMode] = useState<string | null>(null);
+  const [authScreen, setAuthScreen] = useState<"login" | "signup" | "forgot-password" | null>("login");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(null);
+
+  // Check if user is authenticated on app load
+  useEffect(() => {
+    const token = localStorage.getItem("auth_token");
+    const userData = localStorage.getItem("user_data");
+    
+    if (token && userData) {
+      setIsAuthenticated(true);
+      setUser(JSON.parse(userData));
+      setAuthScreen(null);
+    } else {
+      setAuthScreen("login");
+    }
+  }, []);
+
+  // Handle login
+  const handleLogin = async (userData: any) => {
+    // In a real app, you would validate credentials with backend
+    // For demo, we'll simulate successful login
+    setIsAuthenticated(true);
+    setUser(userData);
+    setAuthScreen(null);
+    
+    // Store in localStorage for persistence
+    localStorage.setItem("auth_token", "demo_token");
+    localStorage.setItem("user_data", JSON.stringify(userData));
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setUser(null);
+    setAuthScreen("login");
+    
+    // Clear localStorage
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("user_data");
+  };
+
+  // Handle signup
+  const handleSignup = async (userData: any) => {
+    // In a real app, you would send data to backend
+    // For demo, we'll simulate successful signup and auto-login
+    await handleLogin(userData);
+  };
+
+  // Handle password reset
+  const handlePasswordReset = async (email: string) => {
+    // In a real app, you would call backend API
+    console.log("Password reset requested for:", email);
+  };
 
   // Demo mode for showing different screens
   if (demoMode && demoScreens[demoMode as keyof typeof demoScreens]) {
     const DemoScreen = demoScreens[demoMode as keyof typeof demoScreens];
     return <DemoScreen />;
+  }
+
+  // Show authentication screens if not authenticated
+  if (!isAuthenticated) {
+    if (authScreen === "login") {
+      return (
+        <>
+          <LoginScreen 
+            onLogin={handleLogin}
+            onSwitchToSignup={() => setAuthScreen("signup")}
+            onSwitchToForgotPassword={() => setAuthScreen("forgot-password")}
+          />
+          <Toaster />
+        </>
+      );
+    }
+
+    if (authScreen === "signup") {
+      return (
+        <>
+          <SignupScreen 
+            onSignup={handleSignup}
+            onSwitchToLogin={() => setAuthScreen("login")}
+          />
+          <Toaster />
+        </>
+      );
+    }
+
+    if (authScreen === "forgot-password") {
+      return (
+        <>
+          <ForgotPasswordScreen 
+            onResetPassword={handlePasswordReset}
+            onSwitchToLogin={() => setAuthScreen("login")}
+          />
+          <Toaster />
+        </>
+      );
+    }
   }
 
   const renderContent = () => {
@@ -30,6 +127,8 @@ export default function App() {
           activeSection={activeSection} 
           onSectionChange={setActiveSection}
           onDemoModeChange={setDemoMode}
+          onLogout={handleLogout}
+          user={user}
         />
         
         {/* Main Content */}
@@ -38,7 +137,7 @@ export default function App() {
           <div className="h-16 border-b border-border bg-background flex items-center justify-between px-6">
             <h1 className="text-foreground">{getSectionTitle()}</h1>
             <div className="text-muted-foreground text-sm">
-              Welcome back, Admin
+              Welcome back, {user?.name || "Admin"}
             </div>
           </div>
           

@@ -142,13 +142,13 @@ export const sidebarSections = [
 ];
 
 export const collapsibleSections = [
-  {
-    id: "auth",
-    label: "Auth Screens",
-    icon: LogIn,
-    description: "Login, signup, reset",
-    items: authDemoItems
-  },
+  // {
+  //   id: "auth",
+  //   label: "Auth Screens",
+  //   icon: LogIn,
+  //   description: "Login, signup, reset",
+  //   items: authDemoItems
+  // },
   // {
   //   id: "errors", 
   //   label: "Error States",
