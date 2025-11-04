@@ -5,14 +5,23 @@ import { BookOpen, HelpCircle } from "lucide-react";
 import { SidebarItem } from "./sidebar/SidebarItem";
 import { CollapsibleSection } from "./sidebar/CollapsibleSection";
 import { sidebarSections, collapsibleSections } from "./sidebar/sidebarConfig";
+import { LogOut } from "lucide-react"; // Make sure to import LogOut
 
 interface AdminSidebarProps {
   activeSection: string;
   onSectionChange: (section: string) => void;
-  onDemoModeChange?: (mode: string | null) => void;
+  onDemoModeChange: (demo: string | null) => void;
+  onLogout: () => void;  // Add this
+  user?: any;
 }
-
-export function AdminSidebar({ activeSection, onSectionChange, onDemoModeChange }: AdminSidebarProps) {
+export function AdminSidebar({ 
+  activeSection, 
+  onSectionChange, 
+  onDemoModeChange,
+  onLogout,  // Add this
+  user 
+}: AdminSidebarProps) {
+  
   const handleItemClick = (itemId: string) => {
     onSectionChange(itemId);
     if (onDemoModeChange) {
@@ -92,7 +101,18 @@ export function AdminSidebar({ activeSection, onSectionChange, onDemoModeChange 
             </div>
           </div>
         </div>
+           <div className="mt-auto p-4 border-t">
+  <Button 
+    variant="outline" 
+    className="w-full justify-start"
+    onClick={onLogout}
+  >
+    <LogOut className="w-4 h-4 mr-2" />
+    Logout
+  </Button>
+</div>
       </div>
+   
     </div>
   );
 }

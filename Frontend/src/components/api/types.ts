@@ -33,7 +33,7 @@ export interface Topic {
 export interface Course {
   id: number;
   title: string;
-  credits?: number;
+  // credits?: number;
   description: string;
   exam_type: string;
   instructor: string;
@@ -167,7 +167,8 @@ export interface ModuleFormData {
   duration: string;
 }
 
-export interface ContentFormData {
+export interface 
+ContentFormData {
   title: string;
   description: string;
   content_type: string;

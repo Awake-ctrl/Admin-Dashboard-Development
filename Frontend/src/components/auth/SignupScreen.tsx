@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Progress } from "../ui/progress";
 import { Alert, AlertDescription } from "../ui/alert";
 import { BookOpen, Eye, EyeOff, AlertCircle, CheckCircle, Mail, Lock, User, Building, Phone } from "lucide-react";
-
+import { useRolesData } from "../hooks/userRolesData";
 interface SignupFormData {
   firstName: string;
   lastName: string;
@@ -21,8 +21,13 @@ interface SignupFormData {
   agreeToTerms: boolean;
   subscribeNewsletter: boolean;
 }
+interface SignupScreenProps {
+  onSignup: (userData: any) => void;
+  onSwitchToLogin: () => void;
+}
 
-export function SignupScreen() {
+export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
+  const { roles, loading } = useRolesData("overview");
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<SignupFormData>({
     firstName: "",
@@ -117,6 +122,14 @@ export function SignupScreen() {
     setTimeout(() => {
       setIsLoading(false);
       setSignupSuccess(true);
+      
+      // Call onSignup with user data
+      onSignup({
+        name: `${formData.firstName} ${formData.lastName}`,
+        email: formData.email,
+        role: formData.role,
+        organization: formData.organization
+      });
     }, 2000);
   };
 
@@ -287,21 +300,33 @@ export function SignupScreen() {
 
                 <div className="space-y-2">
                   <Label htmlFor="role">Your Role</Label>
-                  <Select 
-                    value={formData.role} 
+                  <Select
                     onValueChange={(value) => handleInputChange("role", value)}
+                    value={formData.role}
+                    disabled={loading}
                   >
+
                     <SelectTrigger className={errors.role ? "border-destructive" : ""}>
                       <SelectValue placeholder="Select your role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="admin">Administrator</SelectItem>
-                      <SelectItem value="teacher">Teacher/Instructor</SelectItem>
-                      <SelectItem value="coordinator">Academic Coordinator</SelectItem>
-                      <SelectItem value="manager">Content Manager</SelectItem>
-                      <SelectItem value="analyst">Data Analyst</SelectItem>
-                      <SelectItem value="support">Support Staff</SelectItem>
-                    </SelectContent>
+                    {loading ? (
+                      <SelectItem value="none" disabled>
+                        Loading roles...
+                      </SelectItem>
+                    ) : roles.length > 0 ? (
+                      roles.map((role) => (
+                        <SelectItem key={role.id} value={role.name}>
+                          {role.display_name || role.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="none" disabled>
+                        No roles available
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+
                   </Select>
                   {errors.role && (
                     <p className="text-sm text-destructive">{errors.role}</p>
@@ -438,9 +463,9 @@ export function SignupScreen() {
             {/* Sign In Link */}
             <div className="text-center text-sm pt-4 border-t">
               <span className="text-muted-foreground">Already have an account? </span>
-              <Button variant="link" className="px-0">
-                Sign in
-              </Button>
+                <Button variant="link" className="px-0" onClick={onSwitchToLogin}>
+    Sign in
+  </Button>
             </div>
           </CardContent>
         </Card>
