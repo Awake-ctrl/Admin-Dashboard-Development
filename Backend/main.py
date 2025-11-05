@@ -14,6 +14,7 @@ import crud
 
 from services.revenue_service import RevenueService
 from routers import roles
+from routers import auth
 import logging
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -49,6 +50,7 @@ def get_db():
     finally:
         db.close()
 app.include_router(roles.router)
+app.include_router(auth.router)
 # Health check endpoint
 @app.get("/")
 async def root():
@@ -392,9 +394,14 @@ def get_content(content_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Content not found")
     return db_content
 
-@app.get("api/contents/{content_id}/versions", response_model=List[schemas.ContentVersion])
+@app.get("/api/contents/{content_id}/versions", response_model=List[schemas.ContentVersion])
 def get_content_versions(content_id: int, db: Session = Depends(get_db)):
     """Get all versions for a content item"""
+    # First check if content exists
+    content = db.query(models.Content).filter(models.Content.id == content_id).first()
+    if not content:
+        raise HTTPException(status_code=404, detail="Content not found")
+    
     versions = crud.get_content_versions(db, content_id=content_id)
     return versions
 
@@ -404,18 +411,17 @@ def increment_download(content_id: int, db: Session = Depends(get_db)):
     if db_content is None:
         raise HTTPException(status_code=404, detail="Content not found")
     return {"message": "Download count incremented", "downloads": db_content.downloads}
-@app.post("/contents/", response_model=schemas.Content)
+
+@app.post("api/contents", response_model=schemas.ContentCreate)
 def create_content(content: schemas.ContentCreate, db: Session = Depends(get_db)):
     # Remove topic_id if it exists in the incoming data
     content_data = content.dict()
     content_data.pop('topic_id', None)  # Remove topic_id if present
-    
     # Ensure required fields are set
     if not content_data.get('file_url'):
         content_data['file_url'] = ""
     if not content_data.get('file_size'):
         content_data['file_size'] = ""
-    
     db_content = crud.create_content(db=db, content=content_data)
     return db_content
 
@@ -438,6 +444,7 @@ def create_content_version(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating content version: {str(e)}")
+    
 # ========== USER COURSE ENDPOINTS ==========
 @app.get("/api/user-courses", response_model=List[schemas.UserCourse])
 def get_user_courses(

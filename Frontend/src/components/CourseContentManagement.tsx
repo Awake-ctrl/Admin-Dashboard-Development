@@ -30,7 +30,9 @@ import {
   Check,
   GitCommit,
   Archive,
-  Loader2
+  Loader2,
+  X,
+  Save
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -44,6 +46,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "./ui/dialog";
 import { Textarea } from "./ui/textarea";
 import { Progress } from "./ui/progress";
@@ -115,8 +118,14 @@ export function CourseContentManagement() {
   
   // Dialog states
   const [isCreateCourseOpen, setIsCreateCourseOpen] = useState(false);
+  const [isEditCourseOpen, setIsEditCourseOpen] = useState(false);
+  const [isDeleteCourseOpen, setIsDeleteCourseOpen] = useState(false);
   const [isCreateModuleOpen, setIsCreateModuleOpen] = useState(false);
+  const [isEditModuleOpen, setIsEditModuleOpen] = useState(false);
+  const [isDeleteModuleOpen, setIsDeleteModuleOpen] = useState(false);
   const [isUploadContentOpen, setIsUploadContentOpen] = useState(false);
+  const [isEditContentOpen, setIsEditContentOpen] = useState(false);
+  const [isDeleteContentOpen, setIsDeleteContentOpen] = useState(false);
   const [isCreateQuizOpen, setIsCreateQuizOpen] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
@@ -130,6 +139,13 @@ export function CourseContentManagement() {
   const [editingContent, setEditingContent] = useState<ContentWithVersions | null>(null);
   const [isCreateQuizVersionOpen, setIsCreateQuizVersionOpen] = useState(false);
   const [editingQuiz, setEditingQuiz] = useState<ContentWithVersions | null>(null);
+
+  // Editing states
+  const [editingCourse, setEditingCourse] = useState<CourseWithModules | null>(null);
+  const [editingModule, setEditingModule] = useState<ModuleWithContents | null>(null);
+  const [courseToDelete, setCourseToDelete] = useState<CourseWithModules | null>(null);
+  const [moduleToDelete, setModuleToDelete] = useState<ModuleWithContents | null>(null);
+  const [contentToDelete, setContentToDelete] = useState<ContentWithVersions | null>(null);
 
   // Form states
   const [contentFormData, setContentFormData] = useState<ContentFormData>({
@@ -161,6 +177,10 @@ export function CourseContentManagement() {
     file_size: "",
     status: "draft"
   });
+
+  // New state for custom exam type
+  const [customExamType, setCustomExamType] = useState("");
+  const [showCustomExamInput, setShowCustomExamInput] = useState(false);
 
   // Load courses and exam types on component mount
   useEffect(() => {
@@ -249,6 +269,15 @@ export function CourseContentManagement() {
     }
   };
 
+  const handleAddCustomExamType = () => {
+    if (customExamType.trim() && !examTypes.includes(customExamType.trim())) {
+      setExamTypes(prev => [...prev, customExamType.trim()]);
+      setCustomExamType("");
+      setShowCustomExamInput(false);
+      toast.success(`Added new exam type: ${customExamType.trim()}`);
+    }
+  };
+
   const handleCourseClick = (course: CourseWithModules) => {
     setSelectedCourse(course);
     setView('modules');
@@ -282,10 +311,14 @@ export function CourseContentManagement() {
     }
   };
 
-  const handleUpdateCourse = async (courseId: number, formData: Partial<CourseFormData>) => {
+  const handleUpdateCourse = async (formData: CourseFormData) => {
+    if (!editingCourse) return;
+    
     try {
-      await courseApi.updateCourse(courseId, formData);
+      await courseApi.updateCourse(editingCourse.id, formData);
       toast.success('Course updated successfully');
+      setIsEditCourseOpen(false);
+      setEditingCourse(null);
       loadCourses();
     } catch (error) {
       console.error('Error updating course:', error);
@@ -293,10 +326,14 @@ export function CourseContentManagement() {
     }
   };
 
-  const handleDeleteCourse = async (courseId: number) => {
+  const handleDeleteCourse = async () => {
+    if (!courseToDelete) return;
+    
     try {
-      await courseApi.deleteCourse(courseId);
+      await courseApi.deleteCourse(courseToDelete.id);
       toast.success('Course deleted successfully');
+      setIsDeleteCourseOpen(false);
+      setCourseToDelete(null);
       loadCourses();
     } catch (error) {
       console.error('Error deleting course:', error);
@@ -323,10 +360,14 @@ export function CourseContentManagement() {
     }
   };
 
-  const handleUpdateModule = async (moduleId: number, formData: Partial<ModuleFormData>) => {
+  const handleUpdateModule = async (formData: ModuleFormData) => {
+    if (!editingModule) return;
+    
     try {
-      await moduleApi.updateModule(moduleId, formData);
+      await moduleApi.updateModule(editingModule.id, formData);
       toast.success('Module updated successfully');
+      setIsEditModuleOpen(false);
+      setEditingModule(null);
       loadCourses();
     } catch (error) {
       console.error('Error updating module:', error);
@@ -334,10 +375,14 @@ export function CourseContentManagement() {
     }
   };
 
-  const handleDeleteModule = async (moduleId: number) => {
+  const handleDeleteModule = async () => {
+    if (!moduleToDelete) return;
+    
     try {
-      await moduleApi.deleteModule(moduleId);
+      await moduleApi.deleteModule(moduleToDelete.id);
       toast.success('Module deleted successfully');
+      setIsDeleteModuleOpen(false);
+      setModuleToDelete(null);
       loadCourses();
     } catch (error) {
       console.error('Error deleting module:', error);
@@ -373,6 +418,42 @@ export function CourseContentManagement() {
     } catch (error) {
       console.error('Error creating content:', error);
       toast.error('Failed to create content');
+    }
+  };
+
+  const handleUpdateContent = async () => {
+    if (!editingContent) return;
+    
+    try {
+      const contentData = {
+        title: contentFormData.title,
+        description: contentFormData.description,
+        duration: contentFormData.duration,
+        status: contentFormData.status
+      };
+      await contentApi.updateContent(editingContent.id, contentData);
+      toast.success('Content updated successfully');
+      setIsEditContentOpen(false);
+      setEditingContent(null);
+      loadCourses();
+    } catch (error) {
+      console.error('Error updating content:', error);
+      toast.error('Failed to update content');
+    }
+  };
+
+  const handleDeleteContent = async () => {
+    if (!contentToDelete) return;
+    
+    try {
+      await contentApi.deleteContent(contentToDelete.id);
+      toast.success('Content deleted successfully');
+      setIsDeleteContentOpen(false);
+      setContentToDelete(null);
+      loadCourses();
+    } catch (error) {
+      console.error('Error deleting content:', error);
+      toast.error('Failed to delete content');
     }
   };
 
@@ -493,6 +574,88 @@ export function CourseContentManagement() {
         return prev + 10;
       });
     }, 200);
+  };
+
+  // Edit Content Form Component
+  const EditContentForm = () => {
+    if (!editingContent) return null;
+
+    return (
+      <div className="space-y-4">
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start gap-2">
+            <Edit className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div>
+              <p className="text-sm text-blue-900">Editing Content</p>
+              <p className="text-xs text-blue-700 mt-1">
+                Update the content details below.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor="edit-content-title">Content Title</Label>
+          <Input
+            id="edit-content-title"
+            value={contentFormData.title}
+            onChange={(e) => setContentFormData(prev => ({ ...prev, title: e.target.value }))}
+            placeholder="Enter content title"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="edit-content-description">Description</Label>
+          <Textarea
+            id="edit-content-description"
+            value={contentFormData.description}
+            onChange={(e) => setContentFormData(prev => ({ ...prev, description: e.target.value }))}
+            placeholder="Enter content description..."
+            rows={3}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="edit-duration">Duration</Label>
+            <Input
+              id="edit-duration"
+              value={contentFormData.duration}
+              onChange={(e) => setContentFormData(prev => ({ ...prev, duration: e.target.value }))}
+              placeholder="e.g., 45 min"
+            />
+          </div>
+          <div>
+            <Label htmlFor="edit-status">Status</Label>
+            <Select 
+              value={contentFormData.status} 
+              onValueChange={(value: any) => setContentFormData(prev => ({ ...prev, status: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-4">
+          <Button variant="outline" onClick={() => {
+            setIsEditContentOpen(false);
+            setEditingContent(null);
+          }}>
+            Cancel
+          </Button>
+          <Button onClick={handleUpdateContent}>
+            <Save className="w-4 h-4 mr-2" />
+            Update Content
+          </Button>
+        </div>
+      </div>
+    );
   };
 
   // Version History Component
@@ -813,133 +976,130 @@ export function CourseContentManagement() {
   };
 
   // Upload New Version Form Component
-  // Upload New Version Form Component - FIXED VERSION
-const UploadNewVersionForm = () => {
-  if (!editingContent) return null;
+  const UploadNewVersionForm = () => {
+    if (!editingContent) return null;
 
-  // Renamed this function to avoid naming conflict
-  const calculateNextVersion = () => {
-    if (!editingContent.versions || editingContent.versions.length === 0) return "1.0";
-    
-    // Use the same logic as getNextVersion but without recursion
-    const versionNumbers = editingContent.versions.map(v => {
-      const [major, minor] = v.version_number.split('.').map(Number);
-      return { major, minor };
-    });
-    
-    const latest = versionNumbers.reduce((prev, current) => {
-      if (current.major > prev.major) return current;
-      if (current.major === prev.major && current.minor > prev.minor) return current;
-      return prev;
-    });
-    
-    return `${latest.major}.${latest.minor + 1}`;
-  };
+    const calculateNextVersion = () => {
+      if (!editingContent.versions || editingContent.versions.length === 0) return "1.0";
+      
+      const versionNumbers = editingContent.versions.map(v => {
+        const [major, minor] = v.version_number.split('.').map(Number);
+        return { major, minor };
+      });
+      
+      const latest = versionNumbers.reduce((prev, current) => {
+        if (current.major > prev.major) return current;
+        if (current.major === prev.major && current.minor > prev.minor) return current;
+        return prev;
+      });
+      
+      return `${latest.major}.${latest.minor + 1}`;
+    };
 
-  const nextVersion = calculateNextVersion(); // Use the renamed function
+    const nextVersion = calculateNextVersion();
 
-  return (
-    <div className="space-y-4">
-      {/* Current Version Info */}
-      <div className="p-4 bg-muted/50 rounded-lg border">
-        <div className="flex items-start justify-between mb-3">
-          <div>
-            <h4 className="text-foreground mb-1">{editingContent.title}</h4>
-            <p className="text-sm text-muted-foreground">{editingContent.content_type} • {editingContent.duration || editingContent.file_size}</p>
+    return (
+      <div className="space-y-4">
+        {/* Current Version Info */}
+        <div className="p-4 bg-muted/50 rounded-lg border">
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <h4 className="text-foreground mb-1">{editingContent.title}</h4>
+              <p className="text-sm text-muted-foreground">{editingContent.content_type} • {editingContent.duration || editingContent.file_size}</p>
+            </div>
+            <Badge variant="outline" className="bg-blue-50 border-blue-300 text-blue-800">
+              <GitCommit className="w-3 h-3 mr-1" />
+              Current: v{editingContent.currentVersion}
+            </Badge>
           </div>
-          <Badge variant="outline" className="bg-blue-50 border-blue-300 text-blue-800">
-            <GitCommit className="w-3 h-3 mr-1" />
-            Current: v{editingContent.currentVersion}
-          </Badge>
-        </div>
-        {editingContent.updated_at && (
-          <p className="text-xs text-muted-foreground">
-            Last modified: {new Date(editingContent.updated_at).toLocaleDateString()}
-          </p>
-        )}
-      </div>
-
-      {/* New Version Info */}
-      <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-        <div className="flex items-start gap-2">
-          <GitBranch className="w-5 h-5 text-green-600 mt-0.5" />
-          <div>
-            <p className="text-sm text-green-900">Creating New Version</p>
-            <p className="text-xs text-green-700 mt-1">
-              This will be saved as version {nextVersion}. Previous versions will be archived.
+          {editingContent.updated_at && (
+            <p className="text-xs text-muted-foreground">
+              Last modified: {new Date(editingContent.updated_at).toLocaleDateString()}
             </p>
+          )}
+        </div>
+
+        {/* New Version Info */}
+        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-start gap-2">
+            <GitBranch className="w-5 h-5 text-green-600 mt-0.5" />
+            <div>
+              <p className="text-sm text-green-900">Creating New Version</p>
+              <p className="text-xs text-green-700 mt-1">
+                This will be saved as version {nextVersion}. Previous versions will be archived.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div>
-        <Label htmlFor="version-notes">Version Notes / Changelog</Label>
-        <Textarea
-          id="version-notes"
-          value={newVersionFormData.changelog}
-          onChange={(e) => setNewVersionFormData(prev => ({ ...prev, changelog: e.target.value }))}
-          placeholder="Describe what changed in this version (e.g., Fixed audio issues, added subtitles, updated content...)"
-          rows={3}
-        />
-        <p className="text-xs text-muted-foreground mt-1">
-          This will help track changes between versions
-        </p>
-      </div>
+        <div>
+          <Label htmlFor="version-notes">Version Notes / Changelog</Label>
+          <Textarea
+            id="version-notes"
+            value={newVersionFormData.changelog}
+            onChange={(e) => setNewVersionFormData(prev => ({ ...prev, changelog: e.target.value }))}
+            placeholder="Describe what changed in this version (e.g., Fixed audio issues, added subtitles, updated content...)"
+            rows={3}
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            This will help track changes between versions
+          </p>
+        </div>
 
-      <div>
-        <Label htmlFor="new-version-file">Upload New File</Label>
-        <Input
-          id="new-version-file"
-          type="file"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) {
-              setNewVersionFormData(prev => ({ 
-                ...prev, 
-                file_url: URL.createObjectURL(file),
-                file_size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`
-              }));
-              simulateFileUpload();
-            }
-          }}
-          accept=".pdf,.doc,.docx,.mp4,.mov,.jpg,.jpeg,.png"
-        />
-        {isUploading && (
-          <div className="mt-2">
-            <Progress value={uploadProgress} className="h-2" />
-            <p className="text-xs text-muted-foreground mt-1">Uploading... {uploadProgress}%</p>
-          </div>
-        )}
-      </div>
+        <div>
+          <Label htmlFor="new-version-file">Upload New File</Label>
+          <Input
+            id="new-version-file"
+            type="file"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                setNewVersionFormData(prev => ({ 
+                  ...prev, 
+                  file_url: URL.createObjectURL(file),
+                  file_size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+                }));
+                simulateFileUpload();
+              }
+            }}
+            accept=".pdf,.doc,.docx,.mp4,.mov,.jpg,.jpeg,.png"
+          />
+          {isUploading && (
+            <div className="mt-2">
+              <Progress value={uploadProgress} className="h-2" />
+              <p className="text-xs text-muted-foreground mt-1">Uploading... {uploadProgress}%</p>
+            </div>
+          )}
+        </div>
 
-      <div>
-        <Label htmlFor="version-status">Version Status</Label>
-        <Select 
-          value={newVersionFormData.status} 
-          onValueChange={(value: any) => setNewVersionFormData(prev => ({ ...prev, status: value }))}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="draft">Draft (Not visible to students)</SelectItem>
-            <SelectItem value="published">Published (Live for students)</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+        <div>
+          <Label htmlFor="version-status">Version Status</Label>
+          <Select 
+            value={newVersionFormData.status} 
+            onValueChange={(value: any) => setNewVersionFormData(prev => ({ ...prev, status: value }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="draft">Draft (Not visible to students)</SelectItem>
+              <SelectItem value="published">Published (Live for students)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-      <div className="flex justify-end gap-2 pt-4 border-t">
-        <Button variant="outline" onClick={() => setIsUploadNewVersionOpen(false)}>
-          Cancel
-        </Button>
-        <Button onClick={handleCreateContentVersion}>
-          <Upload className="w-4 h-4 mr-2" />
-          Upload Version {nextVersion}
-        </Button>
+        <div className="flex justify-end gap-2 pt-4 border-t">
+          <Button variant="outline" onClick={() => setIsUploadNewVersionOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleCreateContentVersion}>
+            <Upload className="w-4 h-4 mr-2" />
+            Upload Version {nextVersion}
+          </Button>
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
   // Quiz Form Component
   const QuizForm = () => {
@@ -1108,8 +1268,8 @@ const UploadNewVersionForm = () => {
     );
   };
 
-  // Course Form Component (without price field)
-  const CourseForm = ({ course = null, onSave }: { course?: Course | null; onSave: (data: CourseFormData) => void }) => {
+  // Course Form Component (with custom exam type option)
+  const CourseForm = ({ course = null, onSave, isEdit = false }: { course?: Course | null; onSave: (data: CourseFormData) => void; isEdit?: boolean }) => {
     const [formData, setFormData] = useState<CourseFormData>({
       title: course?.title || "",
       description: course?.description || "",
@@ -1133,16 +1293,62 @@ const UploadNewVersionForm = () => {
           </div>
           <div>
             <Label htmlFor="examType">Exam Type</Label>
-            <Select value={formData.exam_type} onValueChange={(value) => setFormData(prev => ({ ...prev, exam_type: value }))}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select exam type" />
-              </SelectTrigger>
-              <SelectContent>
-                {examTypes.map((exam) => (
-                  <SelectItem key={exam} value={exam}>{exam}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <Select 
+                value={formData.exam_type} 
+                onValueChange={(value) => {
+                  if (value === "custom") {
+                    setShowCustomExamInput(true);
+                  } else {
+                    setFormData(prev => ({ ...prev, exam_type: value }));
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select exam type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {examTypes.map((exam) => (
+                    <SelectItem key={exam} value={exam}>{exam}</SelectItem>
+                  ))}
+                  <SelectItem value="custom">
+                    <div className="flex items-center gap-2">
+                      <Plus className="w-4 h-4" />
+                      Add New Exam Type
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {showCustomExamInput && (
+                <div className="flex gap-2">
+                  <Input
+                    value={customExamType}
+                    onChange={(e) => setCustomExamType(e.target.value)}
+                    placeholder="Enter new exam type"
+                  />
+                  <Button 
+                    type="button" 
+                    size="sm" 
+                    onClick={handleAddCustomExamType}
+                    disabled={!customExamType.trim()}
+                  >
+                    Add
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setShowCustomExamInput(false);
+                      setCustomExamType("");
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1193,11 +1399,11 @@ const UploadNewVersionForm = () => {
         </div>
 
         <div className="flex justify-end gap-2 pt-4">
-          <Button variant="outline" onClick={() => setIsCreateCourseOpen(false)}>
+          <Button variant="outline" onClick={() => isEdit ? setIsEditCourseOpen(false) : setIsCreateCourseOpen(false)}>
             Cancel
           </Button>
           <Button onClick={() => onSave(formData)}>
-            {course ? 'Update Course' : 'Create Course'}
+            {isEdit ? 'Update Course' : 'Create Course'}
           </Button>
         </div>
       </div>
@@ -1205,7 +1411,7 @@ const UploadNewVersionForm = () => {
   };
 
   // Module Form Component
-  const ModuleForm = ({ module = null, onSave }: { module?: Module | null; onSave: (data: ModuleFormData) => void }) => {
+  const ModuleForm = ({ module = null, onSave, isEdit = false }: { module?: Module | null; onSave: (data: ModuleFormData) => void; isEdit?: boolean }) => {
     const [formData, setFormData] = useState<ModuleFormData>({
       title: module?.title || "",
       description: module?.description || "",
@@ -1259,11 +1465,11 @@ const UploadNewVersionForm = () => {
         </div>
 
         <div className="flex justify-end gap-2 pt-4">
-          <Button variant="outline" onClick={() => setIsCreateModuleOpen(false)}>
+          <Button variant="outline" onClick={() => isEdit ? setIsEditModuleOpen(false) : setIsCreateModuleOpen(false)}>
             Cancel
           </Button>
           <Button onClick={() => onSave(formData)}>
-            {module ? 'Update Module' : 'Create Module'}
+            {isEdit ? 'Update Module' : 'Create Module'}
           </Button>
         </div>
       </div>
@@ -1418,7 +1624,10 @@ const UploadNewVersionForm = () => {
                               <ChevronRight className="mr-2 h-4 w-4" />
                               View Modules
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setEditingCourse(course);
+                              setIsEditCourseOpen(true);
+                            }}>
                               <Edit className="mr-2 h-4 w-4" />
                               Edit Course
                             </DropdownMenuItem>
@@ -1428,7 +1637,10 @@ const UploadNewVersionForm = () => {
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               className="text-destructive"
-                              onClick={() => handleDeleteCourse(course.id)}
+                              onClick={() => {
+                                setCourseToDelete(course);
+                                setIsDeleteCourseOpen(true);
+                              }}
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
                               Delete
@@ -1443,6 +1655,37 @@ const UploadNewVersionForm = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Edit Course Dialog */}
+        <Dialog open={isEditCourseOpen} onOpenChange={setIsEditCourseOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Edit Course</DialogTitle>
+            </DialogHeader>
+            <CourseForm course={editingCourse} onSave={handleUpdateCourse} isEdit={true} />
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Course Confirmation Dialog */}
+        <Dialog open={isDeleteCourseOpen} onOpenChange={setIsDeleteCourseOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Course</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete the course "{courseToDelete?.title}"? This action cannot be undone and will remove all associated modules and content.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsDeleteCourseOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteCourse}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Course
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -1546,13 +1789,19 @@ const UploadNewVersionForm = () => {
                             <ChevronRight className="mr-2 h-4 w-4" />
                             Manage Content
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            setEditingModule(module);
+                            setIsEditModuleOpen(true);
+                          }}>
                             <Edit className="mr-2 h-4 w-4" />
                             Edit Module
                           </DropdownMenuItem>
                           <DropdownMenuItem 
                             className="text-destructive"
-                            onClick={() => handleDeleteModule(module.id)}
+                            onClick={() => {
+                              setModuleToDelete(module);
+                              setIsDeleteModuleOpen(true);
+                            }}
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete
@@ -1566,6 +1815,37 @@ const UploadNewVersionForm = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Edit Module Dialog */}
+        <Dialog open={isEditModuleOpen} onOpenChange={setIsEditModuleOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Module</DialogTitle>
+            </DialogHeader>
+            <ModuleForm module={editingModule} onSave={handleUpdateModule} isEdit={true} />
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Module Confirmation Dialog */}
+        <Dialog open={isDeleteModuleOpen} onOpenChange={setIsDeleteModuleOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Module</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete the module "{moduleToDelete?.title}"? This action cannot be undone and will remove all associated content.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsDeleteModuleOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteModule}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Module
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -1749,7 +2029,21 @@ const UploadNewVersionForm = () => {
                                 <Eye className="mr-2 h-4 w-4" />
                                 Preview
                               </DropdownMenuItem>
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => {
+                                setEditingContent(content);
+                                setContentFormData({
+                                  title: content.title,
+                                  content_type: content.content_type,
+                                  description: content.description || "",
+                                  file_url: content.file_url || "",
+                                  duration: content.duration || "",
+                                  file_size: content.file_size || "",
+                                  status: content.status,
+                                  module_id: content.module_id,
+                                  course_id: content.course_id
+                                });
+                                setIsEditContentOpen(true);
+                              }}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit Details
                               </DropdownMenuItem>
@@ -1781,7 +2075,13 @@ const UploadNewVersionForm = () => {
                                   Archive Version
                                 </DropdownMenuItem>
                               )}
-                              <DropdownMenuItem className="text-destructive">
+                              <DropdownMenuItem 
+                                className="text-destructive"
+                                onClick={() => {
+                                  setContentToDelete(content);
+                                  setIsDeleteContentOpen(true);
+                                }}
+                              >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete
                               </DropdownMenuItem>
@@ -1796,6 +2096,37 @@ const UploadNewVersionForm = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Edit Content Dialog */}
+        <Dialog open={isEditContentOpen} onOpenChange={setIsEditContentOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Content</DialogTitle>
+            </DialogHeader>
+            <EditContentForm />
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Content Confirmation Dialog */}
+        <Dialog open={isDeleteContentOpen} onOpenChange={setIsDeleteContentOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Content</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete the content "{contentToDelete?.title}"? This action cannot be undone and will remove all associated versions.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsDeleteContentOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteContent}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Content
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Version History Dialog */}
         <Dialog open={isVersionHistoryOpen} onOpenChange={setIsVersionHistoryOpen}>

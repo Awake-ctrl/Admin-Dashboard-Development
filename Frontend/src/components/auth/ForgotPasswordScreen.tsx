@@ -5,8 +5,12 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Alert, AlertDescription } from "../ui/alert";
 import { BookOpen, Mail, ArrowLeft, CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
+interface ForgotPasswordScreenProps {
+  onResetPassword: (email: string) => void;
+  onSwitchToLogin: () => void;
+}
 
-export function ForgotPasswordScreen() {
+export function ForgotPasswordScreen({ onResetPassword, onSwitchToLogin }: ForgotPasswordScreenProps) {
   const [step, setStep] = useState<"email" | "sent" | "reset">("email");
   const [email, setEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -30,6 +34,9 @@ export function ForgotPasswordScreen() {
     
     setIsLoading(true);
     setErrors({});
+    
+    // Call the reset password function
+    await onResetPassword(email);
     
     // Simulate API call
     setTimeout(() => {
@@ -153,10 +160,10 @@ export function ForgotPasswordScreen() {
                 </form>
 
                 <div className="mt-6 text-center">
-                  <Button variant="link" className="px-0">
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Sign In
-                  </Button>
+                   <Button variant="link" className="px-0" onClick={onSwitchToLogin}>
+    <ArrowLeft className="mr-2 h-4 w-4" />
+    Back to Sign In
+  </Button>
                 </div>
               </CardContent>
             </>
