@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from database import SessionLocal, engine, Base
 import models
 import uuid
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta,timezone
 from sqlalchemy import text
 def reset_database():
     print("Performing complete database reset...")
@@ -23,7 +23,8 @@ def reset_database():
         "DROP TABLE IF EXISTS transactions CASCADE",
         "DROP TABLE IF EXISTS account_deletion_requests CASCADE",
         "DROP TABLE IF EXISTS users CASCADE",
-        "DROP TABLE IF EXISTS subscription_plans CASCADE"
+        "DROP TABLE IF EXISTS subscription_plans CASCADE",
+        "DROP TABLE IF EXISTS notifications CASCADE"
     ]
     
     with engine.connect() as conn:
@@ -697,26 +698,13 @@ def create_user_course_subscriptions(db, users, courses):
             course_id=course.id,
             enrollment_date=date(2024, 8, 1),
             progress=60 + subscription_count * 3,  # Varying progress
-            last_accessed=date(2024, 8, 19),# After creating subscriptions, update enrollment counts
-    course_enrollment_count = {}
-    for user, course in subscriptions:
-        if course.id in course_enrollment_count:
-            course_enrollment_count[course.id] += 1
-        else:
-            course_enrollment_count[course.id] = 1
-    
-    # Update course enrollment counts
-    for course_id, count in course_enrollment_count.items():
-        course = next((c for c in courses if c.id == course_id), None)
-        if course:
-            course.enrolled_students = count
-            print(f"✓ Updated {course.title}: {count} enrolled students")
-    
+            last_accessed=date(2024, 8, 19),
             completion_status='in_progress'
         )
         db.add(user_course)
         subscription_count += 1
-        print(f"✓ {user.name} subscribed to {course.title}")
+        print(f"✅ {user.name} subscribed to {course.title}")
+    
     # After creating subscriptions, update enrollment counts
     course_enrollment_count = {}
     for user, course in subscriptions:
@@ -730,10 +718,10 @@ def create_user_course_subscriptions(db, users, courses):
         course = next((c for c in courses if c.id == course_id), None)
         if course:
             course.enrolled_students = count
-            print(f"✓ Updated {course.title}: {count} enrolled students")
+            print(f"✅ Updated {course.title}: {count} enrolled students")
     
     db.commit()
-    print(f"✓ Created {subscription_count} course subscriptions")
+    print(f"✅ Created {subscription_count} course subscriptions")
 
 def insert_subscription_plans(db):
     """Insert subscription plans"""
@@ -1521,6 +1509,430 @@ def insert_course_content_with_versions(db, courses):
     
     db.commit()
     print(f"✓ Created {len(content_data)} content items with version history")
+
+def insert_notification_data(db, users):
+    print("\nCreating notifications...")
+    
+    notifications_data = [
+        {
+            "title": "Welcome to the Platform! 🎉",
+            "subtitle": "Start your learning journey today",
+            "icon": "🎉",
+            "tag": "global",
+            "status": "sent",
+            "recipients_count": len(users),
+            "created_at": datetime(2024, 8, 1, 9, 0, 0)
+        },
+        {
+            "title": "New JEE Mock Test Available",
+            "subtitle": "Test your preparation with our latest mock test",
+            "icon": "📝",
+            "tag": "jee",
+            "status": "sent",
+            "recipients_count": len([u for u in users if u.exam_type == "jee"]),
+            "created_at": datetime(2024, 8, 15, 10, 30, 0)
+        },
+        {
+            "title": "NEET Biology Chapter Updated",
+            "subtitle": "New content added to Cell Biology module",
+            "icon": "🧬",
+            "tag": "neet",
+            "status": "sent",
+            "recipients_count": len([u for u in users if u.exam_type == "neet"]),
+            "created_at": datetime(2024, 8, 18, 14, 20, 0)
+        },
+        {
+            "title": "CAT Preparation Tips",
+            "subtitle": "Expert tips to crack Quantitative Aptitude section",
+            "icon": "💡",
+            "tag": "cat",
+            "status": "sent",
+            "recipients_count": len([u for u in users if u.exam_type == "cat"]),
+            "created_at": datetime(2024, 8, 19, 11, 15, 0)
+        },
+        {
+            "title": "Weekly Progress Report Ready",
+            "subtitle": "Check your learning analytics and progress",
+            "icon": "📊",
+            "tag": "personlized",
+            "status": "sent",
+            "recipients_count": len([u for u in users if u.subscription_status == "active"]),
+            "created_at": datetime(2024, 8, 19, 16, 45, 0)
+        },
+        {
+            "title": "UPSC Current Affairs Update",
+            "subtitle": "August 2024 current affairs compilation available",
+            "icon": "📰",
+            "tag": "upsc",
+            "status": "sent",
+            "recipients_count": len([u for u in users if u.exam_type == "upsc"]),
+            "created_at": datetime(2024, 8, 20, 9, 0, 0)
+        },
+        {
+            "title": "Live Doubt Clearing Session",
+            "subtitle": "Join us today at 6 PM for doubt clearing",
+            "icon": "🎯",
+            "tag": "global",
+            "status": "sent",
+            "recipients_count": len(users),
+            "created_at": datetime(2024, 8, 20, 15, 30, 0)
+        },
+        {
+            "title": "New Feature: AI Study Assistant",
+            "subtitle": "Get personalized study recommendations with AI",
+            "icon": "🤖",
+            "tag": "global",
+            "status": "sent",
+            "recipients_count": len(users),
+            "created_at": datetime(2024, 8, 21, 10, 0, 0)
+        },
+        {
+            "title": "GATE Technical Webinar",
+            "subtitle": "Expert session on core engineering subjects",
+            "icon": "⚙️",
+            "tag": "gate",
+            "status": "sent",
+            "recipients_count": len([u for u in users if u.exam_type == "gate"]),
+            "created_at": datetime(2024, 8, 17, 13, 20, 0)
+        },
+        {
+            "title": "Banking Exams: New Mock Tests",
+            "subtitle": "Practice with latest pattern questions",
+            "icon": "🏦",
+            "tag": "other_govt_exam",
+            "status": "sent",
+            "recipients_count": len([u for u in users if u.exam_type == "other_govt_exam"]),
+            "created_at": datetime(2024, 8, 16, 12, 0, 0)
+        },
+        {
+            "title": "Achievement Unlocked! 🏆",
+            "subtitle": "You've completed 50 practice tests",
+            "icon": "🏆",
+            "tag": "personlized",
+            "status": "sent",
+            "recipients_count": 25,
+            "created_at": datetime(2024, 8, 14, 18, 30, 0)
+        },
+        {
+            "title": "Upcoming Maintenance Notice",
+            "subtitle": "Platform will be under maintenance on Sunday 2-4 AM",
+            "icon": "🔧",
+            "tag": "global",
+            "status": "scheduled",
+            "recipients_count": 0,
+            "created_at": datetime(2024, 8, 20, 19, 0, 0)
+        },
+        {
+            "title": "Flash Sale: 30% Off Premium Plans",
+            "subtitle": "Limited time offer - Upgrade now!",
+            "icon": "💰",
+            "tag": "global",
+            "status": "draft",
+            "recipients_count": 0,
+            "created_at": datetime(2024, 8, 20, 20, 0, 0)
+        }
+    ]
+    
+    created_notifications = []
+    for notif_data in notifications_data:
+        notification = models.Notification(**notif_data)
+        db.add(notification)
+        created_notifications.append(notification)
+        status_icon = "✉️" if notif_data["status"] == "sent" else "📅" if notif_data["status"] == "scheduled" else "📝"
+        print(f"{status_icon} Created notification: {notif_data['title']} ({notif_data['status']})")
+    
+    db.commit()
+    print(f"✅ Inserted {len(created_notifications)} notifications")
+
+
+# Add these functions to your complete_init.py file
+
+def insert_support_tickets_data(db, users):
+    """Insert support ticket data"""
+    print("\nCreating support tickets...")
+    
+    courses = ["JEE Physics", "NEET Biology", "CAT Quantitative", "UPSC History", "GATE Computer Science"]
+    
+    tickets = [
+        models.SupportTicket(
+            title="Video player not loading",
+            student=users[0].name,
+            student_email=users[0].email,
+            course=courses[0],
+            priority="high",
+            status="open",
+            category="technical",
+            description="The video player shows a black screen when I try to watch lectures. I've tried refreshing multiple times but the issue persists.",
+            assigned_to="John Smith",
+            tags='["video", "technical", "urgent"]',
+            sla_deadline=datetime.now(timezone.utc) + timedelta(hours=24),
+            created=datetime.now(timezone.utc) - timedelta(days=2),
+            last_update=datetime.now(timezone.utc) - timedelta(hours=5)
+        ),
+        models.SupportTicket(
+            title="Request for additional practice questions",
+            student=users[1].name,
+            student_email=users[1].email,
+            course=courses[1],
+            priority="medium",
+            status="in_progress",
+            category="content",
+            description="Could you please add more practice questions on Cell Biology? The current set is good but I need more variety for better preparation.",
+            assigned_to="Carol Davis",
+            tags='["content", "practice"]',
+            sla_deadline=datetime.now(timezone.utc) + timedelta(hours=48),
+            created=datetime.now(timezone.utc) - timedelta(days=5),
+            last_update=datetime.now(timezone.utc) - timedelta(hours=12)
+        ),
+        models.SupportTicket(
+            title="Payment issue - subscription not activated",
+            student=users[2].name,
+            student_email=users[2].email,
+            course=courses[2],
+            priority="urgent",
+            status="open",
+            category="billing",
+            description="I made the payment 2 days ago but my premium subscription is still not activated. Transaction ID: TXN123456789",
+            assigned_to=None,
+            tags='["billing", "urgent", "payment"]',
+            sla_deadline=datetime.now(timezone.utc) + timedelta(hours=12),
+            created=datetime.now(timezone.utc) - timedelta(days=2),
+            last_update=datetime.now(timezone.utc) - timedelta(hours=8)
+        ),
+        models.SupportTicket(
+            title="Cannot download study materials",
+            student=users[3].name,
+            student_email=users[3].email,
+            course=courses[3],
+            priority="medium",
+            status="open",
+            category="technical",
+            description="The download button for PDFs is not working. I get an error message saying 'Download failed'.",
+            assigned_to="Mike Wilson",
+            tags='["download", "technical"]',
+            sla_deadline=datetime.now(timezone.utc) + timedelta(hours=36),
+            created=datetime.now(timezone.utc) - timedelta(days=1),
+            last_update=datetime.now(timezone.utc) - timedelta(hours=3)
+        ),
+        models.SupportTicket(
+            title="Quiz results not showing",
+            student=users[4].name,
+            student_email=users[4].email,
+            course=courses[4],
+            priority="high",
+            status="resolved",
+            category="technical",
+            description="After completing the quiz, the results page is blank. I can't see my score or answers.",
+            assigned_to="Carol Davis",
+            tags='["quiz", "results", "resolved"]',
+            sla_deadline=datetime.now(timezone.utc) - timedelta(hours=12),
+            created=datetime.now(timezone.utc) - timedelta(days=7),
+            last_update=datetime.now(timezone.utc) - timedelta(days=1)
+        ),
+        models.SupportTicket(
+            title="Request for doubt clearing session",
+            student=users[5].name,
+            student_email=users[5].email,
+            course=courses[0],
+            priority="low",
+            status="in_progress",
+            category="content",
+            description="Can we have live doubt clearing sessions for Physics? Some concepts are difficult to understand from videos alone.",
+            assigned_to="John Smith",
+            tags='["content", "live-session"]',
+            sla_deadline=datetime.now(timezone.utc) + timedelta(hours=72),
+            created=datetime.now(timezone.utc) - timedelta(days=3),
+            last_update=datetime.now(timezone.utc) - timedelta(hours=24)
+        ),
+        models.SupportTicket(
+            title="Account login issue",
+            student=users[6].name,
+            student_email=users[6].email,
+            course=courses[1],
+            priority="urgent",
+            status="resolved",
+            category="account",
+            description="I'm unable to login to my account. Keep getting 'Invalid credentials' error even though my password is correct.",
+            assigned_to="Sarah Chen",
+            tags='["account", "login", "resolved"]',
+            sla_deadline=datetime.now(timezone.utc) - timedelta(hours=24),
+            created=datetime.now(timezone.utc) - timedelta(days=4),
+            last_update=datetime.now(timezone.utc) - timedelta(days=3)
+        ),
+        models.SupportTicket(
+            title="Outdated syllabus content",
+            student=users[7].name,
+            student_email=users[7].email,
+            course=courses[3],
+            priority="medium",
+            status="open",
+            category="content",
+            description="Some topics in the UPSC History section seem to follow the old syllabus. Please update to the latest 2024 pattern.",
+            assigned_to="Mike Wilson",
+            tags='["content", "syllabus", "update"]',
+            sla_deadline=datetime.now(timezone.utc) + timedelta(hours=48),
+            created=datetime.now(timezone.utc) - timedelta(days=6),
+            last_update=datetime.now(timezone.utc) - timedelta(hours=18)
+        )
+    ]
+    
+    db.add_all(tickets)
+    db.commit()
+    print(f"✓ Inserted {len(tickets)} support tickets")
+    return tickets
+
+def insert_course_reviews_data(db, users):
+    """Insert course review data"""
+    print("\nCreating course reviews...")
+    
+    courses = ["JEE Physics", "NEET Biology", "CAT Quantitative", "UPSC History", "GATE Computer Science"]
+    
+    reviews = [
+        models.CourseReview(
+            student=users[0].name,
+            student_email=users[0].email,
+            course=courses[0],
+            rating=5,
+            comment="Excellent course! The instructor explains complex physics concepts in a very simple manner. The practice problems are also very helpful.",
+            status="published",
+            sentiment="positive",
+            is_featured=True,
+            flagged=False,
+            helpful=45,
+            date=datetime.now(timezone.utc) - timedelta(days=15)
+        ),
+        models.CourseReview(
+            student=users[1].name,
+            student_email=users[1].email,
+            course=courses[1],
+            rating=4,
+            comment="Good content and well-structured. Would love to see more practice questions on genetics and evolution.",
+            status="published",
+            sentiment="positive",
+            is_featured=False,
+            flagged=False,
+            helpful=28,
+            date=datetime.now(timezone.utc) - timedelta(days=20)
+        ),
+        models.CourseReview(
+            student=users[2].name,
+            student_email=users[2].email,
+            course=courses[2],
+            rating=5,
+            comment="Best CAT preparation course I've found! The quantitative aptitude shortcuts are game-changers.",
+            status="published",
+            sentiment="positive",
+            is_featured=True,
+            flagged=False,
+            helpful=67,
+            date=datetime.now(timezone.utc) - timedelta(days=8)
+        ),
+        models.CourseReview(
+            student=users[3].name,
+            student_email=users[3].email,
+            course=courses[3],
+            rating=3,
+            comment="Content is good but some topics need more depth. Also, the videos could be better quality.",
+            status="published",
+            sentiment="neutral",
+            is_featured=False,
+            flagged=False,
+            helpful=12,
+            date=datetime.now(timezone.utc) - timedelta(days=25)
+        ),
+        models.CourseReview(
+            student=users[4].name,
+            student_email=users[4].email,
+            course=courses[4],
+            rating=5,
+            comment="Outstanding course! Covers all GATE topics comprehensively. The mock tests are exactly like the actual exam.",
+            status="published",
+            sentiment="positive",
+            is_featured=False,
+            flagged=False,
+            helpful=34,
+            date=datetime.now(timezone.utc) - timedelta(days=12)
+        ),
+        models.CourseReview(
+            student=users[5].name,
+            student_email=users[5].email,
+            course=courses[0],
+            rating=2,
+            comment="Videos are too fast-paced and difficult to follow. Need more beginner-friendly content.",
+            status="published",
+            sentiment="negative",
+            is_featured=False,
+            flagged=True,
+            helpful=8,
+            date=datetime.now(timezone.utc) - timedelta(days=18)
+        ),
+        models.CourseReview(
+            student=users[6].name,
+            student_email=users[6].email,
+            course=courses[1],
+            rating=5,
+            comment="Perfect for NEET preparation! The diagrams and animations make learning so much easier.",
+            status="published",
+            sentiment="positive",
+            is_featured=True,
+            flagged=False,
+            helpful=52,
+            date=datetime.now(timezone.utc) - timedelta(days=10)
+        ),
+        models.CourseReview(
+            student=users[7].name,
+            student_email=users[7].email,
+            course=courses[3],
+            rating=4,
+            comment="Very comprehensive coverage of history topics. The current affairs section is particularly useful.",
+            status="published",
+            sentiment="positive",
+            is_featured=False,
+            flagged=False,
+            helpful=23,
+            date=datetime.now(timezone.utc) - timedelta(days=22)
+        )
+    ]
+    
+    db.add_all(reviews)
+    db.commit()
+    print(f"✓ Inserted {len(reviews)} course reviews")
+     # Add instructor responses to some reviews
+    print("\nAdding instructor responses...")
+    
+    responses = [
+        models.InstructorResponse(
+            review_id=1,
+            author="Dr. Priya Sharma",
+            message="Thank you for your wonderful feedback! We're glad the teaching methodology is working well for you. Keep up the great work!",
+            timestamp=datetime.now(timezone.utc) - timedelta(days=14)
+        ),
+        models.InstructorResponse(
+            review_id=3,
+            author="Prof. Anita Desai",
+            message="Thanks for your kind words! We're constantly adding new tricks and shortcuts. Stay tuned for more updates!",
+            timestamp=datetime.now(timezone.utc) - timedelta(days=7)
+        ),
+        models.InstructorResponse(
+            review_id=4,
+            author="Dr. Vikram Singh",
+            message="Thank you for the feedback. We're working on adding more depth to certain topics and upgrading video quality. Your input is valuable!",
+            timestamp=datetime.now(timezone.utc) - timedelta(days=24)
+        ),
+        models.InstructorResponse(
+            review_id=7,
+            author="Dr. Rajesh Kumar",
+            message="We're thrilled that the visual aids are helping! That's exactly what we aim for. Best wishes for your NEET preparation!",
+            timestamp=datetime.now(timezone.utc) - timedelta(days=9)
+        )
+    ]
+    
+    db.add_all(responses)
+    db.commit()
+    print(f"✓ Added {len(responses)} instructor responses")
+    
+    return reviews
+
 def main():
     """Main initialization function"""
     print("Starting complete database initialization...")
@@ -1546,7 +1958,11 @@ def main():
         
         insert_account_deletion_requests(db, users)
         insert_refund_requests(db, users)
+        insert_notification_data(db, users) 
+        insert_course_reviews_data(db, users)
+        insert_support_tickets_data(db, users)
         roles_count = insert_roles_data(db)
+        insert_platform_settings(db) 
         
         # Print final summary
         print("\n" + "="*60)
@@ -1583,5 +1999,49 @@ def main():
         traceback.print_exc()
     finally:
         db.close()
+
+
+def insert_platform_settings(db):
+    """Insert default platform settings"""
+    print("\nCreating platform settings...")
+    
+    # Check if settings already exist
+    existing_settings = db.query(models.PlatformSettings).first()
+    if existing_settings:
+        print("✓ Settings already exist, skipping")
+        return
+    
+    settings = models.PlatformSettings(
+        site_name="EduPlatform",
+        site_description="Comprehensive Learning Management System",
+        primary_color="#030213",
+        secondary_color="#e9ebef",
+        logo_url="",
+        favicon_url="",
+        welcome_subject="Welcome to {{siteName}}!",
+        welcome_content="Welcome {{userName}}! Your account has been created successfully.",
+        course_enrollment_subject="Enrolled in {{courseName}}",
+        course_enrollment_content="Congratulations! You've been enrolled in {{courseName}}.",
+        enable_registration=True,
+        enable_course_comments=True,
+        enable_course_ratings=True,
+        enable_certificates=True,
+        enable_progress_tracking=True,
+        enable_notifications=True,
+        enable_email_notifications=True,
+        enable_push_notifications=False,
+        notification_types={
+            "courseUpdates": {"email": True, "push": False, "inApp": True},
+            "assignments": {"email": True, "push": True, "inApp": True},
+            "announcements": {"email": False, "push": False, "inApp": True},
+            "systemAlerts": {"email": True, "push": False, "inApp": True}
+        }
+    )
+    
+    db.add(settings)
+    db.commit()
+    print("✓ Created default platform settings")
+
+
 if __name__ == "__main__":
     main()

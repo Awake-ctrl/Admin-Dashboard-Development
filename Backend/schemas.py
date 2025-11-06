@@ -3,7 +3,7 @@ from pydantic import BaseModel, EmailStr,validator
 from typing import List, Optional, Dict, Any,Union
 from datetime import datetime, date
 from enum import Enum
-
+# from pydantic import BaseModel
 # User Schemas
 class UserBase(BaseModel):
     name: str
@@ -628,3 +628,379 @@ class PasswordResetConfirm(BaseModel):
         return v
 # Update forward references
 CourseWithDetails.update_forward_refs()
+
+# Notification Schemas
+class NotificationBase(BaseModel):
+    title: str
+    subtitle: Optional[str] = None
+    icon: Optional[str] = None
+    tag: str
+    status: str = "draft"
+
+class NotificationCreate(NotificationBase):
+    pass
+
+class NotificationUpdate(BaseModel):
+    title: Optional[str] = None
+    subtitle: Optional[str] = None
+    icon: Optional[str] = None
+    tag: Optional[str] = None
+    status: Optional[str] = None
+
+class Notification(NotificationBase):
+    id: int
+    recipients_count: int = 0
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    sent_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class NotificationStats(BaseModel):
+    total_notifications: int
+    sent_notifications: int
+    total_recipients: int
+    total_subscribers: int
+
+class NotificationSubscriberBase(BaseModel):
+    user_id: str
+    subscribed_tags: List[str] = []
+    is_active: bool = True
+
+class NotificationSubscriberCreate(NotificationSubscriberBase):
+    pass
+
+class NotificationSubscriber(NotificationSubscriberBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+# Add these to your existing schemas.py file
+
+from typing import List, Optional, Dict, Any
+from datetime import datetime
+from pydantic import BaseModel
+
+# Support Ticket Schemas
+class SupportTicketBase(BaseModel):
+    title: str
+    student: str
+    student_email: str
+    course: str
+    priority: str = "medium"
+    status: str = "open"
+    category: str = "technical"
+    description: str
+    assigned_to: Optional[str] = None
+    tags: List[str] = []
+    sla_deadline: Optional[datetime] = None
+
+class SupportTicketCreate(SupportTicketBase):
+    pass
+
+class SupportTicketUpdate(BaseModel):
+    title: Optional[str] = None
+    priority: Optional[str] = None
+    status: Optional[str] = None
+    category: Optional[str] = None
+    assigned_to: Optional[str] = None
+    tags: Optional[List[str]] = None
+    sla_deadline: Optional[datetime] = None
+
+class SupportTicketResponse(SupportTicketBase):
+    id: int
+    responses: List[Dict[str, Any]] = []
+    internal_notes: List[Dict[str, Any]] = []
+    actions: List[Dict[str, Any]] = []
+    created_at: datetime
+    last_update: datetime
+
+    class Config:
+        from_attributes = True
+
+# Course Review Schemas
+class CourseReviewBase(BaseModel):
+    student: str
+    student_email: str
+    course: str
+    rating: int
+    comment: str
+    status: str = "published"
+    is_featured: bool = False
+    sentiment: str = "neutral"
+
+class CourseReviewCreate(CourseReviewBase):
+    pass
+
+class CourseReviewUpdate(BaseModel):
+    status: Optional[str] = None
+    is_featured: Optional[bool] = None
+    flagged: Optional[bool] = None
+    instructor_response: Optional[Dict[str, Any]] = None
+
+class CourseReviewResponse(CourseReviewBase):
+    id: int
+    date: datetime
+    helpful: int
+    flagged: bool
+    instructor_response: Optional[Dict[str, Any]] = None
+    type: str
+
+    class Config:
+        from_attributes = True
+
+class Feedback(BaseModel):
+    id: int
+    comment: str
+    rating: int
+
+# Feedback Statistics
+class FeedbackStats(BaseModel):
+    open_tickets: int
+    my_assigned_tickets: int
+    satisfaction_rating: float
+    total_reviews: int
+    positive_reviews: int
+    negative_reviews: int
+
+    # Add these feedback schemas to schemas.py
+
+class FeedbackBase(BaseModel):
+    user_id: str
+    user_name: str
+    user_email: str
+    feedback_type: str  # bug, feature_request, complaint, suggestion, praise
+    category: str  # ui_ux, performance, content, support, billing, other
+    subject: str
+    message: str
+    rating: Optional[int] = None
+    priority: str = "medium"
+
+class FeedbackCreate(FeedbackBase):
+    pass
+
+class FeedbackUpdate(BaseModel):
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    assigned_to: Optional[str] = None
+    admin_response: Optional[str] = None
+    resolved_at: Optional[datetime] = None
+
+class FeedbackResponse(FeedbackBase):
+    id: int
+    status: str
+    assigned_to: Optional[str] = None
+    admin_response: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    resolved_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# Add/Update these schemas in your schemas.py file
+
+from typing import Optional, Dict, Any
+
+# Course Review Schemas
+class CourseReviewBase(BaseModel):
+    student: str
+    student_email: str
+    course: str
+    rating: int
+    comment: str
+    status: str = "published"
+    is_featured: bool = False
+    sentiment: str = "neutral"
+
+class CourseReviewCreate(CourseReviewBase):
+    pass
+
+class CourseReviewUpdate(BaseModel):
+    status: Optional[str] = None
+    is_featured: Optional[bool] = None
+    flagged: Optional[bool] = None
+    instructor_response: Optional[Dict[str, Any]] = None
+
+class CourseReviewResponse(CourseReviewBase):
+    id: int
+    date: datetime
+    helpful: int
+    flagged: bool
+    instructor_response: Optional[Dict[str, Any]] = None
+    type: str = "review"  # ADDED: Required type field
+
+    class Config:
+        from_attributes = True
+
+# Support Ticket Schemas (ensure these exist)
+class SupportTicketBase(BaseModel):
+    title: str
+    student: str
+    student_email: str
+    course: str
+    priority: str = "medium"
+    status: str = "open"
+    category: str = "technical"
+    description: str
+    assigned_to: Optional[str] = None
+    tags: List[str] = []
+    sla_deadline: Optional[datetime] = None
+
+class SupportTicketCreate(SupportTicketBase):
+    pass
+
+class SupportTicketUpdate(BaseModel):
+    title: Optional[str] = None
+    priority: Optional[str] = None
+    status: Optional[str] = None
+    category: Optional[str] = None
+    assigned_to: Optional[str] = None
+    tags: Optional[List[str]] = None
+    sla_deadline: Optional[datetime] = None
+
+class SupportTicketResponse(SupportTicketBase):
+    id: int
+    responses: List[Dict[str, Any]] = []
+    internal_notes: List[Dict[str, Any]] = []
+    actions: List[Dict[str, Any]] = []
+    created: datetime
+    last_update: datetime
+
+    class Config:
+        from_attributes = True
+
+# Feedback Statistics
+class FeedbackStats(BaseModel):
+    open_tickets: int
+    my_assigned_tickets: int
+    satisfaction_rating: float
+    total_reviews: int
+    positive_reviews: int
+    negative_reviews: int
+
+
+    # Add these to your schemas.py file
+
+
+
+class NotificationTypeSettings(BaseModel):
+    email: bool
+    push: bool
+    inApp: bool
+
+class NotificationTypes(BaseModel):
+    courseUpdates: NotificationTypeSettings
+    assignments: NotificationTypeSettings
+    announcements: NotificationTypeSettings
+    systemAlerts: NotificationTypeSettings
+
+class PlatformSettingsBase(BaseModel):
+    # Branding
+    site_name: Optional[str] = None
+    site_description: Optional[str] = None
+    primary_color: Optional[str] = None
+    secondary_color: Optional[str] = None
+    logo_url: Optional[str] = None
+    favicon_url: Optional[str] = None
+    
+    # Email Templates
+    welcome_subject: Optional[str] = None
+    welcome_content: Optional[str] = None
+    course_enrollment_subject: Optional[str] = None
+    course_enrollment_content: Optional[str] = None
+    
+    # Feature Toggles
+    enable_registration: Optional[bool] = None
+    enable_course_comments: Optional[bool] = None
+    enable_course_ratings: Optional[bool] = None
+    enable_certificates: Optional[bool] = None
+    enable_progress_tracking: Optional[bool] = None
+    enable_notifications: Optional[bool] = None
+    enable_email_notifications: Optional[bool] = None
+    enable_push_notifications: Optional[bool] = None
+    
+    # Notification Settings
+    notification_types: Optional[Dict[str, Any]] = None
+
+class PlatformSettingsCreate(PlatformSettingsBase):
+    pass
+
+class PlatformSettingsUpdate(PlatformSettingsBase):
+    updated_by: Optional[str] = None
+
+class PlatformSettingsResponse(PlatformSettingsBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    updated_by: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+
+# Add these new schemas
+
+class UserProfileUpdate(BaseModel):
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    organization: Optional[str] = None
+    role: Optional[str] = None
+    bio: Optional[str] = None
+    timezone: Optional[str] = None
+    language: Optional[str] = None
+
+class UserProfile(BaseModel):
+    id: str
+    firstName: str
+    lastName: str
+    email: str
+    phone: Optional[str]
+    organization: Optional[str]
+    role: str
+    bio: Optional[str]
+    timezone: str
+    language: str
+    
+    class Config:
+        from_attributes = True
+
+class PasswordChange(BaseModel):
+    currentPassword: str
+    newPassword: str
+    confirmPassword: str
+    
+    @validator('confirmPassword')
+    def passwords_match(cls, v, values):
+        if 'newPassword' in values and v != values['newPassword']:
+            raise ValueError('Passwords do not match')
+        return v
+
+class UserSubscriptionDetails(BaseModel):
+    plan: str
+    status: str
+    billingCycle: str
+    nextBilling: Optional[date]
+    amount: int
+    features: List[str]
+    paymentMethod: str
+
+class PasswordChange(BaseModel):
+    currentPassword: str
+    newPassword: str
+    confirmPassword: str  # Make sure this field exists
+    
+    @validator('confirmPassword')
+    def passwords_match(cls, v, values):
+        if 'newPassword' in values and v != values['newPassword']:
+            raise ValueError('Passwords do not match')
+        return v
+    
