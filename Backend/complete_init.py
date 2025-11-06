@@ -703,7 +703,6 @@ def create_user_course_subscriptions(db, users, courses):
         )
         db.add(user_course)
         subscription_count += 1
-<<<<<<< HEAD:Backend/complet_init.py
         print(f"✓ {user.name} subscribed to {course.title}")
     course_enrollment_count = {}
     for user, course in subscriptions:
@@ -724,10 +723,6 @@ def create_user_course_subscriptions(db, users, courses):
     #     db.add(user_course)
     #     subscription_count += 1
     #     print(f"✓ {user.name} subscribed to {course.title}")
-=======
-        print(f"✅ {user.name} subscribed to {course.title}")
-    
->>>>>>> feedback:Backend/complete_init.py
     # After creating subscriptions, update enrollment counts
     course_enrollment_count = {}
     for user, course in subscriptions:
