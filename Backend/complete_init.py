@@ -703,8 +703,26 @@ def create_user_course_subscriptions(db, users, courses):
         )
         db.add(user_course)
         subscription_count += 1
-        print(f"✅ {user.name} subscribed to {course.title}")
+        print(f"✓ {user.name} subscribed to {course.title}")
+    course_enrollment_count = {}
+    for user, course in subscriptions:
+        if course.id in course_enrollment_count:
+            course_enrollment_count[course.id] += 1
+        else:
+            course_enrollment_count[course.id] = 1
     
+    # # Update course enrollment counts
+    # for course_id, count in course_enrollment_count.items():
+    #     course = next((c for c in courses if c.id == course_id), None)
+    #     if course:
+    #         course.enrolled_students = count
+    #         print(f"✓ Updated {course.title}: {count} enrolled students")
+    
+    #         completion_status='in_progress'
+    #     )
+    #     db.add(user_course)
+    #     subscription_count += 1
+    #     print(f"✓ {user.name} subscribed to {course.title}")
     # After creating subscriptions, update enrollment counts
     course_enrollment_count = {}
     for user, course in subscriptions:
