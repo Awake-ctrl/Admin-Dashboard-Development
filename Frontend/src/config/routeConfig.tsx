@@ -3,12 +3,12 @@ import { RolesManagement } from "../components/RolesManagement";
 import { CourseContentManagement } from "../components/CourseContentManagement";
 import { FeedbackManagement } from "../components/FeedbackManagement";
 import { AnalyticsDashboard } from "../components/AnalyticsDashboard";
-import { Settings } from "../components/Settings";
+import Settings from "../components/Settings";
 import { SubscriptionManagement } from "../components/SubscriptionManagement";
 import { TopicsManagement } from "../components/TopicsManagement";
 import { LeaderboardManagement } from "../components/LeaderboardManagement";
 import { NotificationManagement } from "../components/NotificationManagement";
-import { AccountSettings } from "../components/AccountSettings";
+import AccountSettings from "../components/AccountSettings";
 
 // Auth Screens
 import { LoginScreen } from "../components/auth/LoginScreen";
