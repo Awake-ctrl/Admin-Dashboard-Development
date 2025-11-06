@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { AdminSidebar } from "./components/AdminSidebar";
 import { demoScreens, mainRoutes, sectionTitles } from "./config/routeConfig";
-import { Toaster } from "./components/ui/sonner";
+// import { Toaster } from "./components/ui/sonner";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { SignupScreen } from "./components/auth/SignupScreen";
 import { ForgotPasswordScreen } from "./components/auth/ForgotPasswordScreen";
+import { Toaster } from "./components/ui/toaster"
 
 export default function App() {
   const [activeSection, setActiveSection] = useState("analytics");

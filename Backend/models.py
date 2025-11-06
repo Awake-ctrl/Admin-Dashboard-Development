@@ -50,6 +50,19 @@ class User(Base):
     deletion_reason = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+      # Add these new fields for account settings
+    organization = Column(String(200), nullable=True)
+    role = Column(String(50), default="Student")
+    bio = Column(Text, nullable=True)
+    timezone = Column(String(50), default="Asia/Kolkata")
+    language = Column(String(50), default="English")
+    avatar_url = Column(String(500), nullable=True)
+    
+    # Password-related (if not already present)
+    password_hash = Column(String(255), nullable=True)
+    two_factor_enabled = Column(Boolean, default=False)
+    two_factor_secret = Column(String(100), nullable=True)
     
     # Relationships
     activities = relationship("UserActivity", back_populates="user", cascade="all, delete-orphan")
@@ -462,3 +475,236 @@ class BulkRoleAssignment(BaseModel):
     role_id: str
     assigned_by: str
     
+class Notification(Base):
+    __tablename__ = "notifications"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(200), nullable=False)
+    subtitle = Column(String(500), nullable=True)
+    icon = Column(String(10), nullable=True)  # Emoji
+    tag = Column(String(50), nullable=False)  # personlized, global, jee, neet, etc.
+    status = Column(String(20), default="draft")  # draft, sent, scheduled
+    recipients_count = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    sent_at = Column(DateTime(timezone=True), nullable=True)
+
+class NotificationSubscriber(Base):
+    __tablename__ = "notification_subscribers"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    subscribed_tags = Column(JSON, default=[])  # List of tags user subscribed to
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    user = relationship("User")
+
+# Add these classes to your existing models.py file
+
+
+
+ # ============= SUPPORT TICKET MODELS =============
+# Add these classes to your models.py file
+
+class SupportTicket(Base):
+    __tablename__ = "support_tickets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    student = Column(String(255), nullable=False)
+    student_email = Column(String(255), nullable=False)
+    course = Column(String(255), nullable=False)
+    priority = Column(String(50), default="medium")  # low, medium, high, urgent
+    status = Column(String(50), default="open")  # open, in_progress, resolved, closed
+    category = Column(String(50), nullable=False)  # technical, content, billing, account
+    description = Column(Text, nullable=False)
+    assigned_to = Column(String(255), nullable=True)
+    tags = Column(Text, default="[]")  # Store as JSON string
+    sla_deadline = Column(DateTime, nullable=True)
+    created = Column(DateTime, server_default=func.now())
+    last_update = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    responses = relationship("TicketResponse", back_populates="ticket", cascade="all, delete-orphan")
+    internal_notes = relationship("InternalNote", back_populates="ticket", cascade="all, delete-orphan")
+    actions = relationship("TicketAction", back_populates="ticket", cascade="all, delete-orphan")
+
+
+class TicketResponse(Base):
+    __tablename__ = "ticket_responses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticket_id = Column(Integer, ForeignKey("support_tickets.id", ondelete="CASCADE"))
+    author = Column(String(255), nullable=False)
+    type = Column(String(50), nullable=False)  # public, internal
+    message = Column(Text, nullable=False)
+    timestamp = Column(DateTime, server_default=func.now())
+    
+    # Relationships
+    ticket = relationship("SupportTicket", back_populates="responses", foreign_keys=[ticket_id])
+    
+
+class Feedback(Base):
+    __tablename__ = "feedback"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey('users.id'))
+    user_name = Column(String)
+    user_email = Column(String)
+    feedback_type = Column(String)  # bug, feature_request, complaint, suggestion, praise
+    category = Column(String)  # ui_ux, performance, content, support, billing, other
+    subject = Column(String)
+    message = Column(Text)
+    rating = Column(Integer, nullable=True)  # 1-5 stars
+    status = Column(String, default="pending")  # pending, in_review, resolved, closed
+    priority = Column(String, default="medium")  # low, medium, high, critical
+    assigned_to = Column(String, nullable=True)
+    admin_response = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    resolved_at = Column(DateTime, nullable=True)
+    
+    # Relationships
+    user = relationship("User", backref="feedback")
+    # Relationships
+    # ticket = relationship("SupportTicket", back_populates="responses")
+
+
+class InternalNote(Base):
+    __tablename__ = "internal_notes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticket_id = Column(Integer, ForeignKey("support_tickets.id", ondelete="CASCADE"))
+    author = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+    timestamp = Column(DateTime, server_default=func.now())
+    
+    # Relationships
+    ticket = relationship("SupportTicket", back_populates="internal_notes", foreign_keys=[ticket_id])
+
+
+class TicketAction(Base):
+    __tablename__ = "ticket_actions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticket_id = Column(Integer, ForeignKey("support_tickets.id", ondelete="CASCADE"))
+    type = Column(String(50), nullable=False)
+    user = Column(String(255), nullable=False)
+    from_status = Column(String(50), nullable=True)
+    to_status = Column(String(50), nullable=True)
+    resolution = Column(Text, nullable=True)
+    timestamp = Column(DateTime, server_default=func.now())
+    
+    # Relationships
+    ticket = relationship("SupportTicket", back_populates="actions", foreign_keys=[ticket_id])
+
+
+# ============= COURSE REVIEW MODELS =============
+
+class CourseReview(Base):
+    __tablename__ = "course_reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    student = Column(String(255), nullable=False)
+    student_email = Column(String(255), nullable=False)
+    course = Column(String(255), nullable=False)
+    rating = Column(Integer, nullable=False)  # 1-5
+    comment = Column(Text, nullable=False)
+    status = Column(String(50), default="published")  # published, pending, flagged, hidden
+    sentiment = Column(String(50), default="neutral")  # positive, neutral, negative
+    is_featured = Column(Boolean, default=False)
+    flagged = Column(Boolean, default=False)
+    helpful = Column(Integer, default=0)
+    date = Column(DateTime, server_default=func.now())
+    
+    # Relationships
+    instructor_response = relationship("InstructorResponse", back_populates="review", uselist=False, cascade="all, delete-orphan")
+
+
+class InstructorResponse(Base):
+    __tablename__ = "instructor_responses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    review_id = Column(Integer, ForeignKey("course_reviews.id", ondelete="CASCADE"), unique=True)
+    author = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+    timestamp = Column(DateTime, server_default=func.now())
+    
+    # Relationships
+    review = relationship("CourseReview", back_populates="instructor_response", foreign_keys=[review_id])
+
+
+# ============= RESPONSE TEMPLATES =============
+
+class ResponseTemplate(Base):
+    __tablename__ = "response_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False)
+    category = Column(String(50), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+# ============= TEAM MEMBERS =============
+
+class TeamMember(Base):
+    __tablename__ = "team_members"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    role = Column(String(255), nullable=False)
+    email = Column(String(255), unique=True, nullable=False)
+    avatar = Column(String(10), nullable=True)  # Initials like "JS"
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+    # Add these to your models.py file
+
+
+class PlatformSettings(Base):
+    __tablename__ = "platform_settings"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # Branding
+    site_name = Column(String(200), default="EduPlatform")
+    site_description = Column(Text, default="Comprehensive Learning Management System")
+    primary_color = Column(String(20), default="#030213")
+    secondary_color = Column(String(20), default="#e9ebef")
+    logo_url = Column(String(500), nullable=True)
+    favicon_url = Column(String(500), nullable=True)
+    
+    # Email Templates
+    welcome_subject = Column(String(500), default="Welcome to {{siteName}}!")
+    welcome_content = Column(Text, default="Welcome {{userName}}! Your account has been created successfully.")
+    course_enrollment_subject = Column(String(500), default="Enrolled in {{courseName}}")
+    course_enrollment_content = Column(Text, default="Congratulations! You've been enrolled in {{courseName}}.")
+    
+    # Feature Toggles
+    enable_registration = Column(Boolean, default=True)
+    enable_course_comments = Column(Boolean, default=True)
+    enable_course_ratings = Column(Boolean, default=True)
+    enable_certificates = Column(Boolean, default=True)
+    enable_progress_tracking = Column(Boolean, default=True)
+    enable_notifications = Column(Boolean, default=True)
+    enable_email_notifications = Column(Boolean, default=True)
+    enable_push_notifications = Column(Boolean, default=False)
+    
+    # Notification Settings (stored as JSON)
+    notification_types = Column(JSON, default={
+        "courseUpdates": {"email": True, "push": False, "inApp": True},
+        "assignments": {"email": True, "push": True, "inApp": True},
+        "announcements": {"email": False, "push": False, "inApp": True},
+        "systemAlerts": {"email": True, "push": False, "inApp": True}
+    })
+    
+    # Metadata
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    updated_by = Column(String(100), nullable=True)

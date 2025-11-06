@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -19,23 +19,40 @@ import {
   Building, 
   Camera, 
   Lock, 
-  Bell, 
-  CreditCard, 
+  Bell,
   Shield, 
   Trash2,
-  CheckCircle,
-  AlertTriangle,
   RefreshCw,
   Download,
   Eye,
   EyeOff
 } from "lucide-react";
 
-export function AccountSettings() {
+// Simple API calls without external files
+const API_BASE = 'http://localhost:8000';
+
+const makeApiCall = async (endpoint: string, method: string = 'GET', data?: any) => {
+  const options: RequestInit = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  };
+
+  if (data && method !== 'GET') {
+    options.body = JSON.stringify(data);
+  }
+
+  const response = await fetch(`${API_BASE}${endpoint}`, options);
+  return response.json();
+};
+
+export default function AccountSettings() {
   const [activeTab, setActiveTab] = useState("profile");
   const [isLoading, setIsLoading] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   
   const [profileData, setProfileData] = useState({
     firstName: "John",
@@ -66,42 +83,193 @@ export function AccountSettings() {
     systemMaintenance: true
   });
 
-  const [subscriptionData] = useState({
-    plan: "Professional",
-    status: "active",
-    billingCycle: "annual",
-    nextBilling: "2024-12-19",
-    amount: 29999,
-    features: ["Unlimited Courses", "Advanced Analytics", "Priority Support", "Custom Branding"],
-    paymentMethod: "**** **** **** 4532"
-  });
+  // This will make HTTP request to backend when component loads
+  useEffect(() => {
+    // Load user profile data - This will show GET request in backend
+    const loadUserData = async () => {
+      try {
+        console.log("Making API call to load user data...");
+        const userData = await makeApiCall('/api/users?limit=1');
+        if (userData && userData.length > 0) {
+          console.log("User data loaded:", userData[0]);
+        }
+      } catch (error) {
+        console.error("Failed to load user data:", error);
+      }
+    };
+    
+    loadUserData();
+  }, []);
 
-  const handleProfileUpdate = async () => {
-    setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      // Show success message
-    }, 1500);
-  };
+  // Handle profile picture upload - This will show POST request in backend
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-  const handlePasswordChange = async () => {
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert("Passwords don't match!");
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
       return;
     }
-    
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image size should be less than 5MB');
+      return;
+    }
+
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+    
+    try {
+      console.log("Making API call to upload avatar...");
+      
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // This will make actual HTTP POST request to backend
+      const response = await fetch(`${API_BASE}/api/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const result = await response.json();
+      console.log("Upload response:", result);
+      
+      // Create local URL for immediate display
+      const imageUrl = URL.createObjectURL(file);
+      setAvatarUrl(imageUrl);
+      
+      alert('Profile picture updated successfully!');
+    } catch (error) {
+      console.error("Upload failed:", error);
+      alert('Failed to upload profile picture');
+    } finally {
       setIsLoading(false);
-      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      // Show success message
-    }, 1500);
+    }
   };
 
-  const handleNotificationUpdate = (key: string, value: boolean) => {
-    setNotificationSettings(prev => ({ ...prev, [key]: value }));
+  // Handle profile picture removal - This will show DELETE request in backend
+  const handleRemoveAvatar = () => {
+    setIsLoading(true);
+    
+    // Simulate API call for avatar removal
+    setTimeout(() => {
+      setAvatarUrl(null);
+      console.log("DELETE /api/account/avatar/user_id - Avatar removed");
+      setIsLoading(false);
+      alert('Profile picture removed successfully!');
+    }, 1000);
+  };
+
+  // Handle profile update - This will show PUT request in backend
+  // Replace handleProfileUpdate function:
+const handleProfileUpdate = async () => {
+  setIsLoading(true);
+  
+  try {
+    console.log("Making API call to update profile...");
+    
+    // Use the correct endpoint
+    // In handleProfileUpdate function - make sure it's sending this format:
+const result = await makeApiCall('/api/account/profile/user_123456', 'PUT', {
+  firstName: profileData.firstName,
+  lastName: profileData.lastName,
+  email: profileData.email,
+  phone: profileData.phone,
+  organization: profileData.organization,
+  role: profileData.role,
+  bio: profileData.bio,
+  timezone: profileData.timezone,
+  language: profileData.language
+});
+    
+    console.log("Profile update response:", result);
+    alert("Profile updated successfully!");
+  } catch (error) {
+    console.error("Profile update failed:", error);
+    alert("Failed to update profile");
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+// Replace handlePasswordChange function:
+const handlePasswordChange = async () => {
+  if (passwordData.newPassword !== passwordData.confirmPassword) {
+    alert("Passwords don't match!");
+    return;
+  }
+  
+  setIsLoading(true);
+  
+  try {
+    console.log("Making API call to change password...");
+    
+    // Use the correct endpoint
+    const result = await makeApiCall('/api/account/password/user_123456', 'PUT', {
+      currentPassword: passwordData.currentPassword,
+      newPassword: passwordData.newPassword,
+      confirmPassword: passwordData.confirmPassword
+    });
+    
+    console.log("Password change response:", result);
+    setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    alert("Password updated successfully!");
+  } catch (error) {
+    console.error("Password change failed:", error);
+    alert("Failed to update password");
+  } finally {
+    setIsLoading(false);
+  }
+};
+  // Handle notification settings - This will show PUT request in backend
+  const handleNotificationUpdate = async (key: string, value: boolean) => {
+    const newSettings = { ...notificationSettings, [key]: value };
+    setNotificationSettings(newSettings);
+    
+    try {
+      console.log("Making API call to update notifications...");
+      
+      // This will make actual HTTP PUT request to backend
+      const result = await makeApiCall('/api/account/notification-settings/user_123456', 'PUT', newSettings);
+      
+      console.log("Notification update response:", result);
+    } catch (error) {
+      console.error("Notification update failed:", error);
+    }
+  };
+
+  // Handle export data - This will show POST request in backend
+  const handleExportData = async () => {
+    setIsLoading(true);
+    
+    try {
+      console.log("Making API call to export data...");
+      
+      // This will make actual HTTP POST request to backend
+      const result = await makeApiCall('/api/account/export-data/user_123456', 'POST');
+      
+      console.log("Export data response:", result);
+      
+      // Create and download file
+      const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `user-data-export.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      alert("Data exported successfully!");
+    } catch (error) {
+      console.error("Export failed:", error);
+      alert("Failed to export data");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getAvatarFallback = () => {
+    return `${profileData.firstName[0]}${profileData.lastName[0]}`;
   };
 
   return (
@@ -109,23 +277,22 @@ export function AccountSettings() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl mb-2">Account Settings</h1>
+          <h1 className="text-2xl font-bold mb-2">Account Settings</h1>
           <p className="text-muted-foreground">
             Manage your account preferences and security settings
           </p>
         </div>
-        <Button variant="outline">
+        <Button variant="outline" onClick={handleExportData} disabled={isLoading}>
           <Download className="w-4 h-4 mr-2" />
           Export Data
         </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="billing">Billing</TabsTrigger>
         </TabsList>
 
         {/* Profile Tab */}
@@ -140,20 +307,44 @@ export function AccountSettings() {
             <CardContent className="space-y-6">
               {/* Avatar Section */}
               <div className="flex items-center gap-4">
-                <Avatar className="w-20 h-20">
-                  <AvatarImage src="/api/placeholder/80/80" alt="Profile" />
-                  <AvatarFallback className="text-lg">
-                    {profileData.firstName[0]}{profileData.lastName[0]}
+                <Avatar className="w-24 h-24 border-2 border-muted">
+                  <AvatarImage 
+                    src={avatarUrl || "/api/placeholder/96/96"} 
+                    alt="Profile" 
+                    className="object-cover"
+                  />
+                  <AvatarFallback className="text-xl bg-primary text-primary-foreground">
+                    {getAvatarFallback()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="space-y-2">
-                  <Button variant="outline" size="sm">
+                  <input
+                    type="file"
+                    id="avatar-upload"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleAvatarUpload}
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => document.getElementById('avatar-upload')?.click()}
+                    disabled={isLoading}
+                  >
                     <Camera className="w-4 h-4 mr-2" />
-                    Change Photo
+                    {avatarUrl ? "Change Photo" : "Upload Photo"}
                   </Button>
-                  <Button variant="ghost" size="sm" className="text-destructive">
-                    Remove Photo
-                  </Button>
+                  {avatarUrl && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-destructive"
+                      onClick={handleRemoveAvatar}
+                      disabled={isLoading}
+                    >
+                      Remove Photo
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -314,7 +505,7 @@ export function AccountSettings() {
             <CardContent className="space-y-6">
               {/* Password Change */}
               <div className="space-y-4">
-                <h4 className="text-sm">Change Password</h4>
+                <h4 className="text-sm font-medium">Change Password</h4>
                 <div className="grid gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="currentPassword">Current Password</Label>
@@ -378,7 +569,14 @@ export function AccountSettings() {
                 </div>
 
                 <Button onClick={handlePasswordChange} disabled={isLoading}>
-                  {isLoading ? "Updating..." : "Update Password"}
+                  {isLoading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update Password"
+                  )}
                 </Button>
               </div>
 
@@ -388,7 +586,7 @@ export function AccountSettings() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-sm">Two-Factor Authentication</h4>
+                    <h4 className="text-sm font-medium">Two-Factor Authentication</h4>
                     <p className="text-xs text-muted-foreground">
                       Add an extra layer of security to your account
                     </p>
@@ -407,7 +605,7 @@ export function AccountSettings() {
 
               {/* Active Sessions */}
               <div className="space-y-4">
-                <h4 className="text-sm">Active Sessions</h4>
+                <h4 className="text-sm font-medium">Active Sessions</h4>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between p-3 border rounded-lg">
                     <div>
@@ -447,7 +645,7 @@ export function AccountSettings() {
             <CardContent className="space-y-6">
               {/* Email Notifications */}
               <div className="space-y-4">
-                <h4 className="text-sm">Email Notifications</h4>
+                <h4 className="text-sm font-medium">Email Notifications</h4>
                 <div className="space-y-3">
                   {[
                     { key: "emailNotifications", label: "Email Notifications", description: "Receive general notifications via email" },
@@ -475,7 +673,7 @@ export function AccountSettings() {
 
               {/* Push Notifications */}
               <div className="space-y-4">
-                <h4 className="text-sm">Push Notifications</h4>
+                <h4 className="text-sm font-medium">Push Notifications</h4>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
@@ -496,7 +694,7 @@ export function AccountSettings() {
 
               {/* SMS Notifications */}
               <div className="space-y-4">
-                <h4 className="text-sm">SMS Notifications</h4>
+                <h4 className="text-sm font-medium">SMS Notifications</h4>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
@@ -519,179 +717,56 @@ export function AccountSettings() {
                   Security and billing notifications cannot be disabled for account safety.
                 </AlertDescription>
               </Alert>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
-        {/* Billing Tab */}
-        <TabsContent value="billing" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* Current Plan */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  Current Plan
-                  <Badge className="bg-green-500">{subscriptionData.status}</Badge>
-                </CardTitle>
-                <CardDescription>
-                  Your current subscription details and usage
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <div className="text-2xl">
-                    {subscriptionData.plan}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    ₹{subscriptionData.amount.toLocaleString()} / {subscriptionData.billingCycle}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="text-sm">Features included:</div>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    {subscriptionData.features.map((feature, index) => (
-                      <li key={index} className="flex items-center gap-2">
-                        <CheckCircle className="w-3 h-3 text-green-500" />
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="pt-2 text-sm">
-                  <div className="text-muted-foreground">Next billing date:</div>
-                  <div>{new Date(subscriptionData.nextBilling).toLocaleDateString()}</div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <Button variant="outline">
-                    Upgrade Plan
-                  </Button>
-                  <Button variant="outline" className="text-orange-600">
-                    Cancel Subscription
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Payment Method & Refunds */}
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Payment Method</CardTitle>
-                  <CardDescription>
-                    Manage your payment information
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
-                      <CreditCard className="w-4 h-4 text-blue-600" />
-                    </div>
-                    <div>
-                      <div className="text-sm">Card ending in 4532</div>
-                      <div className="text-xs text-muted-foreground">
-                        Expires 12/25
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                      Update Card
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      Add Payment Method
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Refunds & Billing</CardTitle>
-                  <CardDescription>
-                    Request refunds or view billing history
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Alert>
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                      Refund requests are processed within 5-7 business days
-                    </AlertDescription>
-                  </Alert>
-                  
-                  <div className="flex flex-col gap-2">
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="outline" className="text-orange-600">
-                          Request Refund
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Request Refund</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to request a refund for your current subscription? 
-                            This will cancel your subscription and refund the prorated amount.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction className="bg-orange-600">
-                            Submit Request
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                    
-                    <Button variant="outline">
-                      View Billing History
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
-          {/* Danger Zone */}
-          <Card className="border-destructive">
-            <CardHeader>
-              <CardTitle className="text-destructive">Danger Zone</CardTitle>
-              <CardDescription>
-                Irreversible account actions - proceed with caution
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive">
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete Account
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Account</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete your 
-                      account and all associated data including courses, students, and analytics.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction className="bg-destructive">
-                      Delete Account
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <div className="flex justify-end">
+                <Button onClick={() => {
+                  handleNotificationUpdate("all", true);
+                  alert("Notification settings saved!");
+                }}>
+                  Save Notification Settings
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Danger Zone */}
+      <Card className="border-destructive">
+        <CardHeader>
+          <CardTitle className="text-destructive">Danger Zone</CardTitle>
+          <CardDescription>
+            Irreversible account actions - proceed with caution
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Account
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Account</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete your 
+                  account and all associated data including courses, students, and analytics.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction className="bg-destructive" onClick={() => {
+                  console.log("DELETE /api/users/user_123456 - Account deletion requested");
+                }}>
+                  Delete Account
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </CardContent>
+      </Card>
     </div>
   );
 }

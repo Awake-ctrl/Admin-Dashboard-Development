@@ -1,53 +1,56 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Switch } from "./ui/switch";
-import { Textarea } from "./ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Badge } from "./ui/badge";
-import { Bell, Mail, Palette, Sliders, Save, Upload, Eye } from "lucide-react";
-import { Separator } from "./ui/separator";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "./ui/dialog";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Bell, Mail, Palette, Sliders, Save, Upload, Eye, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
-export function Settings() {
+const API_BASE_URL = "http://localhost:8000/api";
+
+export default function Settings() {
   const [activeTab, setActiveTab] = useState("branding");
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingFavicon, setUploadingFavicon] = useState(false);
+  const [message, setMessage] = useState(null);
+  
   const [settings, setSettings] = useState({
     // Branding
-    siteName: "EduPlatform",
-    siteDescription: "Comprehensive Learning Management System",
-    primaryColor: "#030213",
-    secondaryColor: "#e9ebef",
-    logo: "",
-    favicon: "",
+    site_name: "EduPlatform",
+    site_description: "Comprehensive Learning Management System",
+    primary_color: "#030213",
+    secondary_color: "#e9ebef",
+    logo_url: "",
+    favicon_url: "",
     
     // Email Templates
-    welcomeSubject: "Welcome to {{siteName}}!",
-    welcomeContent: "Welcome {{userName}}! Your account has been created successfully.",
-    courseEnrollmentSubject: "Enrolled in {{courseName}}",
-    courseEnrollmentContent: "Congratulations! You've been enrolled in {{courseName}}.",
+    welcome_subject: "Welcome to {{siteName}}!",
+    welcome_content: "Welcome {{userName}}! Your account has been created successfully.",
+    course_enrollment_subject: "Enrolled in {{courseName}}",
+    course_enrollment_content: "Congratulations! You've been enrolled in {{courseName}}.",
     
     // Feature Toggles
-    enableRegistration: true,
-    enableCourseComments: true,
-    enableCourseRatings: true,
-    enableCertificates: true,
-    enableProgressTracking: true,
-    enableNotifications: true,
-    enableEmailNotifications: true,
-    enablePushNotifications: false,
+    enable_registration: true,
+    enable_course_comments: true,
+    enable_course_ratings: true,
+    enable_certificates: true,
+    enable_progress_tracking: true,
+    enable_notifications: true,
+    enable_email_notifications: true,
+    enable_push_notifications: false,
     
     // Notifications
-    notificationTypes: {
+    notification_types: {
       courseUpdates: { email: true, push: false, inApp: true },
       assignments: { email: true, push: true, inApp: true },
       announcements: { email: false, push: false, inApp: true },
@@ -55,25 +58,123 @@ export function Settings() {
     }
   });
 
-  const updateSetting = (key: string, value: any) => {
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/settings`);
+      if (response.ok) {
+        const data = await response.json();
+        setSettings(data);
+      }
+    } catch (error) {
+      showMessage("error", "Failed to load settings");
+      console.error("Error fetching settings:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateSetting = (key, value) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
-  const updateNotificationSetting = (type: string, channel: string, value: boolean) => {
+  const updateNotificationSetting = (type, channel, value) => {
     setSettings(prev => ({
       ...prev,
-      notificationTypes: {
-        ...prev.notificationTypes,
+      notification_types: {
+        ...prev.notification_types,
         [type]: {
-          ...prev.notificationTypes[type],
+          ...prev.notification_types[type],
           [channel]: value
         }
       }
     }));
   };
 
+  const handleSave = async (section) => {
+    try {
+      setSaving(true);
+      const response = await fetch(`${API_BASE_URL}/settings`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(settings),
+      });
+
+      if (response.ok) {
+        showMessage("success", `${section} settings saved successfully!`);
+      } else {
+        showMessage("error", "Failed to save settings");
+      }
+    } catch (error) {
+      showMessage("error", "Error saving settings");
+      console.error("Error saving settings:", error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleFileUpload = async (file, type) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    const endpoint = type === "logo" ? "upload-logo" : "upload-favicon";
+    const setUploading = type === "logo" ? setUploadingLogo : setUploadingFavicon;
+    
+    try {
+      setUploading(true);
+      const response = await fetch(`${API_BASE_URL}/settings/${endpoint}`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const urlKey = type === "logo" ? "logo_url" : "favicon_url";
+        updateSetting(urlKey, data.url);
+        showMessage("success", `${type === "logo" ? "Logo" : "Favicon"} uploaded successfully!`);
+      } else {
+        showMessage("error", `Failed to upload ${type}`);
+      }
+    } catch (error) {
+      showMessage("error", `Error uploading ${type}`);
+      console.error(`Error uploading ${type}:`, error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const showMessage = (type, text) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 5000);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
+
   const BrandingSettings = () => (
     <div className="space-y-6">
+      {message && (
+        <Alert variant={message.type === "error" ? "destructive" : "default"}>
+          {message.type === "success" ? (
+            <CheckCircle className="h-4 w-4" />
+          ) : (
+            <AlertCircle className="h-4 w-4" />
+          )}
+          <AlertDescription>{message.text}</AlertDescription>
+        </Alert>
+      )}
+
       <div>
         <h3 className="text-lg mb-4">Site Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -81,8 +182,8 @@ export function Settings() {
             <Label htmlFor="site-name">Site Name</Label>
             <Input
               id="site-name"
-              value={settings.siteName}
-              onChange={(e) => updateSetting('siteName', e.target.value)}
+              value={settings.site_name}
+              onChange={(e) => updateSetting('site_name', e.target.value)}
               placeholder="Your platform name"
             />
           </div>
@@ -90,8 +191,8 @@ export function Settings() {
             <Label htmlFor="site-description">Site Description</Label>
             <Input
               id="site-description"
-              value={settings.siteDescription}
-              onChange={(e) => updateSetting('siteDescription', e.target.value)}
+              value={settings.site_description}
+              onChange={(e) => updateSetting('site_description', e.target.value)}
               placeholder="Brief description of your platform"
             />
           </div>
@@ -109,13 +210,13 @@ export function Settings() {
               <Input
                 id="primary-color"
                 type="color"
-                value={settings.primaryColor}
-                onChange={(e) => updateSetting('primaryColor', e.target.value)}
+                value={settings.primary_color}
+                onChange={(e) => updateSetting('primary_color', e.target.value)}
                 className="w-16 h-10 p-1"
               />
               <Input
-                value={settings.primaryColor}
-                onChange={(e) => updateSetting('primaryColor', e.target.value)}
+                value={settings.primary_color}
+                onChange={(e) => updateSetting('primary_color', e.target.value)}
                 placeholder="#030213"
                 className="flex-1"
               />
@@ -127,13 +228,13 @@ export function Settings() {
               <Input
                 id="secondary-color"
                 type="color"
-                value={settings.secondaryColor}
-                onChange={(e) => updateSetting('secondaryColor', e.target.value)}
+                value={settings.secondary_color}
+                onChange={(e) => updateSetting('secondary_color', e.target.value)}
                 className="w-16 h-10 p-1"
               />
               <Input
-                value={settings.secondaryColor}
-                onChange={(e) => updateSetting('secondaryColor', e.target.value)}
+                value={settings.secondary_color}
+                onChange={(e) => updateSetting('secondary_color', e.target.value)}
                 placeholder="#e9ebef"
                 className="flex-1"
               />
@@ -156,15 +257,19 @@ export function Settings() {
                 accept="image/*"
                 onChange={(e) => {
                   const file = e.target.files[0];
-                  if (file) {
-                    // In a real app, you'd upload this to your storage
-                    updateSetting('logo', URL.createObjectURL(file));
-                  }
+                  if (file) handleFileUpload(file, "logo");
                 }}
+                disabled={uploadingLogo}
               />
-              {settings.logo && (
+              {uploadingLogo && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Uploading...
+                </div>
+              )}
+              {settings.logo_url && (
                 <div className="p-2 border rounded-lg">
-                  <img src={settings.logo} alt="Logo preview" className="h-12 object-contain" />
+                  <img src={settings.logo_url} alt="Logo preview" className="h-12 object-contain" />
                 </div>
               )}
             </div>
@@ -178,14 +283,19 @@ export function Settings() {
                 accept="image/*"
                 onChange={(e) => {
                   const file = e.target.files[0];
-                  if (file) {
-                    updateSetting('favicon', URL.createObjectURL(file));
-                  }
+                  if (file) handleFileUpload(file, "favicon");
                 }}
+                disabled={uploadingFavicon}
               />
-              {settings.favicon && (
+              {uploadingFavicon && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Uploading...
+                </div>
+              )}
+              {settings.favicon_url && (
                 <div className="p-2 border rounded-lg">
-                  <img src={settings.favicon} alt="Favicon preview" className="h-8 w-8 object-contain" />
+                  <img src={settings.favicon_url} alt="Favicon preview" className="h-8 w-8 object-contain" />
                 </div>
               )}
             </div>
@@ -194,8 +304,8 @@ export function Settings() {
       </div>
 
       <div className="flex justify-end">
-        <Button>
-          <Save className="w-4 h-4 mr-2" />
+        <Button onClick={() => handleSave("Branding")} disabled={saving}>
+          {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
           Save Branding
         </Button>
       </div>
@@ -207,13 +317,13 @@ export function Settings() {
     
     const templates = {
       welcome: {
-        subject: settings.welcomeSubject,
-        content: settings.welcomeContent,
+        subject: settings.welcome_subject,
+        content: settings.welcome_content,
         variables: ["{{userName}}", "{{siteName}}", "{{loginUrl}}"]
       },
       enrollment: {
-        subject: settings.courseEnrollmentSubject,
-        content: settings.courseEnrollmentContent,
+        subject: settings.course_enrollment_subject,
+        content: settings.course_enrollment_content,
         variables: ["{{userName}}", "{{courseName}}", "{{courseUrl}}", "{{instructorName}}"]
       }
     };
@@ -222,7 +332,7 @@ export function Settings() {
       const template = templates[selectedTemplate];
       const sampleData = {
         userName: "John Doe",
-        siteName: settings.siteName,
+        siteName: settings.site_name,
         loginUrl: "https://yourplatform.com/login",
         courseName: "Introduction to React",
         courseUrl: "https://yourplatform.com/course/react-intro",
@@ -232,7 +342,6 @@ export function Settings() {
       let previewSubject = template.subject;
       let previewContent = template.content;
 
-      // Replace variables with sample data
       Object.entries(sampleData).forEach(([key, value]) => {
         const placeholder = `{{${key}}}`;
         previewSubject = previewSubject.replace(new RegExp(placeholder, 'g'), value);
@@ -248,10 +357,9 @@ export function Settings() {
       return (
         <div className="max-w-2xl mx-auto">
           <div className="bg-white border rounded-lg overflow-hidden shadow-sm">
-            {/* Email Header */}
             <div className="bg-gray-50 p-4 border-b">
               <div className="flex items-center justify-between text-sm text-gray-600">
-                <div>From: noreply@{settings.siteName.toLowerCase().replace(/\s+/g, '')}.com</div>
+                <div>From: noreply@{settings.site_name.toLowerCase().replace(/\s+/g, '')}.com</div>
                 <div>To: john.doe@example.com</div>
               </div>
               <div className="mt-2">
@@ -260,19 +368,16 @@ export function Settings() {
               </div>
             </div>
             
-            {/* Email Body */}
             <div className="p-6">
               <div className="flex items-center mb-6">
-                {settings.logo ? (
-                  <img src={settings.logo} alt="Logo" className="h-8 object-contain" />
+                {settings.logo_url ? (
+                  <img src={settings.logo_url} alt="Logo" className="h-8 object-contain" />
                 ) : (
                   <div 
-                    className="h-8 w-32 rounded"
-                    style={{ backgroundColor: settings.primaryColor }}
+                    className="h-8 w-32 rounded flex items-center justify-center text-white text-sm font-medium"
+                    style={{ backgroundColor: settings.primary_color }}
                   >
-                    <div className="h-full flex items-center justify-center text-white text-sm font-medium">
-                      {settings.siteName}
-                    </div>
+                    {settings.site_name}
                   </div>
                 )}
               </div>
@@ -283,12 +388,12 @@ export function Settings() {
                 <div className="pt-6 border-t border-gray-200">
                   <p className="text-sm text-gray-500">
                     Best regards,<br />
-                    The {settings.siteName} Team
+                    The {settings.site_name} Team
                   </p>
                 </div>
                 
                 <div className="pt-4 text-xs text-gray-400">
-                  <p>This is an automated email from {settings.siteName}. Please do not reply to this email.</p>
+                  <p>This is an automated email from {settings.site_name}. Please do not reply to this email.</p>
                 </div>
               </div>
             </div>
@@ -299,6 +404,13 @@ export function Settings() {
 
     return (
       <div className="space-y-6">
+        {message && (
+          <Alert variant={message.type === "error" ? "destructive" : "default"}>
+            {message.type === "success" ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+            <AlertDescription>{message.text}</AlertDescription>
+          </Alert>
+        )}
+
         <div>
           <h3 className="text-lg mb-4">Email Templates</h3>
           <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
@@ -321,9 +433,9 @@ export function Settings() {
                 value={templates[selectedTemplate].subject}
                 onChange={(e) => {
                   if (selectedTemplate === 'welcome') {
-                    updateSetting('welcomeSubject', e.target.value);
+                    updateSetting('welcome_subject', e.target.value);
                   } else {
-                    updateSetting('courseEnrollmentSubject', e.target.value);
+                    updateSetting('course_enrollment_subject', e.target.value);
                   }
                 }}
                 placeholder="Email subject"
@@ -337,9 +449,9 @@ export function Settings() {
                 value={templates[selectedTemplate].content}
                 onChange={(e) => {
                   if (selectedTemplate === 'welcome') {
-                    updateSetting('welcomeContent', e.target.value);
+                    updateSetting('welcome_content', e.target.value);
                   } else {
-                    updateSetting('courseEnrollmentContent', e.target.value);
+                    updateSetting('course_enrollment_content', e.target.value);
                   }
                 }}
                 placeholder="Email content with variables"
@@ -348,8 +460,8 @@ export function Settings() {
             </div>
             
             <div className="flex gap-2">
-              <Button>
-                <Save className="w-4 h-4 mr-2" />
+              <Button onClick={() => handleSave("Email Templates")} disabled={saving}>
+                {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                 Save Template
               </Button>
               <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
@@ -375,7 +487,7 @@ export function Settings() {
               <CardContent className="p-4">
                 <div className="space-y-2">
                   {templates[selectedTemplate].variables.map((variable) => (
-                    <Badge key={variable} variant="outline" className="block w-fit">
+                    <Badge key={variable} variant="outline" className="block w-fit cursor-pointer hover:bg-accent">
                       {variable}
                     </Badge>
                   ))}
@@ -395,6 +507,13 @@ export function Settings() {
 
   const FeatureToggleSettings = () => (
     <div className="space-y-6">
+      {message && (
+        <Alert variant={message.type === "error" ? "destructive" : "default"}>
+          {message.type === "success" ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+          <AlertDescription>{message.text}</AlertDescription>
+        </Alert>
+      )}
+
       <div>
         <h3 className="text-lg mb-4">Platform Features</h3>
         <div className="space-y-4">
@@ -405,8 +524,8 @@ export function Settings() {
             </div>
             <Switch
               id="enable-registration"
-              checked={settings.enableRegistration}
-              onCheckedChange={(checked) => updateSetting('enableRegistration', checked)}
+              checked={settings.enable_registration}
+              onCheckedChange={(checked) => updateSetting('enable_registration', checked)}
             />
           </div>
           
@@ -417,8 +536,8 @@ export function Settings() {
             </div>
             <Switch
               id="enable-comments"
-              checked={settings.enableCourseComments}
-              onCheckedChange={(checked) => updateSetting('enableCourseComments', checked)}
+              checked={settings.enable_course_comments}
+              onCheckedChange={(checked) => updateSetting('enable_course_comments', checked)}
             />
           </div>
           
@@ -429,8 +548,8 @@ export function Settings() {
             </div>
             <Switch
               id="enable-ratings"
-              checked={settings.enableCourseRatings}
-              onCheckedChange={(checked) => updateSetting('enableCourseRatings', checked)}
+              checked={settings.enable_course_ratings}
+              onCheckedChange={(checked) => updateSetting('enable_course_ratings', checked)}
             />
           </div>
           
@@ -441,8 +560,8 @@ export function Settings() {
             </div>
             <Switch
               id="enable-certificates"
-              checked={settings.enableCertificates}
-              onCheckedChange={(checked) => updateSetting('enableCertificates', checked)}
+              checked={settings.enable_certificates}
+              onCheckedChange={(checked) => updateSetting('enable_certificates', checked)}
             />
           </div>
           
@@ -453,16 +572,16 @@ export function Settings() {
             </div>
             <Switch
               id="enable-progress"
-              checked={settings.enableProgressTracking}
-              onCheckedChange={(checked) => updateSetting('enableProgressTracking', checked)}
+              checked={settings.enable_progress_tracking}
+              onCheckedChange={(checked) => updateSetting('enable_progress_tracking', checked)}
             />
           </div>
         </div>
       </div>
 
       <div className="flex justify-end">
-        <Button>
-          <Save className="w-4 h-4 mr-2" />
+        <Button onClick={() => handleSave("Features")} disabled={saving}>
+          {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
           Save Features
         </Button>
       </div>
@@ -471,6 +590,13 @@ export function Settings() {
 
   const NotificationSettings = () => (
     <div className="space-y-6">
+      {message && (
+        <Alert variant={message.type === "error" ? "destructive" : "default"}>
+          {message.type === "success" ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+          <AlertDescription>{message.text}</AlertDescription>
+        </Alert>
+      )}
+
       <div>
         <h3 className="text-lg mb-4">Global Notification Settings</h3>
         <div className="space-y-4">
@@ -481,8 +607,8 @@ export function Settings() {
             </div>
             <Switch
               id="enable-notifications"
-              checked={settings.enableNotifications}
-              onCheckedChange={(checked) => updateSetting('enableNotifications', checked)}
+              checked={settings.enable_notifications}
+              onCheckedChange={(checked) => updateSetting('enable_notifications', checked)}
             />
           </div>
           
@@ -493,8 +619,8 @@ export function Settings() {
             </div>
             <Switch
               id="enable-email-notifications"
-              checked={settings.enableEmailNotifications}
-              onCheckedChange={(checked) => updateSetting('enableEmailNotifications', checked)}
+              checked={settings.enable_email_notifications}
+              onCheckedChange={(checked) => updateSetting('enable_email_notifications', checked)}
             />
           </div>
           
@@ -505,8 +631,8 @@ export function Settings() {
             </div>
             <Switch
               id="enable-push-notifications"
-              checked={settings.enablePushNotifications}
-              onCheckedChange={(checked) => updateSetting('enablePushNotifications', checked)}
+              checked={settings.enable_push_notifications}
+              onCheckedChange={(checked) => updateSetting('enable_push_notifications', checked)}
             />
           </div>
         </div>
@@ -517,7 +643,7 @@ export function Settings() {
       <div>
         <h3 className="text-lg mb-4">Notification Types</h3>
         <div className="space-y-4">
-          {Object.entries(settings.notificationTypes).map(([type, channels]) => (
+          {Object.entries(settings.notification_types).map(([type, channels]) => (
             <Card key={type}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
@@ -530,7 +656,7 @@ export function Settings() {
                       id={`${type}-email`}
                       checked={channels.email}
                       onCheckedChange={(checked) => updateNotificationSetting(type, 'email', checked)}
-                      disabled={!settings.enableEmailNotifications}
+                      disabled={!settings.enable_email_notifications}
                     />
                   </div>
                   <div className="flex items-center justify-between">
@@ -539,7 +665,7 @@ export function Settings() {
                       id={`${type}-push`}
                       checked={channels.push}
                       onCheckedChange={(checked) => updateNotificationSetting(type, 'push', checked)}
-                      disabled={!settings.enablePushNotifications}
+                      disabled={!settings.enable_push_notifications}
                     />
                   </div>
                   <div className="flex items-center justify-between">
@@ -548,7 +674,7 @@ export function Settings() {
                       id={`${type}-inapp`}
                       checked={channels.inApp}
                       onCheckedChange={(checked) => updateNotificationSetting(type, 'inApp', checked)}
-                      disabled={!settings.enableNotifications}
+                      disabled={!settings.enable_notifications}
                     />
                   </div>
                 </div>
@@ -559,8 +685,8 @@ export function Settings() {
       </div>
 
       <div className="flex justify-end">
-        <Button>
-          <Save className="w-4 h-4 mr-2" />
+        <Button onClick={() => handleSave("Notifications")} disabled={saving}>
+          {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
           Save Notifications
         </Button>
       </div>
@@ -568,15 +694,13 @@ export function Settings() {
   );
 
   return (
-    <div className="space-y-6">
-      {/* Settings Header */}
+    <div className="space-y-6 p-6">
       <Card>
         <CardHeader>
           <CardTitle>Platform Settings</CardTitle>
         </CardHeader>
       </Card>
 
-      {/* Settings Content */}
       <Card>
         <CardContent className="p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
