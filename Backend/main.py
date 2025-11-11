@@ -422,14 +422,14 @@ def increment_download(content_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Content not found")
     return {"message": "Download count incremented", "downloads": db_content.downloads}
 
-@app.post("api/contents", response_model=schemas.ContentCreate)
+@app.post("/api/contents", response_model=schemas.ContentCreate)
 def create_content(content: schemas.ContentCreate, db: Session = Depends(get_db)):
     # Remove topic_id if it exists in the incoming data
     content_data = content.dict()
     content_data.pop('topic_id', None)  # Remove topic_id if present
     # Ensure required fields are set
-    if not content_data.get('file_url'):
-        content_data['file_url'] = ""
+    if not content_data.get('file_path'):
+        content_data['file_path'] = ""
     if not content_data.get('file_size'):
         content_data['file_size'] = ""
     db_content = crud.create_content(db=db, content=content_data)
