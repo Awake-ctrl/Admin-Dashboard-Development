@@ -306,7 +306,7 @@ def create_content(db: Session, content: dict):
         'title': content.get('title'),
         'description': content.get('description'),
         'content_type': content.get('content_type'),
-        'file_url': content.get('file_url', ''),  # Use file_url not file_path
+        'file_path': content.get('file_path', ''),  # Use file_url not file_path
         'file_size': content.get('file_size', ''),
         'duration': content.get('duration'),
         'author': content.get('author'),
