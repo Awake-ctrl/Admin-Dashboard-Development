@@ -2636,7 +2636,7 @@ def send_welcome_email_endpoint(user_id: str, db: Session = Depends(get_db)):
 
     # ========== ACCOUNT SETTINGS ENDPOINTS ==========
 
-@app.get("/api/account/profile/{user_id}", response_model=schemas.UserProfile)
+@app.get("/api/account/profile/{user_id}", response_model=schemas.EmployeeResponse)
 def get_user_profile_fixed(user_id: str, db: Session = Depends(get_db)):
     """Get user profile - with fallback for testing"""
     user = db.query(models.User).filter(models.User.id == user_id).first()
@@ -2654,7 +2654,7 @@ def get_user_profile_fixed(user_id: str, db: Session = Depends(get_db)):
             "role": "Administrator",
             "bio": "Experienced educational administrator passionate about leveraging technology for better learning outcomes.",
             "timezone": "Asia/Kolkata",
-            "language": "English"
+            # "language": "English"
         }
     
     # Return actual user data
@@ -2676,7 +2676,7 @@ def get_user_profile_fixed(user_id: str, db: Session = Depends(get_db)):
 @app.put("/api/account/profile/{user_id}")
 def update_user_profile_fixed(
     user_id: str, 
-    profile_data: schemas.UserProfileUpdate,
+    profile_data: schemas.EmployeeResponse,
     db: Session = Depends(get_db)
 ):
     """Update user profile - with fallback for testing"""
@@ -2915,7 +2915,7 @@ def debug_routes():
 @app.put("/api/account/profile/{user_id}")
 def update_user_profile_main(
     user_id: str, 
-    profile_data: schemas.UserProfileUpdate, 
+    profile_data: schemas.EmployeeResponse, 
     db: Session = Depends(get_db)
 ):
     """Update user profile - direct in main"""
@@ -2969,7 +2969,7 @@ def change_password_main(
     
     return {"message": "Password updated successfully"}
 
-@app.get("/api/account/profile/{user_id}", response_model=schemas.UserProfile)
+@app.get("/api/account/profile/{user_id}", response_model=schemas.EmployeeBase)
 def get_user_profile_main(user_id: str, db: Session = Depends(get_db)):
     """Get user profile for account settings - direct in main"""
     user = db.query(models.User).filter(models.User.id == user_id).first()

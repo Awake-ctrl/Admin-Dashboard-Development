@@ -6,36 +6,50 @@ from datetime import datetime, timedelta
 from typing import Optional
 import uuid
 import jwt
-from jwt import PyJWTError  # ✅ Correct exception import
+from jwt import PyJWTError
 from passlib.context import CryptContext
 import json
 
 from database import get_db
-from models import User, Role
+from models import Employee, Role
 from schemas import (
-    UserLogin, UserSignup, UserResponse, Token,
-    PasswordResetRequest, PasswordResetConfirm
+    EmployeeLogin, EmployeeSignup, EmployeeResponse, Token,
+    PasswordResetRequest, PasswordResetConfirm, EmployeeUpdate
 )
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# ⚙️ JWT Config
+# Use a more compatible hashing algorithm
+pwd_context = CryptContext(
+    schemes=["pbkdf2_sha256", "bcrypt"],  # Fallback to pbkdf2 if bcrypt fails
+    deprecated="auto"
+)
+
+# JWT Config
 SECRET_KEY = "your-secret-key-here-change-in-production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-
 # ======================
-# 🔐 Utility Functions
+# Utility Functions
 # ======================
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password):
-    return pwd_context.hash(password)
+    try:
+        return pwd_context.hash(password)
+    except ValueError as e:
+        if "longer than 72 bytes" in str(e):
+            # Truncate password for bcrypt compatibility
+            password_bytes = password.encode('utf-8')
+            if len(password_bytes) > 72:
+                password_bytes = password_bytes[:72]
+            truncated_password = password_bytes.decode('utf-8', errors='ignore')
+            return pwd_context.hash(truncated_password)
+        raise
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
@@ -43,9 +57,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-
-async def get_user_from_token(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    """Dependency to extract user from JWT token"""
+async def get_employee_from_token(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    """Dependency to extract employee from JWT token"""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -55,61 +68,37 @@ async def get_user_from_token(token: str = Depends(oauth2_scheme), db: Session =
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
-        user_id: str = payload.get("user_id")
-        if not email or not user_id:
+        employee_id: str = payload.get("employee_id")
+        if not email or not employee_id:
             raise credentials_exception
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
     except PyJWTError:
         raise credentials_exception
 
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
+    employee = db.query(Employee).filter(Employee.id == employee_id).first()
+    if not employee:
         raise credentials_exception
-    return user
-
+    return employee
 
 # ======================
-# 🧠 Auth Endpoints
+# Auth Endpoints
 # ======================
-# @router.post("/login", response_model=Token)
-# async def login(login_data: UserLogin, db: Session = Depends(get_db)):
-#     user = db.query(User).filter(User.email == login_data.email).first()
-
-#     if not user or not verify_password(login_data.password, user.password_hash):
-#         raise HTTPException(status_code=401, detail="Incorrect email or password")
-#     if not user.is_active:
-#         raise HTTPException(status_code=400, detail="Account is deactivated")
-
-#     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-#     access_token = create_access_token(
-#         data={"sub": user.email, "user_id": user.id},
-#         expires_delta=access_token_expires,
-#     )
-
-#     return {
-#         "access_token": access_token,
-#         "token_type": "bearer",
-#         "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-#     }
 @router.post("/login", response_model=Token)
-async def login(login_data: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == login_data.email).first()
+async def login(login_data: EmployeeLogin, db: Session = Depends(get_db)):
+    employee = db.query(Employee).filter(Employee.email == login_data.email).first()
 
-    # Check only if user exists
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
+    if not employee:
+        raise HTTPException(status_code=401, detail="Employee not found")
 
-    # Skip password verification entirely
-    # if not user.is_active:
-    #     raise HTTPException(status_code=400, detail="Account is deactivated")
+    if not verify_password(login_data.password, employee.password_hash):
+        raise HTTPException(status_code=401, detail="Incorrect password")
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.email, "user_id": user.id},
+        data={"sub": employee.email, "employee_id": employee.id},
         expires_delta=access_token_expires,
     )
-   
 
     return {
         "access_token": access_token,
@@ -117,140 +106,134 @@ async def login(login_data: UserLogin, db: Session = Depends(get_db)):
         "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     }
 
-@router.post("/signup", response_model=UserResponse)
-async def signup(signup_data: UserSignup, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.email == signup_data.email).first()
-    if existing_user:
+@router.post("/signup", response_model=EmployeeResponse)
+async def signup(signup_data: EmployeeSignup, db: Session = Depends(get_db)):
+    # Check if employee already exists
+    existing = db.query(Employee).filter(Employee.email == signup_data.email).first()
+    if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    default_role = db.query(Role).filter(Role.name == "User").first()
-    if not default_role:
-        default_role = Role(
-            id=str(uuid.uuid4()),
-            name="User",
-            description="Default user role",
-            level=1,
-            permissions=json.dumps([]),
-            is_system=True,
-            is_active=True,
-        )
-        db.add(default_role)
-        db.commit()
-        db.refresh(default_role)
-
-    user = User(
-        id=str(uuid.uuid4()),
-        name=f"{signup_data.first_name} {signup_data.last_name}",
-        email=signup_data.email,
-        phone=signup_data.phone,
-        organization=signup_data.organization,
-        role_id=default_role.id,
-        password_hash=get_password_hash(signup_data.password),
-        is_active=True,
-        email_verified=False,
-    )
-
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-
-    return UserResponse(
-        id=user.id,
-        name=user.name,
-        email=user.email,
-        phone=user.phone,
-        organization=user.organization,
-        role=default_role.name,
-        is_active=user.is_active,
-        email_verified=user.email_verified,
-        created_at=user.created_at,
-        updated_at=user.updated_at,
-    )
-
-
-@router.post("/forgot-password")
-async def forgot_password(reset_request: PasswordResetRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == reset_request.email).first()
-    # Always return success to avoid user enumeration
-    if user:
-        print(f"Password reset requested for: {user.email}")
-    return {"message": "If the email exists, a reset link has been sent", "success": True}
-
-
-@router.post("/reset-password")
-async def reset_password(reset_data: PasswordResetConfirm, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == reset_data.email).first()
-    if not user:
-        raise HTTPException(status_code=400, detail="Invalid reset token")
-
-    user.password_hash = get_password_hash(reset_data.new_password)
-    user.updated_at = datetime.utcnow()
-    db.commit()
-
-    return {"message": "Password reset successfully", "success": True}
-
-
-@router.get("/me", response_model=UserResponse)
-async def get_me(current_user: User = Depends(get_user_from_token)):
-    """Get current user"""
-    role_name = current_user.role.name if current_user.role else None
- 
-    return UserResponse(
-        id=current_user.id,
-        name=current_user.name,
-        email=current_user.email,
-        phone=current_user.phone,
-        # organization=current_user.organization,
-        # role=role_name,
-        # is_active=current_user.is_active,
-        # email_verified=current_user.email_verified,
-        # created_at=current_user.created_at,
-        # updated_at=current_user.updated_at,
-    )
-
-
-@router.post("/logout")
-async def logout():
-    return {"message": "Successfully logged out"}
-
-
-# ======================
-# 🧱 Default Admin Setup
-# ======================
-def create_default_admin(db: Session):
-    """Create default admin if not exists"""
-    try:
-        admin = db.query(User).filter(User.email == "admin@eduplatform.com").first()
-        if admin:
-            return
-
-        admin_role = db.query(Role).filter(Role.name == "Administrator").first()
-        if not admin_role:
-            admin_role = Role(
+    # Assign roles (if none provided, give a default)
+    assigned_roles = []
+    if signup_data.roles:
+        assigned_roles = db.query(Role).filter(Role.name.in_(signup_data.roles)).all()
+    else:
+        default_role = db.query(Role).filter(Role.name == "Employee").first()
+        if not default_role:
+            default_role = Role(
                 id=str(uuid.uuid4()),
-                name="Administrator",
-                description="Full system access",
-                level=10,
-                permissions=json.dumps(["*"]),
+                name="Employee",
+                description="Default employee role",
+                level=1,
+                permissions=json.dumps([]),
                 is_system=True,
                 is_active=True,
             )
-            db.add(admin_role)
+            db.add(default_role)
             db.commit()
-            db.refresh(admin_role)
+            db.refresh(default_role)
+        assigned_roles = [default_role]
 
-        new_admin = User(
+    try:
+        # Create employee
+        employee = Employee(
             id=str(uuid.uuid4()),
-            name="System Administrator",
-            email="admin@eduplatform.com",
-            role_id=admin_role.id,
-            password_hash=get_password_hash("admin123"),
+            first_name=signup_data.first_name,
+            last_name=signup_data.last_name,
+            email=signup_data.email,
+            phone_number=signup_data.phone_number,
+            organization=signup_data.organization,
+            password_hash=get_password_hash(signup_data.password),
+            bio=signup_data.bio,
+            timezone=signup_data.timezone or "Asia/Kolkata",
             is_active=True,
-            email_verified=True,
+            email_verified=False,
+            roles=assigned_roles,
         )
-        db.add(new_admin)
+
+        db.add(employee)
         db.commit()
-        print("✅ Default admin created: admin@eduplatform.com / admin123")
+        db.refresh(employee)
+
+        return EmployeeResponse(
+            id=employee.id,
+            first_name=employee.first_name,
+            last_name=employee.last_name,
+            email=employee.email,
+            phone_number=employee.phone_number,
+            organization=employee.organization,
+            roles=[r.name for r in assigned_roles],
+            bio=employee.bio,
+            timezone=employee.timezone,
+            is_active=employee.is_active,
+            email_verified=employee.email_verified,
+            created_at=employee.created_at,
+            updated_at=employee.updated_at,
+        )
     except Exception as e:
         db.rollback()
-        print(f"❌ Failed to create default admin: {e}")
+        raise HTTPException(status_code=500, detail=f"Error creating account: {str(e)}")
+
+
+@router.get("/me", response_model=EmployeeResponse)
+async def get_me(current_employee: Employee = Depends(get_employee_from_token)):
+    """Get current employee"""
+    return EmployeeResponse(
+        id=current_employee.id,
+        first_name=current_employee.first_name,
+        last_name=current_employee.last_name,
+        email=current_employee.email,
+        phone_number=current_employee.phone_number,
+        organization=current_employee.organization,
+        roles=[r.name for r in current_employee.roles],
+        bio=current_employee.bio,
+        is_active=current_employee.is_active,
+        email_verified=current_employee.email_verified,
+        created_at=current_employee.created_at,
+        updated_at=current_employee.updated_at,
+    )
+
+@router.put("/update", response_model=EmployeeResponse)
+async def update_employee(
+    update_data: EmployeeUpdate,
+    current_employee: Employee = Depends(get_employee_from_token),
+    db: Session = Depends(get_db),
+):
+    """Update current employee details."""
+    if update_data.first_name:
+        current_employee.first_name = update_data.first_name
+    if update_data.last_name:
+        current_employee.last_name = update_data.last_name
+    if update_data.phone_number:
+        current_employee.phone_number = update_data.phone_number
+    # if update_data.organization:
+    #     current_employee.organization = update_data.organization
+    if update_data.bio:
+        current_employee.bio = update_data.bio
+    if update_data.timezone:
+        current_employee.timezone=update_data.timezone
+    # Handle role updates
+    if update_data.roles is not None:
+        roles = db.query(Role).filter(Role.name.in_(update_data.roles)).all()
+        current_employee.roles = roles
+
+    current_employee.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(current_employee)
+
+    return EmployeeResponse(
+        id=current_employee.id,
+        first_name=current_employee.first_name,
+        last_name=current_employee.last_name,
+        email=current_employee.email,
+        phone_number=current_employee.phone_number,
+        organization=current_employee.organization,
+        roles=[r.name for r in current_employee.roles],
+        bio=current_employee.bio,
+        timezone=current_employee.timezone,
+        is_active=current_employee.is_active,
+        email_verified=current_employee.email_verified,
+        
+        created_at=current_employee.created_at,
+        updated_at=current_employee.updated_at,
+    )

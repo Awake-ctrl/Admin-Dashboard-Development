@@ -31,67 +31,83 @@ export function LoginScreen({ onLogin, onSwitchToSignup, onSwitchToForgotPasswor
   const [loginSuccess, setLoginSuccess] = useState(false);
   const [apiError, setApiError] = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setApiError("");
-    
-    if (!validateForm()) return;
-    
-    setIsLoading(true);
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setApiError("");
+  
+  if (!validateForm()) return;
+  
+  setIsLoading(true);
 
-    try {
-      const response = await fetch('http://localhost:8000/api/auth/login', {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
-      });
+  try {
+    const response = await fetch('http://localhost:8000/api/auth/login', {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: formData.email,
+        password: formData.password,
+      }),
+    });
 
-      let data;
-      try {
-        data = await response.json();
-      } catch {
-        throw new Error("Invalid server response (not JSON)");
+    // Check if response is HTML (error page)
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      if (text.startsWith('<!DOCTYPE') || text.startsWith('<html>')) {
+        throw new Error('Server returned HTML instead of JSON. Check if backend is running.');
       }
-
-
-      if (!response.ok) {
-        throw new Error(data.detail || "Login failed");
-      }
-
-      // Store the token
-      localStorage.setItem("access_token", data.access_token);
-      
-      // Get user info
-      const userResponse = await fetch("/api/auth/me", {
-        headers: {
-          "Authorization": `Bearer ${data.access_token}`,
-        },
-      });
-
-      if (userResponse.ok) {
-        const userData = await userResponse.json();
-        setLoginSuccess(true);
-        
-        // Call onLogin with user data after a brief delay
-        setTimeout(() => {
-          onLogin(userData);
-        }, 1000);
-      } else {
-        throw new Error("Failed to get user information");
-      }
-
-    } catch (error: any) {
-      setApiError(error.message || "An error occurred during login");
-    } finally {
-      setIsLoading(false);
+      throw new Error(`Unexpected response format: ${contentType}`);
     }
-  };
 
+    let data;
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      throw new Error("Invalid JSON response from server");
+    }
+
+    if (!response.ok) {
+      throw new Error(data.detail || `Login failed with status ${response.status}`);
+    }
+
+    // Store the token
+    localStorage.setItem("access_token", data.access_token);
+    
+    // Get user info
+    const userResponse = await fetch("http://localhost:8000/api/auth/me", {
+      headers: {
+        "Authorization": `Bearer ${data.access_token}`,
+      },
+    });
+
+    // Check user response content type
+    const userContentType = userResponse.headers.get('content-type');
+    if (!userContentType || !userContentType.includes('application/json')) {
+      const text = await userResponse.text();
+      throw new Error('Server returned HTML for user data');
+    }
+
+    if (userResponse.ok) {
+      const userData = await userResponse.json();
+      setLoginSuccess(true);
+      
+      // Call onLogin with user data after a brief delay
+      setTimeout(() => {
+        onLogin(userData);
+      }, 1000);
+    } else {
+      throw new Error("Failed to get user information");
+    }
+
+  } catch (error: any) {
+    console.error('Login error:', error);
+    setApiError(error.message || "An error occurred during login");
+  } finally {
+    setIsLoading(false);
+  }
+};
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     
@@ -273,8 +289,7 @@ export function LoginScreen({ onLogin, onSwitchToSignup, onSwitchToForgotPasswor
                 {isLoading ? "Signing in..." : "Sign In"}
               </Button>
             </form>
-
-            {/* Divider */}
+{/* 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <Separator />
@@ -284,9 +299,8 @@ export function LoginScreen({ onLogin, onSwitchToSignup, onSwitchToForgotPasswor
                   Or continue with
                 </span>
               </div>
-            </div>
-
-            {/* Google Login Only */}
+            </div> */}
+{/* 
             <div className="grid gap-4">
               <Button variant="outline" className="w-full" disabled={isLoading}>
                 <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
@@ -297,7 +311,7 @@ export function LoginScreen({ onLogin, onSwitchToSignup, onSwitchToForgotPasswor
                 </svg>
                 Google
               </Button>
-            </div>
+            </div> */}
 
             {/* Sign Up Link */}
             <div className="text-center text-sm">
@@ -319,7 +333,7 @@ export function LoginScreen({ onLogin, onSwitchToSignup, onSwitchToForgotPasswor
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            <strong>Note:</strong> Make sure your backend is running on the correct port.
+            <strong>Error:</strong> The backend is not working.
           </AlertDescription>
         </Alert>
       </div>
