@@ -5,4 +5,4 @@ __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
-router/__pycache__/
+routers/__pycache__/
