@@ -504,7 +504,32 @@ class NotificationSubscriber(Base):
 
 # Add these classes to your existing models.py file
 
+employee_role_table = Table(
+    "employee_role",
+    Base.metadata,
+    Column("employee_id", String, ForeignKey("employees.id")),
+    Column("role_id", String, ForeignKey("roles.id")),
+)
 
+class Employee(Base):
+    __tablename__ = "employees"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    first_name = Column(String, nullable=False)
+    last_name = Column(String, nullable=False)
+    email = Column(String, unique=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    phone_number = Column(String)
+    organization = Column(String)
+    bio = Column(String)
+    is_active = Column(Boolean, default=True)
+    email_verified = Column(Boolean, default=False)
+    # timezone: str
+    timezone = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    roles = relationship("Role", secondary=employee_role_table, back_populates="employees")
 
  # ============= SUPPORT TICKET MODELS =============
 # Add these classes to your models.py file

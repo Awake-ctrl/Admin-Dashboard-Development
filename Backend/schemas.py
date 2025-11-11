@@ -1,5 +1,5 @@
 # schemas.py
-from pydantic import BaseModel, EmailStr,validator
+from pydantic import BaseModel, EmailStr,Field
 from typing import List, Optional, Dict, Any,Union
 from datetime import datetime, date
 from enum import Enum
@@ -565,47 +565,77 @@ class UserCourseSubscription(UserCourseSubscriptionBase):
         from_attributes = True
 # Add these to your existing schemas.py
 
-class UserLogin(BaseModel):
-    email: str
+# ==========================
+# Role Schemas
+# ==========================
+class RoleBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    level: Optional[int] = 1
+    permissions: Optional[List[str]] = []
+    is_system: bool = False
+    is_active: bool = True
+
+
+class RoleCreate(RoleBase):
+    pass
+
+
+class RoleResponse(RoleBase):
+    id: str
+
+    class Config:
+        orm_mode = True
+# ==========================
+# Employee Schemas
+# ==========================
+class EmployeeLogin(BaseModel):
+    email: EmailStr
     password: str
 
-class UserSignup(BaseModel):
+
+class EmployeeSignup(BaseModel):
+    first_name: str = Field(..., example="Sai")
+    last_name: str = Field(..., example="Kiran")
+    email: EmailStr
+    password: str = Field(..., min_length=6)
+    phone_number: Optional[str] = Field(None, example="+91-9876543210")
+    # organization: Optional[str] = None
+    roles: Optional[List[str]] = []  # Role names list
+    bio: Optional[str] = None
+
+class EmployeeUpdate(BaseModel):
+    """Schema for updating an employee's details."""
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone_number: Optional[str] = None
+    organization: Optional[str] = None
+    bio: Optional[str] = None
+    timezone:Optional[str]=None
+    roles: Optional[List[str]] = None  # Can update roles
+
+    class Config:
+        orm_mode = True
+        extra = "forbid"  # Prevent unknown fields
+
+
+class EmployeeResponse(BaseModel):
+    id: str
     first_name: str
     last_name: str
     email: EmailStr
-    phone: Optional[str] = None
-    organization: Optional[str] = None
-    password: str
-    confirm_password: str
-    agree_terms: bool
-    subscribe_newsletter: bool = False
-
-    @validator('confirm_password')
-    def passwords_match(cls, v, values, **kwargs):
-        if 'password' in values and v != values['password']:
-            raise ValueError('Passwords do not match')
-        return v
-
-    @validator('agree_terms')
-    def terms_must_be_accepted(cls, v):
-        if not v:
-            raise ValueError('You must accept the terms and conditions')
-        return v
-
-class UserResponse(BaseModel):
-    id: str
-    name: str
-    email: str
-    phone: Optional[str]
-    # organization: Optional[str]
-    # role: Optional[str]
-    # is_active: bool
-    # email_verified: bool
-    # created_at: datetime
-    # updated_at: datetime
+    phone_number: Optional[str]
+    organization: Optional[str]
+    roles: List[str] = []  # Role names
+    bio: Optional[str]
+    timezone: Optional[str]
+    is_active: bool
+    email_verified: bool
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 class Token(BaseModel):
     access_token: str
@@ -616,16 +646,8 @@ class PasswordResetRequest(BaseModel):
     email: EmailStr
 
 class PasswordResetConfirm(BaseModel):
-    token: str
     email: EmailStr
-    new_password: str
-    confirm_password: str
-
-    @validator('confirm_password')
-    def passwords_match(cls, v, values, **kwargs):
-        if 'new_password' in values and v != values['new_password']:
-            raise ValueError('Passwords do not match')
-        return v
+    new_password: str = Field(..., min_length=6)
 # Update forward references
 CourseWithDetails.update_forward_refs()
 
@@ -947,42 +969,42 @@ class PlatformSettingsResponse(PlatformSettingsBase):
 
 # Add these new schemas
 
-class UserProfileUpdate(BaseModel):
-    firstName: Optional[str] = None
-    lastName: Optional[str] = None
-    email: Optional[EmailStr] = None
-    phone: Optional[str] = None
-    organization: Optional[str] = None
-    role: Optional[str] = None
-    bio: Optional[str] = None
-    timezone: Optional[str] = None
-    language: Optional[str] = None
+# class UserProfileUpdate(BaseModel):
+#     firstName: Optional[str] = None
+#     lastName: Optional[str] = None
+#     email: Optional[EmailStr] = None
+#     phone: Optional[str] = None
+#     organization: Optional[str] = None
+#     role: Optional[str] = None
+#     bio: Optional[str] = None
+#     timezone: Optional[str] = None
+#     language: Optional[str] = None
 
-class UserProfile(BaseModel):
-    id: str
-    firstName: str
-    lastName: str
-    email: str
-    phone: Optional[str]
-    organization: Optional[str]
-    role: str
-    bio: Optional[str]
-    timezone: str
-    language: str
+# class UserProfile(BaseModel):
+#     id: str
+#     firstName: str
+#     lastName: str
+#     email: str
+#     phone: Optional[str]
+#     organization: Optional[str]
+#     role: str
+#     bio: Optional[str]
+#     timezone: str
+#     language: str
     
-    class Config:
-        from_attributes = True
+#     class Config:
+#         from_attributes = True
 
-class PasswordChange(BaseModel):
-    currentPassword: str
-    newPassword: str
-    confirmPassword: str
+# class PasswordChange(BaseModel):
+#     currentPassword: str
+#     newPassword: str
+#     confirmPassword: str
     
-    @validator('confirmPassword')
-    def passwords_match(cls, v, values):
-        if 'newPassword' in values and v != values['newPassword']:
-            raise ValueError('Passwords do not match')
-        return v
+#     @validator('confirmPassword')
+#     def passwords_match(cls, v, values):
+#         if 'newPassword' in values and v != values['newPassword']:
+#             raise ValueError('Passwords do not match')
+#         return v
 
 class UserSubscriptionDetails(BaseModel):
     plan: str
@@ -993,14 +1015,14 @@ class UserSubscriptionDetails(BaseModel):
     features: List[str]
     paymentMethod: str
 
-class PasswordChange(BaseModel):
-    currentPassword: str
-    newPassword: str
-    confirmPassword: str  # Make sure this field exists
+# class PasswordChange(BaseModel):
+#     currentPassword: str
+#     newPassword: str
+#     confirmPassword: str  # Make sure this field exists
     
-    @validator('confirmPassword')
-    def passwords_match(cls, v, values):
-        if 'newPassword' in values and v != values['newPassword']:
-            raise ValueError('Passwords do not match')
-        return v
+#     @validator('confirmPassword')
+#     def passwords_match(cls, v, values):
+#         if 'newPassword' in values and v != values['newPassword']:
+#             raise ValueError('Passwords do not match')
+#         return v
     
