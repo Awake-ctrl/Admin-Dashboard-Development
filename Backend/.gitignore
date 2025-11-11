@@ -1,8 +1,8 @@
 ./node_modules
 venv312/
 edudashboard.db
+routers/__pycache__/
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
-routers/__pycache__/

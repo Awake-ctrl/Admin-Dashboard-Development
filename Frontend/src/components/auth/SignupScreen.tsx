@@ -9,6 +9,7 @@ import { Progress } from "../ui/progress";
 import { Alert, AlertDescription } from "../ui/alert";
 import { BookOpen, Eye, EyeOff, AlertCircle, CheckCircle, Mail, Lock, User, Building, Phone } from "lucide-react";
 import { useRolesData } from "../hooks/userRolesData";
+
 interface SignupFormData {
   firstName: string;
   lastName: string;
@@ -20,7 +21,10 @@ interface SignupFormData {
   confirmPassword: string;
   agreeToTerms: boolean;
   subscribeNewsletter: boolean;
+  bio?: string;
+  timezone?: string;
 }
+
 interface SignupScreenProps {
   onSignup: (userData: any) => void;
   onSwitchToLogin: () => void;
@@ -39,13 +43,16 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
     password: "",
     confirmPassword: "",
     agreeToTerms: false,
-    subscribeNewsletter: false
+    subscribeNewsletter: false,
+    bio: "",
+    timezone: "Asia/Kolkata"
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [signupSuccess, setSignupSuccess] = useState(false);
+  const [apiError, setApiError] = useState("");
 
   const totalSteps = 3;
   const progress = (currentStep / totalSteps) * 100;
@@ -82,11 +89,11 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
     if (step === 3) {
       if (!formData.password) {
         newErrors.password = "Password is required";
-      } else if (formData.password.length < 8) {
-        newErrors.password = "Password must be at least 8 characters";
-      } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
-        newErrors.password = "Password must contain uppercase, lowercase, and number";
-      }
+      } else if (formData.password.length < 6) {
+        newErrors.password = "Password must be at least 6 characters";
+      } else if (formData.password.length > 50) {
+    newErrors.password = "Password must be less than 50 characters";
+  }
       
       if (!formData.confirmPassword) {
         newErrors.confirmPassword = "Please confirm your password";
@@ -117,26 +124,63 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
     if (!validateStep(currentStep)) return;
     
     setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    setApiError("");
+
+    try {
+      // Prepare the data for API call
+      const signupData = {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        email: formData.email,
+        phone_number: formData.phone,
+        organization: formData.organization,
+        roles: [formData.role], // Send as array
+        password: formData.password,
+        bio: formData.bio || "",
+        timezone: formData.timezone || "Asia/Kolkata"
+      };
+
+      const response = await fetch('http://localhost:8000/api/auth/signup', {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(signupData),
+      });
+
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error("Invalid server response (not JSON)");
+      }
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Signup failed");
+      }
+
+      // Signup successful
       setSignupSuccess(true);
       
-      // Call onSignup with user data
-      onSignup({
-        name: `${formData.firstName} ${formData.lastName}`,
-        email: formData.email,
-        role: formData.role,
-        organization: formData.organization
-      });
-    }, 2000);
+      // Call onSignup with user data after a brief delay
+      setTimeout(() => {
+        onSignup(data);
+      }, 2000);
+
+    } catch (error: any) {
+      setApiError(error.message || "An error occurred during signup");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleInputChange = (field: keyof SignupFormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: "" }));
+    }
+    if (apiError) {
+      setApiError("");
     }
   };
 
@@ -148,11 +192,11 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
-            <h2 className="text-xl mb-2">Account Created!</h2>
+            <h2 className="text-xl mb-2">Account Created Successfully!</h2>
             <p className="text-muted-foreground mb-4">
-              Welcome to EduAdmin. Please check your email to verify your account.
+              Welcome to EduAdmin. You can now sign in with your credentials.
             </p>
-            <Button className="w-full">
+            <Button onClick={onSwitchToLogin} className="w-full">
               Go to Login
             </Button>
           </CardContent>
@@ -203,12 +247,20 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* API Error Alert */}
+            {apiError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{apiError}</AlertDescription>
+              </Alert>
+            )}
+
             {/* Step 1: Personal Information */}
             {currentStep === 1 && (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
+                    <Label htmlFor="firstName">First Name *</Label>
                     <div className="relative">
                       <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -217,14 +269,18 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
                         className={`pl-10 ${errors.firstName ? "border-destructive" : ""}`}
                         value={formData.firstName}
                         onChange={(e) => handleInputChange("firstName", e.target.value)}
+                        disabled={isLoading}
                       />
                     </div>
                     {errors.firstName && (
-                      <p className="text-sm text-destructive">{errors.firstName}</p>
+                      <p className="text-sm text-destructive flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        {errors.firstName}
+                      </p>
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
+                    <Label htmlFor="lastName">Last Name *</Label>
                     <div className="relative">
                       <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -233,16 +289,20 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
                         className={`pl-10 ${errors.lastName ? "border-destructive" : ""}`}
                         value={formData.lastName}
                         onChange={(e) => handleInputChange("lastName", e.target.value)}
+                        disabled={isLoading}
                       />
                     </div>
                     {errors.lastName && (
-                      <p className="text-sm text-destructive">{errors.lastName}</p>
+                      <p className="text-sm text-destructive flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        {errors.lastName}
+                      </p>
                     )}
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
+                  <Label htmlFor="email">Email Address *</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -252,15 +312,19 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
                       className={`pl-10 ${errors.email ? "border-destructive" : ""}`}
                       value={formData.email}
                       onChange={(e) => handleInputChange("email", e.target.value)}
+                      disabled={isLoading}
                     />
                   </div>
                   {errors.email && (
-                    <p className="text-sm text-destructive">{errors.email}</p>
+                    <p className="text-sm text-destructive flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {errors.email}
+                    </p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
+                  <Label htmlFor="phone">Phone Number *</Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -269,10 +333,14 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
                       className={`pl-10 ${errors.phone ? "border-destructive" : ""}`}
                       value={formData.phone}
                       onChange={(e) => handleInputChange("phone", e.target.value)}
+                      disabled={isLoading}
                     />
                   </div>
                   {errors.phone && (
-                    <p className="text-sm text-destructive">{errors.phone}</p>
+                    <p className="text-sm text-destructive flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {errors.phone}
+                    </p>
                   )}
                 </div>
               </div>
@@ -282,7 +350,7 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
             {currentStep === 2 && (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="organization">Organization/Institution</Label>
+                  <Label htmlFor="organization">Organization/Institution *</Label>
                   <div className="relative">
                     <Building className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -291,45 +359,50 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
                       className={`pl-10 ${errors.organization ? "border-destructive" : ""}`}
                       value={formData.organization}
                       onChange={(e) => handleInputChange("organization", e.target.value)}
+                      disabled={isLoading}
                     />
                   </div>
                   {errors.organization && (
-                    <p className="text-sm text-destructive">{errors.organization}</p>
+                    <p className="text-sm text-destructive flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {errors.organization}
+                    </p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="role">Your Role</Label>
+                  <Label htmlFor="role">Your Role *</Label>
                   <Select
                     onValueChange={(value) => handleInputChange("role", value)}
                     value={formData.role}
-                    disabled={loading}
+                    disabled={loading || isLoading}
                   >
-
                     <SelectTrigger className={errors.role ? "border-destructive" : ""}>
                       <SelectValue placeholder="Select your role" />
                     </SelectTrigger>
                     <SelectContent>
-                    {loading ? (
-                      <SelectItem value="none" disabled>
-                        Loading roles...
-                      </SelectItem>
-                    ) : roles.length > 0 ? (
-                      roles.map((role) => (
-                        <SelectItem key={role.id} value={role.name}>
-                          {role.display_name || role.name}
+                      {loading ? (
+                        <SelectItem value="none" disabled>
+                          Loading roles...
                         </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="none" disabled>
-                        No roles available
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-
+                      ) : roles.length > 0 ? (
+                        roles.map((role) => (
+                          <SelectItem key={role.id} value={role.name}>
+                            {role.display_name || role.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="none" disabled>
+                          No roles available
+                        </SelectItem>
+                      )}
+                    </SelectContent>
                   </Select>
                   {errors.role && (
-                    <p className="text-sm text-destructive">{errors.role}</p>
+                    <p className="text-sm text-destructive flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {errors.role}
+                    </p>
                   )}
                 </div>
 
@@ -346,7 +419,7 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
             {currentStep === 3 && (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">Password *</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -356,6 +429,7 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
                       className={`pl-10 pr-10 ${errors.password ? "border-destructive" : ""}`}
                       value={formData.password}
                       onChange={(e) => handleInputChange("password", e.target.value)}
+                      disabled={isLoading}
                     />
                     <Button
                       type="button"
@@ -363,17 +437,24 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
                       size="sm"
                       className="absolute right-0 top-0 h-full px-3"
                       onClick={() => setShowPassword(!showPassword)}
+                      disabled={isLoading}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
                   </div>
                   {errors.password && (
-                    <p className="text-sm text-destructive">{errors.password}</p>
+                    <p className="text-sm text-destructive flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {errors.password}
+                    </p>
                   )}
+                  <p className="text-xs text-muted-foreground">
+                    Password must be at least 6 characters long
+                  </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Label htmlFor="confirmPassword">Confirm Password *</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -383,6 +464,7 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
                       className={`pl-10 pr-10 ${errors.confirmPassword ? "border-destructive" : ""}`}
                       value={formData.confirmPassword}
                       onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                      disabled={isLoading}
                     />
                     <Button
                       type="button"
@@ -390,25 +472,30 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
                       size="sm"
                       className="absolute right-0 top-0 h-full px-3"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      disabled={isLoading}
                     >
                       {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
                   </div>
                   {errors.confirmPassword && (
-                    <p className="text-sm text-destructive">{errors.confirmPassword}</p>
+                    <p className="text-sm text-destructive flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {errors.confirmPassword}
+                    </p>
                   )}
                 </div>
 
                 <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-start space-x-2">
                     <Checkbox
                       id="agreeToTerms"
                       checked={formData.agreeToTerms}
                       onCheckedChange={(checked) => 
                         handleInputChange("agreeToTerms", checked as boolean)
                       }
+                      disabled={isLoading}
                     />
-                    <Label htmlFor="agreeToTerms" className="text-sm">
+                    <Label htmlFor="agreeToTerms" className="text-sm leading-relaxed">
                       I agree to the{" "}
                       <Button variant="link" className="p-0 h-auto text-sm">
                         Terms of Service
@@ -420,7 +507,10 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
                     </Label>
                   </div>
                   {errors.agreeToTerms && (
-                    <p className="text-sm text-destructive">{errors.agreeToTerms}</p>
+                    <p className="text-sm text-destructive flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {errors.agreeToTerms}
+                    </p>
                   )}
 
                   <div className="flex items-center space-x-2">
@@ -430,6 +520,7 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
                       onCheckedChange={(checked) => 
                         handleInputChange("subscribeNewsletter", checked as boolean)
                       }
+                      disabled={isLoading}
                     />
                     <Label htmlFor="subscribeNewsletter" className="text-sm">
                       Subscribe to our newsletter for updates and tips
@@ -444,13 +535,13 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
               <Button
                 variant="outline"
                 onClick={handlePrevious}
-                disabled={currentStep === 1}
+                disabled={currentStep === 1 || isLoading}
               >
                 Previous
               </Button>
               
               {currentStep < totalSteps ? (
-                <Button onClick={handleNext}>
+                <Button onClick={handleNext} disabled={isLoading}>
                   Next
                 </Button>
               ) : (
@@ -463,9 +554,9 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
             {/* Sign In Link */}
             <div className="text-center text-sm pt-4 border-t">
               <span className="text-muted-foreground">Already have an account? </span>
-                <Button variant="link" className="px-0" onClick={onSwitchToLogin}>
-    Sign in
-  </Button>
+              <Button variant="link" className="px-0" onClick={onSwitchToLogin} disabled={isLoading}>
+                Sign in
+              </Button>
             </div>
           </CardContent>
         </Card>
