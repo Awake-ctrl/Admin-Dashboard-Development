@@ -14,19 +14,23 @@ from database import get_db
 from models import Employee, Role
 from schemas import (
     EmployeeLogin, EmployeeSignup, EmployeeResponse, Token,
-    PasswordResetRequest, PasswordResetConfirm,EmployeeUpdate
+    PasswordResetRequest, PasswordResetConfirm, EmployeeUpdate
 )
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Use a more compatible hashing algorithm
+pwd_context = CryptContext(
+    schemes=["pbkdf2_sha256", "bcrypt"],  # Fallback to pbkdf2 if bcrypt fails
+    deprecated="auto"
+)
 
 # JWT Config
 SECRET_KEY = "your-secret-key-here-change-in-production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
 
 # ======================
 # Utility Functions
@@ -35,14 +39,23 @@ def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password):
-    return pwd_context.hash(password)
+    try:
+        return pwd_context.hash(password)
+    except ValueError as e:
+        if "longer than 72 bytes" in str(e):
+            # Truncate password for bcrypt compatibility
+            password_bytes = password.encode('utf-8')
+            if len(password_bytes) > 72:
+                password_bytes = password_bytes[:72]
+            truncated_password = password_bytes.decode('utf-8', errors='ignore')
+            return pwd_context.hash(truncated_password)
+        raise
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
 
 async def get_employee_from_token(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     """Dependency to extract employee from JWT token"""
@@ -67,7 +80,6 @@ async def get_employee_from_token(token: str = Depends(oauth2_scheme), db: Sessi
     if not employee:
         raise credentials_exception
     return employee
-
 
 # ======================
 # Auth Endpoints
@@ -94,9 +106,9 @@ async def login(login_data: EmployeeLogin, db: Session = Depends(get_db)):
         "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     }
 
-
 @router.post("/signup", response_model=EmployeeResponse)
 async def signup(signup_data: EmployeeSignup, db: Session = Depends(get_db)):
+    # Check if employee already exists
     existing = db.query(Employee).filter(Employee.email == signup_data.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -122,38 +134,45 @@ async def signup(signup_data: EmployeeSignup, db: Session = Depends(get_db)):
             db.refresh(default_role)
         assigned_roles = [default_role]
 
-    employee = Employee(
-        id=str(uuid.uuid4()),
-        first_name=signup_data.first_name,
-        last_name=signup_data.last_name,
-        email=signup_data.email,
-        phone_number=signup_data.phone_number,
-        organization=signup_data.organization,
-        password_hash=get_password_hash(signup_data.password),
-        bio=signup_data.bio,
-        is_active=True,
-        email_verified=False,
-        roles=assigned_roles,
-    )
+    try:
+        # Create employee
+        employee = Employee(
+            id=str(uuid.uuid4()),
+            first_name=signup_data.first_name,
+            last_name=signup_data.last_name,
+            email=signup_data.email,
+            phone_number=signup_data.phone_number,
+            organization=signup_data.organization,
+            password_hash=get_password_hash(signup_data.password),
+            bio=signup_data.bio,
+            timezone=signup_data.timezone or "Asia/Kolkata",
+            is_active=True,
+            email_verified=False,
+            roles=assigned_roles,
+        )
 
-    db.add(employee)
-    db.commit()
-    db.refresh(employee)
+        db.add(employee)
+        db.commit()
+        db.refresh(employee)
 
-    return EmployeeResponse(
-        id=employee.id,
-        first_name=employee.first_name,
-        last_name=employee.last_name,
-        email=employee.email,
-        phone_number=employee.phone_number,
-        organization=employee.organization,
-        roles=[r.name for r in assigned_roles],
-        bio=employee.bio,
-        is_active=employee.is_active,
-        email_verified=employee.email_verified,
-        created_at=employee.created_at,
-        updated_at=employee.updated_at,
-    )
+        return EmployeeResponse(
+            id=employee.id,
+            first_name=employee.first_name,
+            last_name=employee.last_name,
+            email=employee.email,
+            phone_number=employee.phone_number,
+            organization=employee.organization,
+            roles=[r.name for r in assigned_roles],
+            bio=employee.bio,
+            timezone=employee.timezone,
+            is_active=employee.is_active,
+            email_verified=employee.email_verified,
+            created_at=employee.created_at,
+            updated_at=employee.updated_at,
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creating account: {str(e)}")
 
 
 @router.get("/me", response_model=EmployeeResponse)

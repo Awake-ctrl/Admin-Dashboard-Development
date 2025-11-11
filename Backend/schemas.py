@@ -589,53 +589,118 @@ class RoleResponse(RoleBase):
 # ==========================
 # Employee Schemas
 # ==========================
+
+class EmployeeBase(BaseModel):
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    organization: Optional[str] = None
+    role: Optional[str] = None
+    bio: Optional[str] = None
+    timezone: Optional[str] = "Asia/Kolkata"
+    # language: Optional[str] = "English"
+class EmployeeResponse(EmployeeBase):
+    id: str
+
+    class Config:
+        orm_mode = True
+
+
+class EmployeeUpdate(EmployeeBase):
+    """Schema for updating employee/user profile."""
+    pass
+
 class EmployeeLogin(BaseModel):
     email: EmailStr
     password: str
 
 
 class EmployeeSignup(BaseModel):
-    first_name: str = Field(..., example="Sai")
-    last_name: str = Field(..., example="Kiran")
-    email: EmailStr
-    password: str = Field(..., min_length=6)
-    phone_number: Optional[str] = Field(None, example="+91-9876543210")
-    # organization: Optional[str] = None
-    roles: Optional[List[str]] = []  # Role names list
-    bio: Optional[str] = None
-
-class EmployeeUpdate(BaseModel):
-    """Schema for updating an employee's details."""
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    phone_number: Optional[str] = None
-    organization: Optional[str] = None
-    bio: Optional[str] = None
-    timezone:Optional[str]=None
-    roles: Optional[List[str]] = None  # Can update roles
-
-    class Config:
-        orm_mode = True
-        extra = "forbid"  # Prevent unknown fields
-
-
-class EmployeeResponse(BaseModel):
-    id: str
     first_name: str
     last_name: str
     email: EmailStr
-    phone_number: Optional[str]
-    organization: Optional[str]
-    roles: List[str] = []  # Role names
-    bio: Optional[str]
-    timezone: Optional[str]
-    is_active: bool
-    email_verified: bool
-    created_at: datetime
-    updated_at: datetime
+    phone_number: Optional[str] = None
+    organization: Optional[str] = None
+    roles: List[str] = []
+    password: str
+    bio: Optional[str] = None
+    timezone: Optional[str] = "Asia/Kolkata"
+
+# ---------------------------------------------------------------------------
+# Authentication / Password Schemas
+# ---------------------------------------------------------------------------
+
+class PasswordChange(BaseModel):
+    currentPassword: str = Field(..., min_length=6)
+    newPassword: str = Field(..., min_length=6)
+    confirmPassword: str = Field(..., min_length=6)
+# ---------------------------------------------------------------------------
+# Subscription Schemas
+# ---------------------------------------------------------------------------
+
+class UserSubscriptionDetails(BaseModel):
+    plan: str
+    status: str
+    billingCycle: str
+    nextBilling: Optional[date] = None
+    amount: float
+    features: List[str] = []
+    paymentMethod: str
 
     class Config:
         orm_mode = True
+
+# ---------------------------------------------------------------------------
+# Notification Schemas
+# ---------------------------------------------------------------------------
+
+class NotificationSettings(BaseModel):
+    emailNotifications: bool = True
+    pushNotifications: bool = True
+    smsNotifications: bool = False
+    weeklyReports: bool = True
+    securityAlerts: bool = True
+    marketingEmails: bool = False
+    courseUpdates: bool = True
+    systemMaintenance: bool = True
+
+    class Config:
+        orm_mode = True
+# ---------------------------------------------------------------------------
+# File Upload / Avatar Schemas
+# ---------------------------------------------------------------------------
+
+class AvatarResponse(BaseModel):
+    success: bool
+    url: str
+    message: str
+
+
+
+# ---------------------------------------------------------------------------
+# Export / Data Schemas
+# ---------------------------------------------------------------------------
+
+class UserCourseData(BaseModel):
+    course_id: str
+    progress: float
+
+
+class UserTransactionData(BaseModel):
+    amount: float
+    date: str
+    status: str
+
+
+class UserExportData(BaseModel):
+    profile: Dict[str, str]
+    courses: List[UserCourseData]
+    transactions: List[UserTransactionData]
+
+    class Config:
+        orm_mode = True
+
 
 class Token(BaseModel):
     access_token: str

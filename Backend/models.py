@@ -18,6 +18,13 @@ from enum import Enum
 #     Column('course_id', Integer, ForeignKey('courses.id')),
 #     Column('subject_id', Integer, ForeignKey('subjects.id'))
 # )
+# Add DEFAULT_PERMISSIONS at the top
+DEFAULT_PERMISSIONS = {
+    "admin": ["all"],
+    "instructor": ["content_management", "course_management", "analytics"],
+    "support": ["user_management", "content_management"],
+    "student": ["view_courses", "access_content"]
+}
 
 class User(Base):
     __tablename__ = "users"
@@ -529,7 +536,7 @@ class Employee(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    roles = relationship("Role", secondary=employee_role_table, back_populates="employees")
+    roles = relationship("Role", secondary=employee_role_table)
 
  # ============= SUPPORT TICKET MODELS =============
 # Add these classes to your models.py file
