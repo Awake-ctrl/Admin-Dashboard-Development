@@ -273,8 +273,7 @@ export function LoginScreen({ onLogin, onSwitchToSignup, onSwitchToForgotPasswor
                 {isLoading ? "Signing in..." : "Sign In"}
               </Button>
             </form>
-
-            {/* Divider */}
+{/* 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <Separator />
@@ -284,9 +283,8 @@ export function LoginScreen({ onLogin, onSwitchToSignup, onSwitchToForgotPasswor
                   Or continue with
                 </span>
               </div>
-            </div>
-
-            {/* Google Login Only */}
+            </div> */}
+{/* 
             <div className="grid gap-4">
               <Button variant="outline" className="w-full" disabled={isLoading}>
                 <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
@@ -297,7 +295,7 @@ export function LoginScreen({ onLogin, onSwitchToSignup, onSwitchToForgotPasswor
                 </svg>
                 Google
               </Button>
-            </div>
+            </div> */}
 
             {/* Sign Up Link */}
             <div className="text-center text-sm">
@@ -319,7 +317,7 @@ export function LoginScreen({ onLogin, onSwitchToSignup, onSwitchToForgotPasswor
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            <strong>Note:</strong> Make sure your backend is running on the correct port.
+            <strong>Error:</strong> The backend is not working.
           </AlertDescription>
         </Alert>
       </div>
