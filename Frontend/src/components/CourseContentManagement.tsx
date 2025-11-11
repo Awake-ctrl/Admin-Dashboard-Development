@@ -152,7 +152,7 @@ export function CourseContentManagement() {
     title: "",
     content_type: "document",
     description: "",
-    file_url: "",
+    file_path: "",
     duration: "",
     file_size: "",
     status: "draft",
@@ -173,7 +173,7 @@ export function CourseContentManagement() {
 
   const [newVersionFormData, setNewVersionFormData] = useState({
     changelog: "",
-    file_url: "",
+    file_path: "",
     file_size: "",
     status: "draft"
   });
@@ -188,76 +188,111 @@ export function CourseContentManagement() {
     loadExamTypes();
   }, []);
 
-  const loadCourses = async () => {
-    setLoading(true);
-    try {
-      const coursesData = await courseApi.getCourses();
-      // Fetch modules for each course
-      const coursesWithModules = await Promise.all(
-        coursesData.map(async (course) => {
-          try {
-            const modules = await moduleApi.getModules(course.id);
-            // Fetch contents for each module
-            const modulesWithContents = await Promise.all(
-              modules.map(async (module) => {
-                try {
-                  const contents = await contentApi.getContents(module.id);
-                  const contentsWithVersions = await Promise.all(
-                    contents.map(async (content) => {
-                      try {
-                        const versions = await contentApi.getContentVersions(content.id);
-                        const currentPublishedVersion = versions.find(v => v.status === 'published');
-                        return {
-                          ...content,
-                          versions,
-                          currentVersion: currentPublishedVersion?.version_number || versions[0]?.version_number,
-                          totalVersions: versions.length
-                        };
-                      } catch (error) {
-                        console.error(`Error loading versions for content ${content.id}:`, error);
-                        return {
-                          ...content,
-                          versions: [],
-                          currentVersion: undefined,
-                          totalVersions: 0
-                        };
+ const loadCourses = async () => {
+  setLoading(true);
+  try {
+    const coursesData = await courseApi.getCourses();
+    
+    // Fetch modules for each course with better error handling
+    const coursesWithModules = await Promise.all(
+      coursesData.map(async (course) => {
+        try {
+          console.log(`Loading modules for course: ${course.id} - ${course.title}`);
+          
+          // Ensure we're passing the correct course ID to getModules
+          const modules = await moduleApi.getModules(course.id);
+          console.log(`Found ${modules.length} modules for course ${course.id}`);
+          
+          // Verify module-course relationship
+          const validModules = modules.filter(module => {
+            const isValid = module.course_id === course.id;
+            if (!isValid) {
+              console.warn(`Module ${module.id} has course_id ${module.course_id} but expected ${course.id}`);
+            }
+            return isValid;
+          });
+
+          // Fetch contents for each valid module
+          const modulesWithContents = await Promise.all(
+            validModules.map(async (module) => {
+              try {
+                console.log(`Loading contents for module: ${module.id}`);
+                const contents = await contentApi.getContents(module.id);
+                
+                const contentsWithVersions = await Promise.all(
+                  contents.map(async (content) => {
+                    try {
+                      // Verify content-module relationship
+                      if (content.module_id !== module.id) {
+                        console.warn(`Content ${content.id} has module_id ${content.module_id} but expected ${module.id}`);
+                        return null;
                       }
-                    })
-                  );
-                  return {
-                    ...module,
-                    contents: contentsWithVersions
-                  };
-                } catch (error) {
-                  console.error(`Error loading contents for module ${module.id}:`, error);
-                  return {
-                    ...module,
-                    contents: []
-                  };
-                }
-              })
-            );
-            return {
-              ...course,
-              modules: modulesWithContents
-            };
-          } catch (error) {
-            console.error(`Error loading modules for course ${course.id}:`, error);
-            return {
-              ...course,
-              modules: []
-            };
-          }
-        })
-      );
-      setCourses(coursesWithModules);
-    } catch (error) {
-      console.error('Error loading courses:', error);
-      toast.error('Failed to load courses');
-    } finally {
-      setLoading(false);
-    }
-  };
+                      
+                      const versions = await contentApi.getContentVersions(content.id);
+                      const currentPublishedVersion = versions.find(v => v.status === 'published');
+                      return {
+                        ...content,
+                        versions,
+                        currentVersion: currentPublishedVersion?.version_number || versions[0]?.version_number,
+                        totalVersions: versions.length
+                      };
+                    } catch (error) {
+                      console.error(`Error loading versions for content ${content.id}:`, error);
+                      return {
+                        ...content,
+                        versions: [],
+                        currentVersion: undefined,
+                        totalVersions: 0
+                      };
+                    }
+                  })
+                );
+
+                return {
+                  ...module,
+                  contents: contentsWithVersions.filter(Boolean) // Remove null entries
+                };
+              } catch (error) {
+                console.error(`Error loading contents for module ${module.id}:`, error);
+                return {
+                  ...module,
+                  contents: []
+                };
+              }
+            })
+          );
+
+          return {
+            ...course,
+            modules: modulesWithContents
+          };
+        } catch (error) {
+          console.error(`Error loading modules for course ${course.id}:`, error);
+          return {
+            ...course,
+            modules: []
+          };
+        }
+      })
+    );
+    
+    setCourses(coursesWithModules);
+    
+    // Debug: Log course-module relationships
+    coursesWithModules.forEach(course => {
+      console.log(`Course: ${course.title} (${course.id}) has ${course.modules?.length || 0} modules`);
+      course.modules?.forEach(module => {
+        console.log(`  - Module: ${module.title} (course_id: ${module.course_id})`);
+      });
+    });
+    
+  } catch (error) {
+    console.error('Error loading courses:', error);
+    toast.error('Failed to load courses');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const loadExamTypes = async () => {
     try {
@@ -405,11 +440,11 @@ export function CourseContentManagement() {
       setIsUploadContentOpen(false);
       setContentFormData({
         title: "",
-        content_type: "document",
         description: "",
-        file_url: "",
-        duration: "",
+        content_type: "document",
+        file_path: "",
         file_size: "",
+        duration: "",
         status: "draft",
         module_id: 0,
         course_id: 0
@@ -505,7 +540,7 @@ export function CourseContentManagement() {
       setIsUploadNewVersionOpen(false);
       setNewVersionFormData({
         changelog: "",
-        file_url: "",
+        file_path: "",
         file_size: "",
         status: "draft"
       });
@@ -543,7 +578,7 @@ export function CourseContentManagement() {
       const restoreData = {
         version_number: nextVersion,
         content_id: selectedContent.id,
-        file_url: version.file_url,
+        file_path: version.file_path,
         file_size: version.file_size,
         changelog: `Restored from version ${version.version_number}: ${version.changelog}`,
         status: 'published'
@@ -919,7 +954,7 @@ export function CourseContentManagement() {
               if (file) {
                 setContentFormData(prev => ({ 
                   ...prev, 
-                  file_url: URL.createObjectURL(file),
+                  file_path: URL.createObjectURL(file),
                   file_size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`
                 }));
                 simulateFileUpload();
@@ -1056,7 +1091,7 @@ export function CourseContentManagement() {
               if (file) {
                 setNewVersionFormData(prev => ({ 
                   ...prev, 
-                  file_url: URL.createObjectURL(file),
+                  file_path: URL.createObjectURL(file),
                   file_size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`
                 }));
                 simulateFileUpload();
@@ -2035,7 +2070,7 @@ export function CourseContentManagement() {
                                   title: content.title,
                                   content_type: content.content_type,
                                   description: content.description || "",
-                                  file_url: content.file_url || "",
+                                  file_path: content.file_path || "",
                                   duration: content.duration || "",
                                   file_size: content.file_size || "",
                                   status: content.status,
