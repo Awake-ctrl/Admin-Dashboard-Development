@@ -900,8 +900,42 @@ class NotificationTypes(BaseModel):
     announcements: NotificationTypeSettings
     systemAlerts: NotificationTypeSettings
 
+# In schemas.py
+
+# ... (other imports and schemas)
+from typing import Dict
+
+# Settings Schemas
 class PlatformSettingsBase(BaseModel):
     # Branding
+    site_name: str
+    site_description: str
+    primary_color: str
+    secondary_color: str
+    logo_url: Optional[str] = None
+    favicon_url: Optional[str] = None
+    
+    # Email Templates
+    welcome_subject: str
+    welcome_content: str
+    course_enrollment_subject: str
+    course_enrollment_content: str
+    
+    # Feature Toggles
+    enable_registration: bool
+    enable_course_comments: bool
+    enable_course_ratings: bool
+    enable_certificates: bool
+    enable_progress_tracking: bool
+    enable_notifications: bool
+    enable_email_notifications: bool
+    enable_push_notifications: bool
+    
+    # Notifications (Use Dict[str, Dict[str, bool]] to represent the nested JSON structure)
+    notification_types: Dict[str, Dict[str, bool]]
+
+class PlatformSettingsUpdate(BaseModel):
+    # Make all fields optional for PUT/Update requests
     site_name: Optional[str] = None
     site_description: Optional[str] = None
     primary_color: Optional[str] = None
@@ -909,13 +943,11 @@ class PlatformSettingsBase(BaseModel):
     logo_url: Optional[str] = None
     favicon_url: Optional[str] = None
     
-    # Email Templates
     welcome_subject: Optional[str] = None
     welcome_content: Optional[str] = None
     course_enrollment_subject: Optional[str] = None
     course_enrollment_content: Optional[str] = None
     
-    # Feature Toggles
     enable_registration: Optional[bool] = None
     enable_course_comments: Optional[bool] = None
     enable_course_ratings: Optional[bool] = None
@@ -925,20 +957,12 @@ class PlatformSettingsBase(BaseModel):
     enable_email_notifications: Optional[bool] = None
     enable_push_notifications: Optional[bool] = None
     
-    # Notification Settings
-    notification_types: Optional[Dict[str, Any]] = None
+    notification_types: Optional[Dict[str, Dict[str, bool]]] = None
 
-class PlatformSettingsCreate(PlatformSettingsBase):
-    pass
-
-class PlatformSettingsUpdate(PlatformSettingsBase):
-    updated_by: Optional[str] = None
-
-class PlatformSettingsResponse(PlatformSettingsBase):
+class PlatformSettings(PlatformSettingsBase):
     id: int
     created_at: datetime
-    updated_at: datetime
-    updated_by: Optional[str] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -984,6 +1008,12 @@ class PasswordChange(BaseModel):
             raise ValueError('Passwords do not match')
         return v
 
+    @validator('newPassword')
+    def password_strength(cls, v):
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters')
+        return v
+
 class UserSubscriptionDetails(BaseModel):
     plan: str
     status: str
@@ -1004,3 +1034,29 @@ class PasswordChange(BaseModel):
             raise ValueError('Passwords do not match')
         return v
     
+# MODIFY UserProfileUpdate (around line 700):
+class UserProfileUpdate(BaseModel):
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    organization: Optional[str] = None
+    role: Optional[str] = None  # This will now be role_id
+    bio: Optional[str] = None
+    timezone: Optional[str] = None
+
+# MODIFY UserProfile:
+class UserProfile(BaseModel):
+    id: str
+    firstName: str
+    lastName: str
+    email: str
+    phone: Optional[str]
+    organization: Optional[str]
+    role: str  # Role name
+    role_id: Optional[str]  # Add role_id
+    bio: Optional[str]
+    timezone: str
+    # REMOVE language field
+    class Config:
+        from_attributes = True

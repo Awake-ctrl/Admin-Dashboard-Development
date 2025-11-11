@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 import models
 import schemas
 import crud
+from fastapi.staticfiles import StaticFiles
 
 from services.revenue_service import RevenueService
 from routers import roles
@@ -24,6 +25,7 @@ from routers import account
 # from typing import List, Optional, Union, Dict, Any
 
 import logging
+
 # Create tables
 Base.metadata.create_all(bind=engine)
 
@@ -31,6 +33,7 @@ app = FastAPI(title="Edu Dashboard API", version="1.0.0")
 logger = logging.getLogger(__name__)
 app.include_router(notifications.router)
 app.include_router(account.router)
+app.mount("/static", StaticFiles(directory="uploads"), name="static")
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -1072,7 +1075,40 @@ def get_user_demographics_legacy(db: Session = Depends(get_db)):
 def get_subscription_stats_legacy(db: Session = Depends(get_db)):
     return get_subscription_stats_analytics(db)
 
-# ========== ACCOUNT DELETION REQUESTS LEGACY ENDPOINTS ==========
+# ========== ACCOUNT DELETION REQUESTS LEGACY ENDPOINTS ==========\
+
+@app.get("/api/account/roles/{user_id}")
+def get_user_assigned_roles(user_id: str, db: Session = Depends(get_db)):
+    """Get roles assigned to a user for account settings"""
+    from sqlalchemy import select
+    
+    # Get roles assigned to this user
+    stmt = select(models.Role).join(models.user_roles).where(
+        models.user_roles.c.user_id == user_id
+    )
+    roles = db.execute(stmt).scalars().all()
+    
+    return [{
+        "id": role.id,
+        "name": role.name,
+        "description": role.description
+    } for role in roles]
+
+
+# REMOVE the active sessions section - modify this endpoint:
+@app.get("/api/account/security/{user_id}")
+def get_security_info(user_id: str, db: Session = Depends(get_db)):
+    """Get security information"""
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {
+        "two_factor_enabled": False,  # Always false since we're removing it
+        "active_sessions": 1,  # Always 1 - only current session
+        "last_password_change": None  # Add to User model if needed
+    }
+
 @app.get("/account-deletion-requests/", response_model=List[schemas.AccountDeletionRequest])
 def get_deletion_requests_legacy(
     skip: int = 0, 
@@ -2456,7 +2492,7 @@ def delete_feedback_entry(feedback_id: int, db: Session = Depends(get_db)):
 
 # ========== SETTINGS ENDPOINTS ==========
 
-@app.get("/api/settings", response_model=schemas.PlatformSettingsResponse)
+@app.get("/api/settings", response_model=schemas.PlatformSettings)
 def get_platform_settings(db: Session = Depends(get_db)):
     """Get current platform settings"""
     settings = db.query(models.PlatformSettings).first()
@@ -2470,7 +2506,7 @@ def get_platform_settings(db: Session = Depends(get_db)):
     
     return settings
 
-@app.put("/api/settings", response_model=schemas.PlatformSettingsResponse)
+@app.put("/api/settings", response_model=schemas.PlatformSettings)
 def update_platform_settings(
     settings_update: schemas.PlatformSettingsUpdate,
     db: Session = Depends(get_db)
@@ -2673,64 +2709,8 @@ def get_user_profile_fixed(user_id: str, db: Session = Depends(get_db)):
     }
 
 
-@app.put("/api/account/profile/{user_id}")
-def update_user_profile_fixed(
-    user_id: str, 
-    profile_data: schemas.UserProfileUpdate,
-    db: Session = Depends(get_db)
-):
-    """Update user profile - with fallback for testing"""
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    
-    if not user:
-        print(f"⚠️ User {user_id} not found, but accepting update for testing")
-        # For testing purposes, just return success
-        return {"message": "Profile updated successfully (test user)", "user_id": user_id}
-    
-    # Update actual user data
-    if profile_data.firstName and profile_data.lastName:
-        user.name = f"{profile_data.firstName} {profile_data.lastName}"
-    
-    if profile_data.email:
-        user.email = profile_data.email
-    if profile_data.phone:
-        user.phone = profile_data.phone
-    if profile_data.organization:
-        user.organization = profile_data.organization
-    if profile_data.role:
-        user.role = profile_data.role
-    if profile_data.bio:
-        user.bio = profile_data.bio
-    if profile_data.timezone:
-        user.timezone = profile_data.timezone
-    if profile_data.language:
-        user.language = profile_data.language
-    
-    db.commit()
-    
-    return {"message": "Profile updated successfully", "user_id": user_id}
 
-@app.put("/api/account/password/{user_id}")
-def change_password(
-    user_id: str,
-    password_data: schemas.PasswordChange,
-    db: Session = Depends(get_db)
-):
-    """Change user password"""
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Verify current password (implement your password verification)
-    # if not verify_password(password_data.currentPassword, user.password_hash):
-    #     raise HTTPException(status_code=400, detail="Current password is incorrect")
-    
-    # Update password (implement your password hashing)
-    # user.password_hash = hash_password(password_data.newPassword)
-    
-    db.commit()
-    
-    return {"message": "Password updated successfully"}
+
 
 @app.get("/api/account/subscription/{user_id}", response_model=schemas.UserSubscriptionDetails)
 def get_user_subscription(user_id: str, db: Session = Depends(get_db)):
@@ -2877,26 +2857,7 @@ def update_user_profile_compat(
     
     return {"message": "Profile updated successfully"}
 
-@app.put("/api/account/password/{user_id}")
-def change_password_compat(
-    user_id: str,
-    password_data: dict,
-    db: Session = Depends(get_db)
-):
-    """Compatibility endpoint for password change"""
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Check if passwords match
-    if password_data.get('newPassword') != password_data.get('confirmPassword'):
-        raise HTTPException(status_code=400, detail="Passwords don't match")
-    
-    # Here you would implement actual password verification and hashing
-    # For now, just log the request
-    print(f"Password change requested for user {user_id}")
-    
-    return {"message": "Password updated successfully"}
+
 
 # Add this debug endpoint to check all registered routes
 @app.get("/debug/routes")
@@ -2912,62 +2873,9 @@ def debug_routes():
     return routes
 # ========== ACCOUNT SETTINGS ENDPOINTS (DIRECT IN MAIN) ==========
 
-@app.put("/api/account/profile/{user_id}")
-def update_user_profile_main(
-    user_id: str, 
-    profile_data: schemas.UserProfileUpdate, 
-    db: Session = Depends(get_db)
-):
-    """Update user profile - direct in main"""
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Update name
-    if profile_data.firstName and profile_data.lastName:
-        user.name = f"{profile_data.firstName} {profile_data.lastName}"
-    
-    # Update other fields
-    if profile_data.email:
-        user.email = profile_data.email
-    if profile_data.phone:
-        user.phone = profile_data.phone
-    if profile_data.organization:
-        user.organization = profile_data.organization
-    if profile_data.role:
-        user.role = profile_data.role
-    if profile_data.bio:
-        user.bio = profile_data.bio
-    if profile_data.timezone:
-        user.timezone = profile_data.timezone
-    if profile_data.language:
-        user.language = profile_data.language
-    
-    db.commit()
-    db.refresh(user)
-    
-    return {"message": "Profile updated successfully"}
 
-@app.put("/api/account/password/{user_id}")
-def change_password_main(
-    user_id: str,
-    password_data: schemas.PasswordChange,
-    db: Session = Depends(get_db)
-):
-    """Change user password - direct in main"""
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Check if passwords match
-    if password_data.newPassword != password_data.confirmPassword:
-        raise HTTPException(status_code=400, detail="Passwords don't match")
-    
-    # Here you would implement actual password verification and hashing
-    # For now, just log the request
-    print(f"Password change requested for user {user_id}")
-    
-    return {"message": "Password updated successfully"}
+
+
 
 @app.get("/api/account/profile/{user_id}", response_model=schemas.UserProfile)
 def get_user_profile_main(user_id: str, db: Session = Depends(get_db)):
@@ -2991,6 +2899,34 @@ def get_user_profile_main(user_id: str, db: Session = Depends(get_db)):
     
     }
         # Add this to your main.py - anywhere after app = FastAPI()
+
+
+@app.put("/api/account/password/{user_id}")
+def change_password(
+    user_id: str,
+    password_data: schemas.PasswordChange,
+    db: Session = Depends(get_db)
+):
+    """Change user password"""
+    from passlib.context import CryptContext
+    
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Verify current password
+    if not pwd_context.verify(password_data.currentPassword, user.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    
+    # Hash new password
+    hashed_password = pwd_context.hash(password_data.newPassword)
+    user.password_hash = hashed_password
+    
+    db.commit()
+    
+    return {"message": "Password updated successfully"}
 
 @app.get("/debug/all-routes")
 def debug_all_routes():
@@ -3016,31 +2952,102 @@ def debug_all_routes():
 
     # ========== ACCOUNT ENDPOINTS FIX - ADD THESE ==========
 
-@app.put("/api/account/profile/{user_id}")
-def update_profile_direct(user_id: str, profile_data: dict):
-    """Direct profile update endpoint - FIX FOR 404 ERRORS"""
-    print(f"🎯 PROFILE UPDATE RECEIVED for user: {user_id}")
-    print(f"📦 Profile data received: {profile_data}")
-    return {
-        "message": "Profile updated successfully", 
-        "user_id": user_id,
-        "received_data": profile_data
-    }
 
-@app.put("/api/account/password/{user_id}")
-def change_password_direct(user_id: str, password_data: dict):
-    """Direct password change endpoint - FIX FOR 404 ERRORS"""
-    print(f"🎯 PASSWORD CHANGE RECEIVED for user: {user_id}")
-    print(f"📦 Password data received: {password_data}")
+# ====================================================================
+# ========== PLATFORM SETTINGS ENDPOINTS (NEW) ==========
+# ====================================================================
+
+@app.get("/api/settings", response_model=schemas.PlatformSettings)
+def get_platform_settings(db: Session = Depends(get_db)):
+    """Fetch the single platform settings object."""
+    # Assuming the single settings row has ID 1
+    settings = db.query(models.PlatformSettings).filter(models.PlatformSettings.id == 1).first()
     
-    # Check if passwords match
-    if password_data.get('newPassword') != password_data.get('confirmPassword'):
-        return {"error": "Passwords don't match"}, 400
+    if settings is None:
+        # Create a default settings row if it doesn't exist
+        default_settings = models.PlatformSettings(id=1)
+        db.add(default_settings)
+        db.commit()
+        db.refresh(default_settings)
+        return default_settings
+
+    return settings
+
+@app.put("/api/settings", response_model=schemas.PlatformSettings)
+def update_platform_settings(
+    settings_update: schemas.PlatformSettingsUpdate,
+    db: Session = Depends(get_db)
+):
+    """Update platform settings."""
+    settings = db.query(models.PlatformSettings).filter(models.PlatformSettings.id == 1).first()
     
-    return {
-        "message": "Password updated successfully",
-        "user_id": user_id
-    }
+    if settings is None:
+        # Create a default if it somehow was deleted
+        settings = models.PlatformSettings(id=1)
+        db.add(settings)
+    
+    # Update fields only if they are present in the request (exclude_unset=True)
+    update_data = settings_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(settings, field, value)
+
+    settings.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(settings)
+    return settings
+
+
+@app.post("/api/settings/upload-logo", response_model=Dict[str, str])
+async def upload_logo(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Upload platform logo and update logo_url."""
+    # Create uploads directory if it doesn't exist
+    upload_dir = "uploads/branding"
+    os.makedirs(upload_dir, exist_ok=True)
+
+    # Generate unique filename
+    file_extension = os.path.splitext(file.filename)[1]
+    unique_filename = f"logo_{uuid.uuid4()}{file_extension}"
+    file_path = os.path.join(upload_dir, unique_filename)
+    
+    # Save the file
+    with open(file_path, "wb") as buffer:
+        content = await file.read()
+        buffer.write(content)
+
+    # Update database
+    settings = db.query(models.PlatformSettings).filter(models.PlatformSettings.id == 1).first()
+    if settings:
+        settings.logo_url = f"/static/{upload_dir}/{unique_filename}"  # Assuming a /static route for uploads
+        settings.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(settings)
+
+    # Return the URL used by the frontend
+    return {"message": "Logo uploaded successfully", "url": settings.logo_url}
+
+@app.post("/api/settings/upload-favicon", response_model=Dict[str, str])
+async def upload_favicon(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Upload platform favicon and update favicon_url."""
+    upload_dir = "uploads/branding"
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    file_extension = os.path.splitext(file.filename)[1]
+    unique_filename = f"favicon_{uuid.uuid4()}{file_extension}"
+    file_path = os.path.join(upload_dir, unique_filename)
+    
+    with open(file_path, "wb") as buffer:
+        content = await file.read()
+        buffer.write(content)
+
+    # Update database
+    settings = db.query(models.PlatformSettings).filter(models.PlatformSettings.id == 1).first()
+    if settings:
+        settings.favicon_url = f"/static/{upload_dir}/{unique_filename}"
+        settings.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(settings)
+
+    return {"message": "Favicon uploaded successfully", "url": settings.favicon_url}
 
 @app.get("/api/account/profile/{user_id}")
 def get_profile_direct(user_id: str):

@@ -63,6 +63,12 @@ class User(Base):
     password_hash = Column(String(255), nullable=True)
     two_factor_enabled = Column(Boolean, default=False)
     two_factor_secret = Column(String(100), nullable=True)
+    organization = Column(String(200), nullable=True)
+    role = Column(String(50), default="Student")
+    bio = Column(Text, nullable=True)
+    timezone = Column(String(50), default="Asia/Kolkata")
+    avatar_url = Column(String(500), nullable=True)
+    password_hash = Column(String(255), nullable=True)
     
     # Relationships
     activities = relationship("UserActivity", back_populates="user", cascade="all, delete-orphan")
@@ -670,13 +676,14 @@ class TeamMember(Base):
 class PlatformSettings(Base):
     __tablename__ = "platform_settings"
     
-    id = Column(Integer, primary_key=True, index=True)
+    # Assuming only one row for all settings, so a primary key is still needed
+    id = Column(Integer, primary_key=True, index=True, default=1)
     
     # Branding
     site_name = Column(String(200), default="EduPlatform")
-    site_description = Column(Text, default="Comprehensive Learning Management System")
-    primary_color = Column(String(20), default="#030213")
-    secondary_color = Column(String(20), default="#e9ebef")
+    site_description = Column(String(500), default="Comprehensive Learning Management System")
+    primary_color = Column(String(50), default="#030213")
+    secondary_color = Column(String(50), default="#e9ebef")
     logo_url = Column(String(500), nullable=True)
     favicon_url = Column(String(500), nullable=True)
     
@@ -705,6 +712,5 @@ class PlatformSettings(Base):
     })
     
     # Metadata
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    updated_by = Column(String(100), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
