@@ -76,7 +76,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     localStorage.setItem("access_token", data.access_token);
     
     // Get user info
-    const userResponse = await fetch("http://localhost:8000/api/auth/me", {
+    const userResponse = await fetch("https://admin-dashboard-development.onrender.com/api/auth/me", {
       headers: {
         "Authorization": `Bearer ${data.access_token}`,
       },
