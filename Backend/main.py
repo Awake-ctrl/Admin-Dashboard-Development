@@ -34,8 +34,8 @@ app.include_router(account.router)
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # React app origin
-    # allow_origins=["*"],  # Update with your frontend URL in production
+    # allow_origins=["http://localhost:3000"],  # React app origin
+    allow_origins=["*"],  # Update with your frontend URL in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
