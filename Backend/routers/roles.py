@@ -10,8 +10,9 @@ from database import get_db
 from models import Role, User, Permission, RoleAssignmentHistory, user_roles
 from models import (
     RoleCreate, RoleUpdate, RoleResponse, RoleAssignmentResponse,
-    RoleAssignmentCreate, BulkRoleAssignment, RoleAction
+    RoleAssignmentCreate, BulkRoleAssignment, RoleAction,DEFAULT_PERMISSIONS
 )
+# from "../models" import DEFAULT_PERMISSION
 
 router = APIRouter(prefix="/api/roles", tags=["roles"])
 
@@ -439,23 +440,24 @@ async def get_all_permissions(db: Session = Depends(get_db)):
 # Initialize data function (call this from main.py)
 def initialize_roles_data(db: Session):
     """Initialize default permissions and system roles"""
-    try:
-        # Create default permissions
-        for perm_data in DEFAULT_PERMISSIONS:
-            perm = db.query(Permission).filter(Permission.id == perm_data["id"]).first()
-            if not perm:
-                perm = Permission(**perm_data)
-                db.add(perm)
+    pass
+    # try:
+    #     # Create default permissions
+    #     for perm_data in DEFAULT_PERMISSIONS:
+    #         perm = db.query(Permission).filter(Permission.id == perm_data["id"]).first()
+    #         if not perm:
+    #             perm = Permission(**perm_data)
+    #             db.add(perm)
         
-        # Create system roles
-        for role_data in SYSTEM_ROLES:
-            role = db.query(Role).filter(Role.id == role_data["id"]).first()
-            if not role:
-                role = Role(**role_data)
-                db.add(role)
+    #     # # Create system roles
+    #     # for role_data in SYSTEM_ROLES:
+    #     #     role = db.query(Role).filter(Role.id == role_data["id"]).first()
+    #     #     if not role:
+    #     #         role = Role(**role_data)
+    #     #         db.add(role)
         
-        db.commit()
-        print("Roles and permissions initialized successfully")
-    except Exception as e:
-        db.rollback()
-        print(f"Error initializing roles and permissions: {e}")
+    #     db.commit()
+    #     print("Roles and permissions initialized successfully")
+    # except Exception as e:
+    #     db.rollback()
+    #     print(f"Error initializing roles and permissions: {e}")

@@ -585,7 +585,7 @@ class RoleResponse(RoleBase):
     id: str
 
     class Config:
-        orm_mode = True
+        from_attributes= True
 # ==========================
 # Employee Schemas
 # ==========================
@@ -604,7 +604,7 @@ class EmployeeResponse(EmployeeBase):
     id: str
 
     class Config:
-        orm_mode = True
+        from_attributes= True
 
 
 class EmployeeUpdate(EmployeeBase):
@@ -649,7 +649,7 @@ class UserSubscriptionDetails(BaseModel):
     paymentMethod: str
 
     class Config:
-        orm_mode = True
+        from_attributes= True
 
 # ---------------------------------------------------------------------------
 # Notification Schemas
@@ -666,7 +666,7 @@ class NotificationSettings(BaseModel):
     systemMaintenance: bool = True
 
     class Config:
-        orm_mode = True
+        from_attributes= True
 # ---------------------------------------------------------------------------
 # File Upload / Avatar Schemas
 # ---------------------------------------------------------------------------
@@ -699,7 +699,7 @@ class UserExportData(BaseModel):
     transactions: List[UserTransactionData]
 
     class Config:
-        orm_mode = True
+        from_attributes= True
 
 
 class Token(BaseModel):
