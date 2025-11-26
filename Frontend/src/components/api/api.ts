@@ -1,12 +1,14 @@
 // api/api.ts
-const BASE_URL = 'http://localhost:8000';
+
 
 // Generic request function using fetch
 async function request<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = `${BASE_URL}${endpoint}`;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+  const url = `${API_BASE_URL}${endpoint}`;
   
   const config: RequestInit = {
     headers: {

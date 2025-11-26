@@ -20,9 +20,10 @@ export interface NotificationStats {
   total_subscribers: number;
 }
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL+"/api";
 
 class NotificationService {
+  
   async getNotifications(): Promise<Notification[]> {
     try {
       const response = await fetch(`${API_BASE_URL}/notifications`, {

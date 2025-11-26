@@ -1,8 +1,10 @@
 // Fixed API URLs to match backend endpoints
-const API_BASE_URL = 'http://localhost:8000/api';
+
 
 export const feedbackApi = {
   // Support Tickets API
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
   getTickets: async (filters?: {
     status?: string;
     priority?: string;

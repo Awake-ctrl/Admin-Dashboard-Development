@@ -1,5 +1,4 @@
 // api/subscriptionService.ts
-const API_BASE_URL = 'http://localhost:8000/api';
 
 export interface SubscriptionPlan {
   id: number;
@@ -78,6 +77,8 @@ class ApiError extends Error {
 
 // Generic API request function
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL+"/api";
+  
   try {
     const url = `${API_BASE_URL}${endpoint}`;
     console.log(`Subscription API: ${options.method || 'GET'} ${url}`);

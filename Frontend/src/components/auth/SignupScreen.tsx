@@ -31,6 +31,7 @@ interface SignupScreenProps {
 }
 
 export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
+  const BASE_URL = import.meta.env.VITE_APP_BASE_URL;
   const { roles, loading } = useRolesData("overview");
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<SignupFormData>({
@@ -59,7 +60,7 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
 
   const validateStep = (step: number) => {
     const newErrors: Record<string, string> = {};
-    
+   
     if (step === 1) {
       if (!formData.firstName.trim()) {
         newErrors.firstName = "First name is required";
@@ -139,8 +140,9 @@ export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
         bio: formData.bio || "",
         timezone: formData.timezone || "Asia/Kolkata"
       };
-
-      const response = await fetch('http://localhost:8000/api/auth/signup', {
+      
+      console.log(BASE_URL);
+      const response = await fetch(`${BASE_URL}/api/auth/signup`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

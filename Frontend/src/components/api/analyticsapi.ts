@@ -1,5 +1,11 @@
-// API service for analytics data
-const API_BASE_URL = 'http://localhost:8000';
+/**
+ * analyticsapi.ts
+ * 
+ * Author: Kallepally Sai Kiran
+ * 
+ * Description: API service and data transformation utilities for analytics dashboard.
+ * Provides functions to fetch analytics data and format it for frontend consumption.
+ */
 
 // Helper functions
 const getMonthName = (monthString: string): string => {
@@ -71,6 +77,8 @@ export const transformEngagementData = (revenueData: any, contentStats: any, use
 
 // API fetch functions
 export const fetchAnalyticsData = async () => {
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
   try {
     const [
       usersRes,

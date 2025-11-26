@@ -6,7 +6,7 @@ import {
   User, UserCourse
 } from './types';
 
-const API_BASE_URL = 'http://127.0.0.1:8000/api';
+
 
 class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -20,6 +20,8 @@ async function apiCall<T>(
   options: RequestInit = {}
 ): Promise<T> {
   try {
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL+"/api";
+
     const url = `${API_BASE_URL}${endpoint}`;
     console.log(`API Call: ${options.method || 'GET'} ${url}`);
     

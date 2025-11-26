@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:8000';
+
 
 export interface LeaderboardUser {
   id: number;
@@ -21,6 +21,8 @@ export const fetchLeaderboardData = async (): Promise<LeaderboardUser[]> => {
   try {
     // Since you don't have a dedicated leaderboard endpoint yet,
     // we'll use the users endpoint and transform the data
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
     const response = await fetch(`${API_BASE_URL}/api/users`);
     
     if (!response.ok) {

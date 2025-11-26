@@ -23,7 +23,7 @@ export function LoginScreen({ onLogin, onSwitchToSignup, onSwitchToForgotPasswor
   });
   // const navigate = useNavigate();
 
-  const API_URL = "http://localhost:8000";
+  const API_URL = import.meta.env.VITE_API_BASE_URL;
 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -31,7 +31,8 @@ export function LoginScreen({ onLogin, onSwitchToSignup, onSwitchToForgotPasswor
   const [loginSuccess, setLoginSuccess] = useState(false);
   const [apiError, setApiError] = useState("");
 
-const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    const API_URL = import.meta.env.VITE_API_BASE_URL;
   e.preventDefault();
   setApiError("");
   
@@ -40,7 +41,7 @@ const handleSubmit = async (e: React.FormEvent) => {
   setIsLoading(true);
 
   try {
-    const response = await fetch('http://localhost:8000/api/auth/login', {
+    const response = await fetch(`${API_URL}/api/auth/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -76,7 +77,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     localStorage.setItem("access_token", data.access_token);
     
     // Get user info
-    const userResponse = await fetch("https://admin-dashboard-development.onrender.com/api/auth/me", {
+    const userResponse = await fetch(`${API_URL}/api/auth/me`, {
       headers: {
         "Authorization": `Bearer ${data.access_token}`,
       },
