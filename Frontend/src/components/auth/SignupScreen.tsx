@@ -31,9 +31,10 @@ interface SignupScreenProps {
 }
 
 export function SignupScreen({ onSignup, onSwitchToLogin }: SignupScreenProps) {
-  const BASE_URL = import.meta.env.VITE_APP_BASE_URL;
   const { roles, loading } = useRolesData("overview");
   const [currentStep, setCurrentStep] = useState(1);
+  const BASE_URL =import.meta.env.VITE_API_BASE_URL;
+
   const [formData, setFormData] = useState<SignupFormData>({
     firstName: "",
     lastName: "",
