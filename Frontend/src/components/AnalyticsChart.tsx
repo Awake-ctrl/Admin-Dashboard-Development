@@ -72,7 +72,7 @@ interface SubscriptionStatus {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
 // Base URL for your FastAPI backend
-const API_BASE_URL = 'http://localhost:8000';
+// const API_BASE_URL = 'http://localhost:8000';
 
 export function AnalyticsChart() {
   const [userGrowth, setUserGrowth] = useState<UserGrowthData[]>([]);
@@ -83,6 +83,7 @@ export function AnalyticsChart() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     const fetchAllData = async () => {
       try {
         setLoading(true);

@@ -1477,7 +1477,7 @@ export function FeedbackManagement() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
+            {/* <div>
               <Label>Quick Templates</Label>
               <Select value={selectedTemplate} onValueChange={(value) => {
                 setSelectedTemplate(value);
@@ -1497,7 +1497,7 @@ export function FeedbackManagement() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </div> */}
             <div>
               <Label htmlFor="response">Response Message</Label>
               <Textarea
