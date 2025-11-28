@@ -45,9 +45,6 @@ import { toast } from "sonner";
 import { Separator } from "./ui/separator";
 import { ScrollArea } from "./ui/scroll-area";
 
-// API Configuration
-const API_BASE_URL = "http://localhost:8000/api";
-
 // Types
 interface TicketResponse {
   id: number;
@@ -219,6 +216,8 @@ const renderStars = (rating: number) => {
 };
 
 export function FeedbackManagement() {
+  const API_BASE_URL = import.meta.env("VITE_API_BASE_URL")+"/api";
+
   const [activeTab, setActiveTab] = useState("tickets");
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
