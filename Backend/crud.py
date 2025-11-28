@@ -409,3 +409,57 @@ def get_content_stats(db: Session):
     
 def get_deletion_request(db: Session, request_id: str):
     return db.query(models.AccountDeletionRequest).filter(models.AccountDeletionRequest.id == request_id).first()
+
+# Feature CRUD operations
+def get_feature(db: Session, feature_id: int):
+    return db.query(models.Feature).filter(models.Feature.id == feature_id).first()
+
+def get_features(db: Session, skip: int = 0, limit: int = 100, is_active: Optional[bool] = None):
+    query = db.query(models.Feature)
+    if is_active is not None:
+        query = query.filter(models.Feature.is_active == is_active)
+    return query.offset(skip).limit(limit).all()
+
+def get_feature_by_name(db: Session, name: str):
+    return db.query(models.Feature).filter(models.Feature.name == name).first()
+
+def create_feature(db: Session, feature: schemas.FeatureCreate):
+    # Check if feature with same name already exists
+    db_feature = get_feature_by_name(db, name=feature.name)
+    if db_feature:
+        raise ValueError("Feature with this name already exists")
+    
+    db_feature = models.Feature(
+        name=feature.name,
+        description=feature.description,
+        # category=feature.category,
+        is_active=feature.is_active
+    )
+    db.add(db_feature)
+    db.commit()
+    db.refresh(db_feature)
+    return db_feature
+
+def update_feature(db: Session, feature_id: int, feature: schemas.FeatureUpdate):
+    db_feature = get_feature(db, feature_id)
+    if not db_feature:
+        return None
+    
+    update_data = feature.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_feature, field, value)
+    
+    db.commit()
+    db.refresh(db_feature)
+    return db_feature
+
+def delete_feature(db: Session, feature_id: int):
+    db_feature = get_feature(db, feature_id)
+    if not db_feature:
+        return None
+    
+    db.delete(db_feature)
+    db.commit()
+    return db_feature
+
+# Include your existing CRUD operations for other models

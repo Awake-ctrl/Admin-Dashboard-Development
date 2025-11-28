@@ -68,6 +68,15 @@ export interface SubscriptionStats {
   monthly_subscriber_growth: number;
 }
 
+export interface Feature {
+  id: number;
+  name: string;
+  description?: string;
+  category: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -208,6 +217,62 @@ export const subscriptionService = {
   getPlanPerformance: async (): Promise<{ plan_name: string; subscribers: number; revenue: number }[]> => {
     return apiRequest('/analytics/plan-performance');
   },
+
+// Feature methods
+  getFeatures: async (): Promise<Feature[]> => {
+    const API_URL = import.meta.env.VITE_API_BASE_URL;
+    const response = await fetch(`${API_URL}/api/features/`);
+    if (!response.ok) throw new Error('Failed to fetch features');
+    return response.json();
+  },
+
+  createFeature: async (featureData: {
+    
+    name: string;
+    description?: string;
+    category: string;
+  }): Promise<Feature> => {
+    const API_URL = import.meta.env.VITE_API_BASE_URL;
+    const response = await fetch(`${API_URL}/api/features/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(featureData),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to create feature');
+    }
+    return response.json();
+  },
+
+  updateFeature: async (featureId: number, featureData: Partial<Feature>): Promise<Feature> => {
+    const API_URL = import.meta.env.VITE_API_BASE_URL;
+
+    const response = await fetch(`${API_URL}/api/features/${featureId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(featureData),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to update feature');
+    }
+    return response.json();
+  },
+
+  deleteFeature: async (featureId: number): Promise<void> => {
+    const API_URL = import.meta.env.VITE_API_BASE_URL;
+
+    const response = await fetch(`${API_URL}/api/features/${featureId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to delete feature');
+    }
+  },
+
+
 };
 
 export { ApiError };

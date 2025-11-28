@@ -1,6 +1,7 @@
 # models.py
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Table, Date,JSON
 from sqlalchemy.orm import relationship
+# from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 from database import Base
 from typing import   List,Optional
@@ -25,6 +26,17 @@ DEFAULT_PERMISSIONS = {
     "support": ["user_management", "content_management"],
     "student": ["view_courses", "access_content"]
 }
+
+class Feature(Base):
+    __tablename__ = "features"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False, unique=True, index=True)
+    description = Column(Text, nullable=True)
+    # category = Column(String(100), nullable=False, default="general")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
 class User(Base):
     __tablename__ = "users"

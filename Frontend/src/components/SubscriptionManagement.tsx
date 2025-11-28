@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "./ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -28,38 +28,25 @@ import {
   ChevronDown,
   ChevronUp
 } from "lucide-react";
-import { subscriptionService, SubscriptionPlan, Transaction, RefundRequest, SubscriptionStats, Course } from "./api/subscripttionService";
+import { subscriptionService, SubscriptionPlan, Transaction, RefundRequest, SubscriptionStats, Course, Feature } from "./api/subscripttionService";
 import { toast } from "sonner";
-
-// Feature options for plans
-const featureOptions = [
-  "Unlimited Text Queries",
-  "Unlimited Image Queries", 
-  "Unlimited Audio Queries",
-  "Priority Support",
-  "Download Content",
-  "Certificate of Completion",
-  "Live Doubt Sessions",
-  "Personalized Study Plan",
-  "Advanced Analytics",
-  "Mobile App Access",
-  "Early Access to New Features",
-  "Dedicated Account Manager"
-];
 
 export function SubscriptionManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isFeatureDialogOpen, setIsFeatureDialogOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
   const [activeTab, setActiveTab] = useState("plans");
   
   // State for data from backend
   const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [features, setFeatures] = useState<Feature[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [refundRequests, setRefundRequests] = useState<RefundRequest[]>([]);
   const [stats, setStats] = useState<SubscriptionStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [featureLoading, setFeatureLoading] = useState(false);
 
   // Filter states
   const [transactionStatusFilter, setTransactionStatusFilter] = useState("all");
@@ -77,8 +64,13 @@ export function SubscriptionManagement() {
     features: [] as string[],
     is_popular: false,
     is_active: true
-    // subscribers: 0,
-    // revenue: 0
+  });
+
+  // New feature form state
+  const [newFeature, setNewFeature] = useState({
+    name: "",
+    description: "",
+    // category: "general"
   });
 
   // Dropdown states
@@ -93,12 +85,14 @@ export function SubscriptionManagement() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Always load courses and stats
-      const [coursesData, statsData] = await Promise.all([
+      // Always load courses, features and stats
+      const [coursesData, featuresData, statsData] = await Promise.all([
         subscriptionService.getCourses(),
+        subscriptionService.getFeatures(),
         subscriptionService.getSubscriptionStats()
       ]);
       setCourses(coursesData);
+      setFeatures(featuresData);
       setStats(statsData);
 
       switch (activeTab) {
@@ -127,6 +121,30 @@ export function SubscriptionManagement() {
     }
   };
 
+  const handleCreateFeature = async () => {
+    if (!newFeature.name.trim()) {
+      toast.error("Feature name is required");
+      return;
+    }
+
+    setFeatureLoading(true);
+    try {
+      await subscriptionService.createFeature(newFeature);
+      toast.success("Feature created successfully");
+      setIsFeatureDialogOpen(false);
+      setNewFeature({ name: "", description: "" });
+      
+      // Refresh features list
+      const featuresData = await subscriptionService.getFeatures();
+      setFeatures(featuresData);
+    } catch (error) {
+      console.error("Error creating feature:", error);
+      toast.error("Failed to create feature");
+    } finally {
+      setFeatureLoading(false);
+    }
+  };
+
   const handleEditPlan = (plan: SubscriptionPlan) => {
     setSelectedPlan(plan);
     setFormData({
@@ -140,8 +158,6 @@ export function SubscriptionManagement() {
       features: plan.features || [],
       is_popular: plan.is_popular || false,
       is_active: plan.is_active
-      // subscribers: plan.subscribers,
-      // revenue: plan.revenue
     });
     setIsDialogOpen(true);
   };
@@ -159,8 +175,6 @@ export function SubscriptionManagement() {
       features: [],
       is_popular: false,
       is_active: true,
-      // subscribers: 0,
-      // revenue: 0
     });
     setIsDialogOpen(true);
   };
@@ -208,12 +222,12 @@ export function SubscriptionManagement() {
     }));
   };
 
-  const handleFeatureToggle = (feature: string) => {
+  const handleFeatureToggle = (featureName: string) => {
     setFormData(prev => ({
       ...prev,
-      features: prev.features.includes(feature)
-        ? prev.features.filter(f => f !== feature)
-        : [...prev.features, feature]
+      features: prev.features.includes(featureName)
+        ? prev.features.filter(f => f !== featureName)
+        : [...prev.features, featureName]
     }));
   };
 
@@ -227,7 +241,7 @@ export function SubscriptionManagement() {
   const handleSelectAllFeatures = () => {
     setFormData(prev => ({
       ...prev,
-      features: prev.features.length === featureOptions.length ? [] : [...featureOptions]
+      features: prev.features.length === features.length ? [] : features.map(feature => feature.name)
     }));
   };
 
@@ -694,7 +708,6 @@ export function SubscriptionManagement() {
                       <TableHead>Status</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Order ID</TableHead>
-                      {/* <TableHead>Actions</TableHead>    */} 
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -712,53 +725,6 @@ export function SubscriptionManagement() {
                         <TableCell>{getStatusBadge(transaction.status)}</TableCell>
                         <TableCell>{formatDate(transaction.date)}</TableCell>
                         <TableCell className="font-mono text-xs">{transaction.order_id}</TableCell>
-                        {/* <TableCell>
-                          <div className="flex gap-1">
-                            {transaction.status === "failed" && (
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => handleRetryFailedTransaction(transaction.id)}
-                                disabled={actionLoading === `retry-${transaction.id}`}
-                              >
-                                {actionLoading === `retry-${transaction.id}` ? (
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                ) : (
-                                  <RotateCcw className="w-3 h-3" />
-                                )}
-                              </Button>
-                            )}
-                            {transaction.status === "captured" && (
-                              <>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  className="text-orange-600"
-                                  onClick={() => handleRefundTransaction(transaction.id)}
-                                  disabled={actionLoading === `refund-${transaction.id}`}
-                                >
-                                  {actionLoading === `refund-${transaction.id}` ? (
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    "Refund"
-                                  )}
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="destructive"
-                                  onClick={() => handleMarkTransactionFailed(transaction.id)}
-                                  disabled={actionLoading === `fail-${transaction.id}`}
-                                >
-                                  {actionLoading === `fail-${transaction.id}` ? (
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    "Fail"
-                                  )}
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </TableCell> */}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -880,7 +846,7 @@ export function SubscriptionManagement() {
         </TabsContent>
       </Tabs>
 
-      {/* Plan Dialog - Updated with dynamic courses */}
+      {/* Plan Dialog - Updated with dynamic features */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-md sm:max-w-lg md:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader className="flex-shrink-0">
@@ -1036,9 +1002,20 @@ export function SubscriptionManagement() {
               </div>
             </div>
 
-            {/* Features - Dropdown Style */}
+            {/* Features - Dropdown Style with Add Feature Button */}
             <div className="space-y-2">
-              <Label>Plan Features</Label>
+              <div className="flex items-center justify-between">
+                <Label>Plan Features</Label>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setIsFeatureDialogOpen(true)}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add New Feature
+                </Button>
+              </div>
               <div className="border rounded-lg">
                 <button
                   type="button"
@@ -1063,19 +1040,22 @@ export function SubscriptionManagement() {
                         size="sm"
                         onClick={handleSelectAllFeatures}
                       >
-                        {formData.features.length === featureOptions.length ? "Deselect All" : "Select All"}
+                        {formData.features.length === features.length ? "Deselect All" : "Select All"}
                       </Button>
                     </div>
                     <div className="space-y-2">
-                      {featureOptions.map((feature) => (
-                        <div key={feature} className="flex items-center space-x-2">
+                      {features.map((feature) => (
+                        <div key={feature.id} className="flex items-center space-x-2">
                           <Checkbox
-                            id={`feature-${feature}`}
-                            checked={formData.features.includes(feature)}
-                            onCheckedChange={() => handleFeatureToggle(feature)}
+                            id={`feature-${feature.id}`}
+                            checked={formData.features.includes(feature.name)}
+                            onCheckedChange={() => handleFeatureToggle(feature.name)}
                           />
-                          <Label htmlFor={`feature-${feature}`} className="text-sm font-normal cursor-pointer flex-1">
-                            {feature}
+                          <Label htmlFor={`feature-${feature.id}`} className="text-sm font-normal cursor-pointer flex-1">
+                            {feature.name}
+                            {feature.description && (
+                              <span className="text-xs text-muted-foreground ml-2">- {feature.description}</span>
+                            )}
                           </Label>
                         </div>
                       ))}
@@ -1123,6 +1103,72 @@ export function SubscriptionManagement() {
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : null}
               {selectedPlan ? "Update Plan" : "Create Plan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Feature Dialog */}
+      <Dialog open={isFeatureDialogOpen} onOpenChange={setIsFeatureDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Feature</DialogTitle>
+            <DialogDescription>
+              Create a new feature that can be added to subscription plans
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="feature-name">Feature Name *</Label>
+              <Input 
+                id="feature-name"
+                value={newFeature.name}
+                onChange={(e) => setNewFeature({...newFeature, name: e.target.value})}
+                placeholder="e.g., Unlimited Text Queries"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="feature-description">Description</Label>
+              <Input 
+                id="feature-description"
+                value={newFeature.description}
+                onChange={(e) => setNewFeature({...newFeature, description: e.target.value})}
+                placeholder="Brief description of the feature"
+              />
+            </div>
+            
+            {/* <div className="space-y-2">
+              <Label htmlFor="feature-category">Category</Label>
+              <Select 
+                value={newFeature.category} 
+                onValueChange={(value) => setNewFeature({...newFeature, category: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="general">General</SelectItem>
+                  <SelectItem value="premium">Premium</SelectItem>
+                  <SelectItem value="support">Support</SelectItem>
+                  <SelectItem value="access">Access</SelectItem>
+                  <SelectItem value="analytics">Analytics</SelectItem>
+                </SelectContent>
+              </Select>
+            </div> */}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsFeatureDialogOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleCreateFeature}
+              disabled={featureLoading || !newFeature.name.trim()}
+            >
+              {featureLoading ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : null}
+              Create Feature
             </Button>
           </DialogFooter>
         </DialogContent>

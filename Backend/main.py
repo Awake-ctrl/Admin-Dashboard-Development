@@ -20,7 +20,7 @@ from routers import auth
 from routers import notifications  # or wherever you put the routes
 from schemas import Feedback
 from routers import account
-
+from routers import features
 # from typing import List, Optional, Union, Dict, Any
 
 import logging
@@ -29,6 +29,7 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Edu Dashboard API", version="1.0.0")
 logger = logging.getLogger(__name__)
+app.include_router(features.router)
 app.include_router(notifications.router)
 app.include_router(account.router)
 # CORS middleware

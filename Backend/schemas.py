@@ -1080,6 +1080,34 @@ class UserSubscriptionDetails(BaseModel):
     features: List[str]
     paymentMethod: str
 
+# Feature Schemas
+class FeatureBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    category: str = "general"
+    is_active: bool = True
+
+class FeatureCreate(FeatureBase):
+    pass
+
+class FeatureUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class Feature(FeatureBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+# Include your existing schemas for SubscriptionPlan, Course, etc.
+
+
+
 # class PasswordChange(BaseModel):
 #     currentPassword: str
 #     newPassword: str
