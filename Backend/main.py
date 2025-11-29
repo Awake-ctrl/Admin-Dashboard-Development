@@ -37,16 +37,15 @@ app.add_middleware(
     CORSMiddleware,
     # allow_origins=["http://localhost:3000"],  # React app origin
     # allow_origins=["*"],  # Update with your frontend URL in production
-    # allow_origins=[
-    #     "https://admin-dashboard-development-1.onrender.com",
-    #     "http://localhost:3000",
-    # ],
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=[
+        "https://admin-dashboard-development-1.onrender.com",
+        "http://localhost:3000",
+    ],
+    # allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 app.mount("/static", StaticFiles(directory="uploads"), name="static")
 app.include_router(features.router)
 app.include_router(notifications.router)

@@ -23,16 +23,16 @@ export function LoginScreen({ onLogin, onSwitchToSignup, onSwitchToForgotPasswor
   });
   // const navigate = useNavigate();
 
-  const API_URL = import.meta.env.VITE_API_BASE_URL;
+  // const API_URL = import.meta.env.VITE_API_BASE_URL;
 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loginSuccess, setLoginSuccess] = useState(false);
   const [apiError, setApiError] = useState("");
+  const API_URL = import.meta.env.VITE_API_BASE_URL;
 
   const handleSubmit = async (e: React.FormEvent) => {
-    const API_URL = import.meta.env.VITE_API_BASE_URL;
   e.preventDefault();
   setApiError("");
   
