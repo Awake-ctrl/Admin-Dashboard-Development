@@ -331,12 +331,12 @@ export function LoginScreen({ onLogin, onSwitchToSignup, onSwitchToForgotPasswor
         </Card>
 
         {/* Demo Alert - Remove in production */}
-        <Alert>
+        {/* <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             <strong>Error:</strong> The backend is not working.
           </AlertDescription>
-        </Alert>
+        </Alert> */}
       </div>
     </div>
   );
