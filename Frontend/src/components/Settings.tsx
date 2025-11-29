@@ -12,6 +12,7 @@ import { Bell, Mail, Palette, Sliders, Save, Upload, Eye, Loader2, CheckCircle, 
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { settingsApi, PlatformSettings } from "./api/settings";
 
 // const API_BASE_URL = "http://localhost:8000/api";
 
@@ -59,10 +60,22 @@ export default function Settings() {
       systemAlerts: { email: true, push: false, inApp: true }
     }
   });
-
-  useEffect(() => {
-    fetchSettings();
-  }, []);
+useEffect(() => {
+  const fetchSettings = async () => {
+    try {
+      setLoading(true);
+      // 🔥 Use the new API function
+      const data = await settingsApi.getSettings(); 
+      setSettings(data);
+      // setInitialSettings(data); // if you use this for change detection
+    } catch (error) {
+      // Handle error
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchSettings();
+}, []);
 
   const fetchSettings = async () => {
     try {

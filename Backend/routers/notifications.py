@@ -6,6 +6,13 @@ from sqlalchemy import func
 import models
 import schemas
 from database import SessionLocal
+from schemas import DeviceTokenCreate
+from models import DeviceToken
+# from notifications import send_push_to_tokens
+from firebase_utils import send_push_to_tokens
+
+
+
 
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 
@@ -103,6 +110,16 @@ async def create_notification(
         db.add(db_notification)
         db.commit()
         db.refresh(db_notification)
+        tokens = [t.token for t in db.query(models.DeviceToken).filter(models.DeviceToken.revoked == False).all()]
+
+        if tokens and db_notification.status == "sent":
+            send_push_to_tokens(
+                tokens,
+                db_notification.title,
+                db_notification.subtitle or db_notification.title,
+                data={"notification_id": str(db_notification.id)}
+    )
+
         return db_notification
     except Exception as e:
         db.rollback()
@@ -200,3 +217,53 @@ async def delete_notification(
         db.rollback()
         print(f"Error deleting notification: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    
+@router.post("/device-tokens", status_code=201,response_model=schemas.DeviceToken)
+async def register_device_token(payload: schemas.DeviceTokenCreate, db: Session = Depends(get_db)):
+    try:
+        token = payload.token
+
+        # Check if token already exists
+        existing = db.query(models.DeviceToken).filter_by(token=token).first()
+
+        if existing:
+            existing.revoked = False
+            db.commit()
+            db.refresh(existing)
+            return existing
+        
+        new = models.DeviceToken(
+            token=token,
+            platform=payload.platform or "web",
+            user_id=None
+        )
+        
+        db.add(new)
+        db.commit()
+        db.refresh(new)
+        
+        return new
+
+    except Exception as e:
+        db.rollback()
+        print("Error registering device token:", e)
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@router.post("/templates", response_model=schemas.NotificationTemplate)
+async def create_template(payload: schemas.NotificationTemplateCreate, db: Session = Depends(get_db)):
+    template = models.NotificationTemplate(
+        title=payload.title,
+        subtitle=payload.subtitle,
+        icon=payload.icon,
+        tag=payload.tag,
+    )
+    db.add(template)
+    db.commit()
+    db.refresh(template)
+    return template
+
+@router.get("/templates", response_model=List[schemas.NotificationTemplate])
+async def list_templates(db: Session = Depends(get_db)):
+    templates = db.query(models.NotificationTemplate).order_by(models.NotificationTemplate.created_at.desc()).all()
+    return templates
+

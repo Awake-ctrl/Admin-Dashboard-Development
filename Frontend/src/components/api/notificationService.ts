@@ -121,6 +121,70 @@ class NotificationService {
       throw error;
     }
   }
+ async getTemplates(): Promise<any[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/notifications/templates`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to load templates: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching templates:", error);
+    throw error;
+  }
+}
+
+async createTemplate(template: any): Promise<any> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/notifications/templates`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(template),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to create template: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error creating template:", error);
+    throw error;
+  }
+}
+
+
+
+//   async createTemplate(template: any): Promise<any> {
+//   try {
+//     const response = await fetch(`${API_BASE_URL}/notifications/templates`, {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//       },
+//       body: JSON.stringify(template),
+//     });
+
+//     if (!response.ok) {
+//       const errorText = await response.text();
+//       console.error('API Error Response:', errorText);
+//       throw new Error(`Failed to create template: ${response.status} ${response.statusText}`);
+//     }
+
+//     const data = await response.json();
+//     console.log('Template created successfully:', data);
+//     return data;
+//   } catch (error) {
+//     console.error('Error creating template:', error);
+//     throw error;
+//   }
+// }
+
 
   async deleteNotification(id: number): Promise<void> {
     try {

@@ -86,23 +86,25 @@ def change_password(
     db: Session = Depends(get_db),
 ):
     """Change user password"""
+    from passlib.context import CryptContext
+    
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-
-    # Verify current password (implement verification if needed)
-    # if not verify_password(password_data.currentPassword, user.password_hash):
-    #     raise HTTPException(status_code=400, detail="Current password is incorrect")
-
-    if password_data.newPassword != password_data.confirmPassword:
-        raise HTTPException(status_code=400, detail="Passwords don't match")
-
-    # user.password_hash = hash_password(password_data.newPassword)
+    
+    # Verify current password
+    if not pwd_context.verify(password_data.currentPassword, user.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    
+    # Hash new password
+    hashed_password = pwd_context.hash(password_data.newPassword)
+    user.password_hash = hashed_password
+    
     db.commit()
-
+    
     return {"message": "Password updated successfully"}
-
-
 # ---------------------------------------------------------------------------
 # SUBSCRIPTION DETAILS
 # ---------------------------------------------------------------------------

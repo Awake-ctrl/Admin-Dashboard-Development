@@ -14,7 +14,7 @@ from database import get_db
 from models import Employee, Role
 from schemas import (
     EmployeeLogin, EmployeeSignup, EmployeeResponse, Token,
-    PasswordResetRequest, PasswordResetConfirm, EmployeeUpdate
+    PasswordResetRequest, PasswordResetConfirm, EmployeeUpdate,PasswordChange, User 
 )
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
@@ -103,6 +103,7 @@ async def login(login_data: EmployeeLogin, db: Session = Depends(get_db)):
     return {
         "access_token": access_token,
         "token_type": "bearer",
+        "user_id": User.id,
         "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     }
 
@@ -237,3 +238,42 @@ async def update_employee(
         created_at=current_employee.created_at,
         updated_at=current_employee.updated_at,
     )
+
+
+# Add this endpoint to auth.py
+
+@router.put("/change-password")
+async def change_password(
+    password_data: PasswordChange,
+    current_employee: Employee = Depends(get_employee_from_token),
+    db: Session = Depends(get_db),
+):
+    """Change employee password"""
+    
+    # Verify current password
+    if not verify_password(password_data.currentPassword, current_employee.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect"
+        )
+    
+    # Validate new password
+    if len(password_data.newPassword) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 8 characters long"
+        )
+    
+    # Update password
+    try:
+        current_employee.password_hash = get_password_hash(password_data.newPassword)
+        current_employee.updated_at = datetime.utcnow()
+        db.commit()
+        
+        return {"message": "Password updated successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error updating password: {str(e)}"
+        )

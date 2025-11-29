@@ -6,13 +6,39 @@ import { LoginScreen } from "./components/auth/LoginScreen";
 import { SignupScreen } from "./components/auth/SignupScreen";
 import { ForgotPasswordScreen } from "./components/auth/ForgotPasswordScreen";
 import { Toaster } from "./components/ui/toaster"
+import { requestAndGetToken, listenForMessages } from "./firebase";
+import { notificationService } from "./components/api/notificationService";
 
+const VAPID_KEY = "BN3-3LlIsx3dTC-hGXJISCIoaKDbr1bRulu9ZWkbHmwI_UyXTt8q9XH6Ti2YjLJnx3hJCrtSXhVpWnJ-atuzQhg";
 export default function App() {
   const [activeSection, setActiveSection] = useState("analytics");
   const [demoMode, setDemoMode] = useState<string | null>(null);
   const [authScreen, setAuthScreen] = useState<"login" | "signup" | "forgot-password" | null>("login");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
+
+  useEffect(() => {
+  async function registerToken() {
+    if (!("serviceWorker" in navigator)) return;
+    const token = await requestAndGetToken(VAPID_KEY);
+    if (token) {
+      // Send token to your backend to save in DB
+      await fetch("/api/device-tokens", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, platform: "web" })
+      });
+    }
+  }
+  registerToken();
+
+  // handle foreground messages
+  listenForMessages((payload) => {
+    console.log("Message received. ", payload);
+    // show an in-app toast / update notifications list
+    // e.g., toast(payload.notification?.title)
+  });
+}, []);
 
   // Check if user is authenticated on app load
   useEffect(() => {
@@ -151,4 +177,6 @@ export default function App() {
       <Toaster />
     </>
   );
+
+
 }

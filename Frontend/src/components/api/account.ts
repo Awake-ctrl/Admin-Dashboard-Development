@@ -11,7 +11,7 @@ export interface UserProfile {
   role: string;
   bio: string;
   timezone: string;
-  language: string;
+  // language: string;
   avatarUrl?: string;
 }
 
@@ -24,7 +24,7 @@ export interface UserProfileUpdate {
   role?: string;
   bio?: string;
   timezone?: string;
-  language?: string;
+  // language?: string;
 }
 
 export interface PasswordChange {
