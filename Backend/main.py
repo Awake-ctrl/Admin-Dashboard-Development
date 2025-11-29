@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 app.add_middleware(
     CORSMiddleware,
     # allow_origins=["http://localhost:3000"],  # React app origin
-    allow_origins=["*"],  # Update with your frontend URL in production
+    allow_origins=["https://admin-dashboard-development-1.onrender.com/"],  # Update with your frontend URL in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
