@@ -38,18 +38,31 @@ import {
   XCircle,
 } from "lucide-react";
 
-// Get user ID from localStorage or props
-const getUserId = () => {
-  return localStorage.getItem('user_id') || "user_123456";
-};
-
 const API_BASE = "http://localhost:8000";
 
-const makeApiCall = async (endpoint: string, method: string = "GET", data?: any) => {
+// Get JWT token and user ID from localStorage
+const getAuthToken = () => {
+  return localStorage.getItem('access_token');
+};
+
+const getUserId = () => {
+  // Get user ID from localStorage (set during login/signup)
+  return localStorage.getItem('user_id');
+};
+
+// Make authenticated API calls
+const makeApiCall = async (endpoint: string, method = "GET", data?: any) => {
+  const token = getAuthToken();
+  
+  if (!token) {
+    throw new Error("No authentication token found. Please login again.");
+  }
+
   const options: RequestInit = {
     method,
     headers: {
       "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
     },
   };
 
@@ -59,9 +72,19 @@ const makeApiCall = async (endpoint: string, method: string = "GET", data?: any)
 
   try {
     const response = await fetch(`${API_BASE}${endpoint}`, options);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    
+    if (response.status === 401) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user_id');
+      window.location.href = "/login";
+      throw new Error("Session expired. Please login again.");
     }
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+    
     return await response.json();
   } catch (error) {
     console.error('API call failed:', error);
@@ -75,12 +98,8 @@ export default function AccountSettings() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [availableRoles, setAvailableRoles] = useState<
-    Array<{ id: string; name: string; description: string }>
-  >([]);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [userId] = useState(getUserId());
 
   const [profileData, setProfileData] = useState({
     firstName: "",
@@ -89,7 +108,6 @@ export default function AccountSettings() {
     phone: "",
     organization: "",
     role: "",
-    roleId: "",
     bio: "",
     timezone: "Asia/Kolkata",
   });
@@ -114,9 +132,18 @@ export default function AccountSettings() {
   // Load user profile data
   useEffect(() => {
     const loadProfileData = async () => {
+      const userId = getUserId();
+      
+      if (!userId) {
+        setErrorMessage("User ID not found. Please login again.");
+        return;
+      }
+
       setIsLoading(true);
       try {
+        // Use the account profile endpoint
         const data = await makeApiCall(`/api/account/profile/${userId}`);
+        
         setProfileData({
           firstName: data.firstName || "",
           lastName: data.lastName || "",
@@ -124,57 +151,24 @@ export default function AccountSettings() {
           phone: data.phone || "",
           organization: data.organization || "",
           role: data.role || "",
-          roleId: data.role_id || "",
           bio: data.bio || "",
           timezone: data.timezone || "Asia/Kolkata",
         });
-      } catch (error) {
+
+        // Set avatar if exists
+        if (data.avatar_url) {
+          setAvatarUrl(data.avatar_url);
+        }
+      } catch (error: any) {
         console.error("Failed to load profile:", error);
-        setErrorMessage("Failed to load profile data");
+        setErrorMessage(error.message || "Failed to load profile data");
       } finally {
         setIsLoading(false);
       }
     };
 
     loadProfileData();
-  }, [userId]);
-
-  // Load user roles
-  useEffect(() => {
-    const loadUserRoles = async () => {
-      try {
-        const roles = await makeApiCall(`/api/account/roles/${userId}`);
-        setAvailableRoles(roles);
-
-        if (roles.length > 0 && !profileData.roleId) {
-          const currentRole = roles[0];
-          setProfileData((prev) => ({
-            ...prev,
-            role: currentRole.name,
-            roleId: currentRole.id,
-          }));
-        }
-      } catch (error) {
-        console.error("Failed to load roles:", error);
-      }
-    };
-
-    loadUserRoles();
-  }, [userId]);
-
-  // Load notification settings
-  useEffect(() => {
-    const loadNotificationSettings = async () => {
-      try {
-        const settings = await makeApiCall(`/api/account/notification-settings/${userId}`);
-        setNotificationSettings(settings);
-      } catch (error) {
-        console.error("Failed to load notification settings:", error);
-      }
-    };
-
-    loadNotificationSettings();
-  }, [userId]);
+  }, []);
 
   const showSuccess = (message: string) => {
     setSuccessMessage(message);
@@ -203,17 +197,23 @@ export default function AccountSettings() {
     setIsLoading(true);
 
     try {
+      const userId = getUserId();
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch(`${API_BASE}/api/upload`, {
+      const token = getAuthToken();
+      const response = await fetch(`${API_BASE}/api/account/upload-avatar/${userId}`, {
         method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        },
         body: formData,
       });
 
+      if (!response.ok) throw new Error("Upload failed");
+
       const result = await response.json();
-      const imageUrl = URL.createObjectURL(file);
-      setAvatarUrl(imageUrl);
+      setAvatarUrl(result.url);
 
       showSuccess("Profile picture updated successfully!");
     } catch (error) {
@@ -225,38 +225,40 @@ export default function AccountSettings() {
   };
 
   const handleRemoveAvatar = async () => {
-    setIsLoading(true);
     try {
+      const userId = getUserId();
       await makeApiCall(`/api/account/avatar/${userId}`, "DELETE");
       setAvatarUrl(null);
       showSuccess("Profile picture removed successfully!");
     } catch (error) {
       console.error("Remove avatar failed:", error);
       showError("Failed to remove profile picture");
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const handleProfileUpdate = async () => {
     setIsLoading(true);
     try {
-      await makeApiCall(`/api/users/${userId}`, "PUT", {
-        name: `${profileData.firstName} ${profileData.lastName}`,
+      const userId = getUserId();
+      
+      if (!userId) {
+        throw new Error("User ID not found");
+      }
+
+      // Update profile using the account endpoint
+      await makeApiCall(`/api/account/profile/${userId}`, "PUT", {
         firstName: profileData.firstName,
         lastName: profileData.lastName,
-        email: profileData.email,
         phone: profileData.phone,
-        organization: profileData.organization,
-        role: profileData.role,
         bio: profileData.bio,
         timezone: profileData.timezone,
+        organization: profileData.organization,
       });
 
       showSuccess("Profile updated successfully!");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Profile update failed:", error);
-      showError("Failed to update profile");
+      showError(error.message || "Failed to update profile");
     } finally {
       setIsLoading(false);
     }
@@ -276,6 +278,8 @@ export default function AccountSettings() {
     setIsLoading(true);
 
     try {
+      const userId = getUserId();
+      
       await makeApiCall(`/api/account/password/${userId}`, "PUT", {
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword,
@@ -284,9 +288,9 @@ export default function AccountSettings() {
 
       setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
       showSuccess("Password updated successfully!");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Password change failed:", error);
-      showError("Failed to update password. Please check your current password.");
+      showError(error.message || "Failed to update password. Please check your current password.");
     } finally {
       setIsLoading(false);
     }
@@ -295,15 +299,13 @@ export default function AccountSettings() {
   const handleNotificationUpdate = async (key: string, value: boolean) => {
     const newSettings = { ...notificationSettings, [key]: value };
     setNotificationSettings(newSettings);
+    
     try {
-      await makeApiCall(
-        `/api/account/notification-settings/${userId}`,
-        "PUT",
-        newSettings
-      );
+      const userId = getUserId();
+      await makeApiCall(`/api/account/notification-settings/${userId}`, "PUT", newSettings);
       showSuccess("Notification settings updated");
     } catch (error) {
-      console.error("Notification update failed:", error);
+      console.error("Failed to update notification settings:", error);
       showError("Failed to update notification settings");
     }
   };
@@ -311,8 +313,10 @@ export default function AccountSettings() {
   const handleExportData = async () => {
     setIsLoading(true);
     try {
+      const userId = getUserId();
       const result = await makeApiCall(`/api/account/export-data/${userId}`, "POST");
-      const blob = new Blob([JSON.stringify(result, null, 2)], {
+      
+      const blob = new Blob([JSON.stringify(result.data || result, null, 2)], {
         type: "application/json",
       });
       const url = URL.createObjectURL(blob);
@@ -321,6 +325,7 @@ export default function AccountSettings() {
       a.download = `user-data-export-${new Date().toISOString()}.json`;
       a.click();
       URL.revokeObjectURL(url);
+      
       showSuccess("Data exported successfully!");
     } catch (error) {
       console.error("Export failed:", error);
@@ -331,20 +336,7 @@ export default function AccountSettings() {
   };
 
   const handleDeleteAccount = async () => {
-    setIsLoading(true);
-    try {
-      await makeApiCall(`/api/users/${userId}`, "DELETE");
-      showSuccess("Account deletion requested successfully");
-      // Redirect to logout or login page after a delay
-      setTimeout(() => {
-        window.location.href = "/login";
-      }, 2000);
-    } catch (error) {
-      console.error("Account deletion failed:", error);
-      showError("Failed to delete account");
-    } finally {
-      setIsLoading(false);
-    }
+    showError("Account deletion not implemented in backend yet");
   };
 
   const getAvatarFallback = () => {
@@ -352,7 +344,7 @@ export default function AccountSettings() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 max-w-5xl mx-auto">
       {/* Success/Error Messages */}
       {successMessage && (
         <Alert className="bg-green-50 border-green-200">
@@ -486,11 +478,11 @@ export default function AccountSettings() {
                       type="email"
                       className="pl-10"
                       value={profileData.email}
-                      onChange={(e) =>
-                        setProfileData({ ...profileData, email: e.target.value })
-                      }
+                      disabled
+                      title="Email cannot be changed"
                     />
                   </div>
+                  <p className="text-xs text-muted-foreground">Email cannot be changed</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
@@ -526,43 +518,13 @@ export default function AccountSettings() {
 
                 <div className="space-y-2">
                   <Label htmlFor="role">Role</Label>
-                  <Select
-                    value={profileData.roleId}
-                    onValueChange={(value) => {
-                      const selectedRole = availableRoles.find((r) => r.id === value);
-                      setProfileData({
-                        ...profileData,
-                        roleId: value,
-                        role: selectedRole?.name || "",
-                      });
-                    }}
-                    disabled={availableRoles.length === 0}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a role">
-                        {profileData.role || "Select a role"}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableRoles.map((role) => (
-                        <SelectItem key={role.id} value={role.id}>
-                          <div>
-                            <div className="font-medium">{role.name}</div>
-                            {role.description && (
-                              <div className="text-xs text-muted-foreground">
-                                {role.description}
-                              </div>
-                            )}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {availableRoles.length === 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      No roles assigned. Contact your administrator.
-                    </p>
-                  )}
+                  <Input
+                    id="role"
+                    value={profileData.role}
+                    disabled
+                    title="Role is managed by admin"
+                  />
+                  <p className="text-xs text-muted-foreground">Role is managed by admin</p>
                 </div>
               </div>
 
@@ -593,9 +555,7 @@ export default function AccountSettings() {
                   <SelectContent>
                     <SelectItem value="Asia/Kolkata">India (UTC+05:30)</SelectItem>
                     <SelectItem value="UTC">UTC (UTC+00:00)</SelectItem>
-                    <SelectItem value="America/New_York">
-                      US Eastern (UTC-05:00)
-                    </SelectItem>
+                    <SelectItem value="America/New_York">US Eastern (UTC-05:00)</SelectItem>
                     <SelectItem value="Europe/London">UK (UTC+00:00)</SelectItem>
                     <SelectItem value="Asia/Tokyo">Japan (UTC+09:00)</SelectItem>
                   </SelectContent>
@@ -873,7 +833,7 @@ export default function AccountSettings() {
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete Account</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete your account and all associated data including courses, students, and analytics.
+                  This action cannot be undone. This will permanently delete your account and all associated data.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

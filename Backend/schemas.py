@@ -585,7 +585,7 @@ class RoleResponse(RoleBase):
     id: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 # ==========================
 # Employee Schemas
 # ==========================
@@ -604,7 +604,7 @@ class EmployeeResponse(EmployeeBase):
     id: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class EmployeeUpdate(EmployeeBase):
@@ -649,7 +649,7 @@ class UserSubscriptionDetails(BaseModel):
     paymentMethod: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # ---------------------------------------------------------------------------
 # Notification Schemas
@@ -666,7 +666,7 @@ class NotificationSettings(BaseModel):
     systemMaintenance: bool = True
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 # ---------------------------------------------------------------------------
 # File Upload / Avatar Schemas
 # ---------------------------------------------------------------------------
@@ -699,7 +699,7 @@ class UserExportData(BaseModel):
     transactions: List[UserTransactionData]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class Token(BaseModel):
@@ -1095,20 +1095,20 @@ class PlatformSettings(PlatformSettingsBase):
 #             raise ValueError('Passwords do not match')
 #         return v
 
-    @validator('newPassword')
-    def password_strength(cls, v):
-        if len(v) < 8:
-            raise ValueError('Password must be at least 8 characters')
-        return v
+#     @validator('newPassword')
+#     def password_strength(cls, v):
+#         if len(v) < 8:
+#             raise ValueError('Password must be at least 8 characters')
+#         return v
 
-class UserSubscriptionDetails(BaseModel):
-    plan: str
-    status: str
-    billingCycle: str
-    nextBilling: Optional[date]
-    amount: int
-    features: List[str]
-    paymentMethod: str
+# class UserSubscriptionDetails(BaseModel):
+#     plan: str
+#     status: str
+#     billingCycle: str
+#     nextBilling: Optional[date]
+#     amount: int
+#     features: List[str]
+#     paymentMethod: str
 
 # class PasswordChange(BaseModel):
 #     currentPassword: str
@@ -1122,28 +1122,68 @@ class UserSubscriptionDetails(BaseModel):
 #         return v
     
 # MODIFY UserProfileUpdate (around line 700):
-class UserProfileUpdate(BaseModel):
-    firstName: Optional[str] = None
-    lastName: Optional[str] = None
-    email: Optional[EmailStr] = None
-    phone: Optional[str] = None
-    organization: Optional[str] = None
-    role: Optional[str] = None  # This will now be role_id
-    bio: Optional[str] = None
-    timezone: Optional[str] = None
+# class UserProfileUpdate(BaseModel):
+#     firstName: Optional[str] = None
+#     lastName: Optional[str] = None
+#     email: Optional[EmailStr] = None
+#     phone: Optional[str] = None
+#     organization: Optional[str] = None
+#     role: Optional[str] = None  # This will now be role_id
+#     bio: Optional[str] = None
+#     timezone: Optional[str] = None
 
 # MODIFY UserProfile:
-class UserProfile(BaseModel):
-    id: str
-    firstName: str
-    lastName: str
-    email: str
-    phone: Optional[str]
-    organization: Optional[str]
-    role: str  # Role name
-    role_id: Optional[str]  # Add role_id
-    bio: Optional[str]
-    timezone: str
-    # REMOVE language field
+# class UserProfile(BaseModel):
+#     id: str
+#     firstName: str
+#     lastName: str
+#     email: str
+#     phone: Optional[str]
+#     organization: Optional[str]
+#     role: str  # Role name
+#     role_id: Optional[str]  # Add role_id
+#     bio: Optional[str]
+#     timezone: str
+#     # REMOVE language field
+#     class Config:
+#         from_attributes = True
+
+
+class PasswordChange(BaseModel):
+    currentPassword: str = Field(..., min_length=6)
+    newPassword: str = Field(..., min_length=8)
+
+
+    #================FireBase Notifications Schemas==================
+class DeviceTokenCreate(BaseModel):
+        token: str
+        platform: Optional[str] = "web"
+class DeviceToken(BaseModel):
+    id: int
+    token: str
+    platform: Optional[str]
+    user_id: Optional[int]
+    revoked: bool
+    created_at: datetime
+
     class Config:
-        from_attributes = True
+        orm_mode = True
+
+class NotificationTemplateBase(BaseModel):
+    title: str
+    subtitle: Optional[str]
+    icon: Optional[str]
+    tag: str
+
+class NotificationTemplateCreate(NotificationTemplateBase):
+    pass
+
+class NotificationTemplate(NotificationTemplateBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+        

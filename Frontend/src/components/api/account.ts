@@ -11,7 +11,7 @@ export interface UserProfile {
   role: string;
   bio: string;
   timezone: string;
-  language: string;
+  // language: string;
   avatarUrl?: string;
 }
 
@@ -24,7 +24,7 @@ export interface UserProfileUpdate {
   role?: string;
   bio?: string;
   timezone?: string;
-  language?: string;
+  // language?: string;
 }
 
 export interface PasswordChange {
@@ -88,6 +88,8 @@ export const accountApi = {
     formData.append('file', file);
     
     const token = localStorage.getItem('auth_token');
+    // localStorage.setItem('user_id', User_id); 
+
     
     const response = await fetch(`http://localhost:8000/api/account/upload-avatar/${userId}`, {
       method: 'POST',

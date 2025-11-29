@@ -2712,7 +2712,7 @@ def get_user_profile_fixed(user_id: str, db: Session = Depends(get_db)):
 @app.put("/api/account/profile/{user_id}")
 def update_user_profile_fixed(
     user_id: str, 
-    profile_data: schemas.UserProfileUpdate,
+    profile_data: schemas.EmployeeUpdate,
     db: Session = Depends(get_db)
 ):
     """Update user profile - with fallback for testing"""
@@ -2932,7 +2932,7 @@ def debug_routes():
 @app.put("/api/account/profile/{user_id}")
 def update_user_profile_main(
     user_id: str, 
-    profile_data: schemas.UserProfileUpdate, 
+    profile_data: schemas.EmployeeUpdate, 
     db: Session = Depends(get_db)
 ):
     """Update user profile - direct in main"""

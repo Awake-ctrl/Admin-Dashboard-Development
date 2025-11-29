@@ -63,7 +63,7 @@ class User(Base):
     role = Column(String(50), default="Student")
     bio = Column(Text, nullable=True)
     timezone = Column(String(50), default="Asia/Kolkata")
-    language = Column(String(50), default="English")
+    # language = Column(String(50), default="English")
     avatar_url = Column(String(500), nullable=True)
     
     # Password-related (if not already present)
@@ -746,3 +746,24 @@ class PlatformSettings(Base):
     # Metadata
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+    # =============Firebase Notification Models =============
+class DeviceToken(Base):
+    __tablename__ = "device_tokens"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # optional
+    token = Column(String, unique=True, index=True, nullable=False)
+    platform = Column(String, nullable=True)  # "web", "android", "ios"
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    revoked = Column(Boolean, default=False)
+
+class NotificationTemplate(Base):
+    __tablename__ = "notification_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    subtitle = Column(String, nullable=True)
+    icon = Column(String, nullable=True)
+    tag = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
