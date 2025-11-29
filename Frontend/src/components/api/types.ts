@@ -167,8 +167,7 @@ export interface ModuleFormData {
   duration: string;
 }
 
-export interface 
-ContentFormData {
+export interface ContentFormData {
   title: string;
   description: string;
   content_type: string;

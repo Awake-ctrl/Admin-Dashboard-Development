@@ -13,9 +13,11 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-const API_BASE_URL = "http://localhost:8000/api";
+// const API_BASE_URL = "http://localhost:8000/api";
 
 export default function Settings() {
+  const API_BASE_URL = import.meta.env.VITE.API_BASE_URL + "/api";
+
   const [activeTab, setActiveTab] = useState("branding");
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);

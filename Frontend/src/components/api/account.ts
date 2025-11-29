@@ -88,8 +88,8 @@ export const accountApi = {
     formData.append('file', file);
     
     const token = localStorage.getItem('auth_token');
-    
-    const response = await fetch(`http://localhost:8000/api/account/upload-avatar/${userId}`, {
+    const API_KEY = import.meta.env.VITE_API_BASE_URL;
+    const response = await fetch(`${API_KEY}/api/account/upload-avatar/${userId}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
