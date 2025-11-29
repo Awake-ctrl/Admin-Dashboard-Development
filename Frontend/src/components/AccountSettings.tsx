@@ -38,7 +38,7 @@ import {
   XCircle,
 } from "lucide-react";
 
-const API_BASE = "http://localhost:8000";
+
 
 // Get JWT token and user ID from localStorage
 const getAuthToken = () => {
@@ -53,7 +53,7 @@ const getUserId = () => {
 // Make authenticated API calls
 const makeApiCall = async (endpoint: string, method = "GET", data?: any) => {
   const token = getAuthToken();
-  
+  const API_BASE = import.meta.env.VITE_API_BASE_URL;
   if (!token) {
     throw new Error("No authentication token found. Please login again.");
   }
@@ -182,6 +182,8 @@ export default function AccountSettings() {
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    const API_BASE = import.meta.env.VITE_API_BASE_URL;
+
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {

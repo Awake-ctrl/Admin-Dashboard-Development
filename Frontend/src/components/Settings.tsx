@@ -14,7 +14,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { settingsApi, PlatformSettings } from "./api/settings";
 
-// const API_BASE_URL = "http://localhost:8000/api";
 
 export default function Settings() {
   const API_BASE_URL = import.meta.env.VITE.API_BASE_URL + "/api";

@@ -73,8 +73,9 @@ export const settingsApi = {
     // Note: You must ensure 'api' (or a fetch wrapper) handles the base URL and auth correctly.
     // This is a direct fetch for simplicity in a file upload context.
     const token = localStorage.getItem('auth_token');
+    const API_KEY = import.meta.env.VITE_API_BASE_URL;
     
-    const response = await fetch(`http://localhost:8000/api/settings/upload-logo`, {
+    const response = await fetch(`${API_KEY}/api/settings/upload-logo`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`, 
@@ -98,8 +99,8 @@ export const settingsApi = {
     formData.append('file', file);
     
     const token = localStorage.getItem('auth_token');
-    
-    const response = await fetch(`http://localhost:8000/api/settings/upload-favicon`, {
+    const API_KEY = import.meta.env.VITE_API_BASE_URL;
+    const response = await fetch(`${API_KEY}/api/settings/upload-favicon`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
