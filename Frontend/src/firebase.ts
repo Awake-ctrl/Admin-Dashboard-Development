@@ -16,14 +16,30 @@ export const messaging = getMessaging(app);
 
 // Request user permission & FCM token
 export async function requestAndGetToken(vapidKey: string) {
+  console.log("Requesting permission...");
+
+  const permission = await Notification.requestPermission();
+
+  if (permission === "denied") {
+    console.warn("Notification permission denied");
+    return null;  // Stop here
+  }
+
+  if (permission === "default") {
+    console.warn("Notification permission was dismissed");
+    return null;
+  }
+
   try {
     const token = await getToken(messaging, { vapidKey });
+    console.log("Token received:", token);
     return token;
-  } catch (err) {
-    console.error("Failed to get token:", err);
+  } catch (error) {
+    console.error("Failed to get token:", error);
     return null;
   }
 }
+
 
 export function listenForMessages(callback: (payload: any) => void) {
   onMessage(messaging, callback);

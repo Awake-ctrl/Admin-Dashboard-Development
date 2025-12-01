@@ -103,7 +103,7 @@ async def login(login_data: EmployeeLogin, db: Session = Depends(get_db)):
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user_id": User.id,
+        "user_id": Employee.id,
         "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     }
 
