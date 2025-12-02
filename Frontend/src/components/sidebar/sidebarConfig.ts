@@ -94,12 +94,12 @@ export const systemItems = [
     icon: User,
     description: "Profile & preferences"
   },
-  {
-    id: "settings",
-    label: "Settings",
-    icon: Settings,
-    description: "Platform configuration"
-  }
+  // {
+  //   id: "settings",
+  //   label: "Settings",
+  //   icon: Settings,
+  //   description: "Platform configuration"
+  // }
 ];
 
 export const authDemoItems = [

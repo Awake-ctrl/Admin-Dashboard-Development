@@ -79,6 +79,7 @@ async def get_employee_from_token(token: str = Depends(oauth2_scheme), db: Sessi
     employee = db.query(Employee).filter(Employee.id == employee_id).first()
     if not employee:
         raise credentials_exception
+    print(employee)
     return employee
 
 # ======================

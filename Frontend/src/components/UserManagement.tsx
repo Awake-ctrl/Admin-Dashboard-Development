@@ -1019,10 +1019,10 @@ const loadData = async () => {
                                         </AlertDialogContent>
                                       </AlertDialog>
                                       
-                                      <Button variant="outline" size="sm">
-                                        <MessageSquare className="w-4 h-4 mr-2" />
-                                        Contact User
-                                      </Button>
+                                      {/* <Button variant="outline" size="sm"> */}
+                                        {/* <MessageSquare className="w-4 h-4 mr-2" /> */}
+                                        {/* Contact User */}
+                                      {/* </Button> */}
                                       
                                       <AlertDialog>
                                         <AlertDialogTrigger asChild>
